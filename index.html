@@ -285,6 +285,13 @@ input,select{font-family:'Montserrat',sans-serif}
 .cli-hist-meta{font-size:0.46rem;letter-spacing:0.14em;color:rgba(240,232,220,0.35);margin-top:3px}
 .cli-hist-status{font-size:0.46rem;letter-spacing:0.12em;margin-top:3px}
 
+/* ── FILTRO MÊS DASHBOARD ── */
+.dash-month-bar{display:flex;align-items:center;gap:10px;padding:10px 14px 2px;background:#0d0d0d;border-bottom:1px solid rgba(201,168,76,0.1);}
+.dash-month-btn{width:30px;height:30px;border-radius:50%;background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.2);color:#C9A84C;font-size:1rem;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;}
+.dash-month-label{flex:1;text-align:center;font-family:'Cormorant Garamond',serif;font-size:1rem;font-weight:300;color:#f0e8dc;}
+.dash-month-all{font-size:0.46rem;letter-spacing:0.18em;text-transform:uppercase;padding:5px 10px;border-radius:20px;cursor:pointer;border:1px solid rgba(201,168,76,0.2);background:transparent;color:rgba(201,168,76,0.5);white-space:nowrap;transition:all 0.2s;}
+.dash-month-all.active{background:rgba(201,168,76,0.15);border-color:rgba(201,168,76,0.5);color:#C9A84C;}
+
 /* ── RELATÓRIO TAB ── */
 .rel-section{padding:12px 12px 0}
 .rel-section-title{font-size:0.44rem;letter-spacing:0.34em;text-transform:uppercase;color:rgba(201,168,76,0.45);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid rgba(201,168,76,0.1)}
@@ -356,6 +363,12 @@ input,select{font-family:'Montserrat',sans-serif}
 <!-- ═══ ABA VENDAS ═══ -->
 <div id="tab-vendas" class="tab-page active">
 
+<div class="dash-month-bar">
+  <button class="dash-month-btn" onclick="dashMes(-1)">‹</button>
+  <div class="dash-month-label" id="dash-month-label">Carregando...</div>
+  <button class="dash-month-btn" onclick="dashMes(1)">›</button>
+  <button class="dash-month-all" id="dash-month-all-btn" onclick="dashToggleAll()">Tudo</button>
+</div>
 <div id="dashboard" class="dashboard"></div>
 
 <div class="progress-wrap">
@@ -625,6 +638,43 @@ input,select{font-family:'Montserrat',sans-serif}
 </div>
 
 <script>
+// ── FILTRO MÊS DASHBOARD ──────────────────────────────────────────────────
+var MESES=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+var DASH_YEAR=new Date().getFullYear(), DASH_MONTH=new Date().getMonth(), DASH_ALL=false;
+
+function dashMes(d){
+  if(DASH_ALL)return;
+  DASH_MONTH+=d;
+  if(DASH_MONTH>11){DASH_MONTH=0;DASH_YEAR++;}
+  if(DASH_MONTH<0){DASH_MONTH=11;DASH_YEAR--;}
+  renderDash();renderFooter();
+}
+function dashToggleAll(){
+  DASH_ALL=!DASH_ALL;
+  renderDash();renderFooter();
+}
+function dashSaleInPeriod(meta){
+  if(DASH_ALL)return true;
+  if(!meta||!meta.date)return false;
+  var pts=meta.date.split('-');
+  return parseInt(pts[0])===DASH_YEAR&&parseInt(pts[1])-1===DASH_MONTH;
+}
+
+function statsFiltered(){
+  var ts=0,tr=0,tp=0,pr=0,pp=0,totalSales=0;
+  getAllProducts().forEach(function(p){
+    var price=gp(p.id);
+    getSales(p.id).forEach(function(s,idx){
+      var meta=S.pagMeta&&S.pagMeta[p.id+'_'+idx]||{};
+      if(!DASH_ALL&&!dashSaleInPeriod(meta))return;
+      totalSales++;var c=ci(price,s);
+      ts+=price;tr+=c.paidAmt;tp+=c.pendingAmt;pr+=c.profitPaidEach;pp+=c.profitPendingEach;
+    });
+  });
+  var esg=getAllProducts().filter(function(p){return S.sold[p.id];}).length;
+  return{totalSales:totalSales,esg:esg,ts:ts,tr:tr,tp:tp,pr:pr,pp:pp};
+}
+
 var G='#C9A84C',R='#e8a0b8',GRN='#7dd87d',YLW='#e8c060';
 
 var CAT={
@@ -884,15 +934,21 @@ function cardH(p){
 
 // ─── RENDER ────────────────────────────────────────────────────────────────
 function renderDash(){
-  var s=stats(),pct=PRODUCTS.length?Math.round(s.esg/PRODUCTS.length*100):0;
+  // update month label
+  var lbl=document.getElementById('dash-month-label');
+  var allBtn=document.getElementById('dash-month-all-btn');
+  if(lbl)lbl.textContent=DASH_ALL?'Todas as vendas':MESES[DASH_MONTH]+' '+DASH_YEAR;
+  if(allBtn){allBtn.className='dash-month-all'+(DASH_ALL?' active':'');}
+
+  var s=DASH_ALL?stats():statsFiltered();
+  var pct=PRODUCTS.length?Math.round(s.esg/PRODUCTS.length*100):0;
   var items=[
-    {v:s.totalSales+' venda'+(s.totalSales!==1?'s':''),l:'Registradas',  c:GRN},
-    {v:s.esg+'/'+getAllProducts().length,                      l:'Esgotados',    c:G},
+    {v:s.totalSales+' venda'+(s.totalSales!==1?'s':''),l:DASH_ALL?'Registradas':'no mês',  c:GRN},
     {v:fmt(s.ts),                                       l:'Total Vendido', c:G},
     {v:fmt(s.tr),                                       l:'✓ Recebido',   c:GRN},
     {v:fmt(s.tp),                                       l:'⏳ A Receber', c:YLW},
-    {v:fmt(s.pr),                                       l:'Seu Lucro ✓',  c:R}
   ];
+  if(DASH_ALL){items.splice(1,0,{v:s.esg+'/'+getAllProducts().length,l:'Esgotados',c:G});}
   document.getElementById('dashboard').innerHTML=items.map(function(x){
     return '<div class="dash-card"><div class="dash-val" style="color:'+x.c+';">'+x.v+'</div><div class="dash-lbl">'+x.l+'</div></div>';
   }).join('');
@@ -911,7 +967,7 @@ function renderList(){
   document.getElementById('product-list').innerHTML=fl.length===0?'<div class="empty-msg">Nenhum produto encontrado</div>':fl.map(cardH).join('');
 }
 function renderFooter(){
-  var s=stats();
+  var s=DASH_ALL?stats():statsFiltered();
   document.getElementById('footer-inner').innerHTML=
     '<div class="footer-grp">'+
       fch(s.totalSales+' venda'+(s.totalSales!==1?'s':''),'registradas',G,false)+
@@ -1722,7 +1778,6 @@ function saveCliEdit(){
 
 // ── RELATÓRIO MENSAL ──────────────────────────────────────────────────────────
 var REL_YEAR=new Date().getFullYear(), REL_MONTH=new Date().getMonth();
-var MESES=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
 function relMes(d){
   REL_MONTH+=d;
