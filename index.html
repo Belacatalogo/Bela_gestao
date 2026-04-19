@@ -560,6 +560,19 @@ input,select{font-family:'Montserrat',sans-serif}
       <input id="ms-cpf" class="modal-input" type="text" placeholder="000.000.000-00">
     </div>
     <div class="modal-field">
+      <div class="modal-field-lbl">Quantidade de produtos</div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <button type="button" onclick="changeQty(-1)" style="width:36px;height:36px;border-radius:6px;background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.28);color:#e8c97a;font-size:1.1rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;">−</button>
+        <input id="ms-qty" class="modal-input" type="number" min="1" step="1" value="1" style="text-align:center;width:70px;flex-shrink:0;">
+        <button type="button" onclick="changeQty(1)" style="width:36px;height:36px;border-radius:6px;background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.28);color:#e8c97a;font-size:1.1rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;">＋</button>
+        <span style="font-size:0.52rem;letter-spacing:0.14em;text-transform:uppercase;color:rgba(240,232,220,0.3);">unidade(s)</span>
+      </div>
+    </div>
+    <div class="modal-field">
+      <div class="modal-field-lbl">Data da compra</div>
+      <input id="ms-date" class="modal-input" type="date">
+    </div>
+    <div class="modal-field">
       <div class="modal-field-lbl">Forma de pagamento</div>
       <div class="parc-sel" id="ms-parc-sel"></div>
     </div>
@@ -873,10 +886,11 @@ function chipH(pid,sale,idx){
   var price=gp(pid),c=ci(price,sale);
   var color=c.pendingAmt>0?YLW:GRN;
   var parcTxt=sale.count>1?(sale.count+'×'):'À vista';
+  var qtyTxt=sale.qty&&sale.qty>1?' · '+sale.qty+'un':'';
   return '<span class="buyer-chip" onclick="openDetailModal('+pid+','+idx+')" style="background:'+color+'12;border:1px solid '+color+'30;">'+
     '<span class="buyer-chip-init" style="background:'+color+';color:#080808;">'+ini(sale.name)+'</span>'+
     '<span class="buyer-chip-name" style="color:'+color+';">'+esc(sale.name)+'</span>'+
-    '<span class="buyer-chip-parc" style="color:'+color+'60;"> '+parcTxt+'</span>'+
+    '<span class="buyer-chip-parc" style="color:'+color+'60;"> '+parcTxt+qtyTxt+'</span>'+
   '</span>';
 }
 
@@ -1017,6 +1031,9 @@ function openSaleModal(pid,idx){
   document.getElementById('ms-name').value=sale?sale.name:'';
   document.getElementById('ms-phone').value=sale?sale.phone:'';
   document.getElementById('ms-cpf').value=sale?sale.cpf:'';
+  document.getElementById('ms-qty').value=sale?(sale.qty||1):1;
+  var _td=(function(){var t=new Date();return t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0');})();
+  document.getElementById('ms-date').value=sale?(sale.purchaseDate||_td):_td;
   _selP=sale?sale.count:1;
   renderPS();
   document.getElementById('modal-sale').classList.add('open');
@@ -1033,20 +1050,23 @@ function closeSaleModal(e){
   if(e&&e.target!==document.getElementById('modal-sale'))return;
   document.getElementById('modal-sale').classList.remove('open');_sPid=null;_sIdx=null;
 }
+function changeQty(d){var el=document.getElementById('ms-qty');var v=Math.max(1,parseInt(el.value||1)+d);el.value=v;}
 function saveSale(){
   if(_sPid===null)return;
   var name=document.getElementById('ms-name').value.trim();
   if(!name){document.getElementById('ms-name').focus();return;}
   var phone=document.getElementById('ms-phone').value.trim();
   var cpf=document.getElementById('ms-cpf').value.trim();
+  var qty=Math.max(1,parseInt(document.getElementById('ms-qty').value)||1);
+  var purchaseDate=document.getElementById('ms-date').value||'';
   var n=_selP;
   if(!S.sales[_sPid])S.sales[_sPid]=[];
   if(_sIdx!==null){
     var old=S.sales[_sPid][_sIdx]||{};
     var paid=old.paid&&old.paid.length===n?old.paid:(n===1?[true]:Array(n).fill(false));
-    S.sales[_sPid][_sIdx]={sid:old.sid||''+Date.now(),name:name,phone:phone,cpf:cpf,count:n,paid:paid};
+    S.sales[_sPid][_sIdx]={sid:old.sid||''+Date.now(),name:name,phone:phone,cpf:cpf,qty:qty,purchaseDate:purchaseDate,count:n,paid:paid};
   }else{
-    S.sales[_sPid].push({sid:''+Date.now(),name:name,phone:phone,cpf:cpf,count:n,paid:n===1?[true]:Array(n).fill(false)});
+    S.sales[_sPid].push({sid:''+Date.now(),name:name,phone:phone,cpf:cpf,qty:qty,purchaseDate:purchaseDate,count:n,paid:n===1?[true]:Array(n).fill(false)});
   }
   save();document.getElementById('modal-sale').classList.remove('open');
   recard(_sPid);renderDash();renderFooter();_sPid=null;_sIdx=null;
@@ -1065,6 +1085,8 @@ function openDetailModal(pid,idx){
   if(sale.phone)infoRows+='<div class="detail-row"><span class="detail-row-icon">📱</span><div><div class="detail-row-lbl">Telefone</div><div class="detail-row-val">'+esc(sale.phone)+'</div></div></div>';
   if(sale.cpf)infoRows+='<div class="detail-row"><span class="detail-row-icon">🪪</span><div><div class="detail-row-lbl">CPF</div><div class="detail-row-val">'+esc(sale.cpf)+'</div></div></div>';
   infoRows+='<div class="detail-row"><span class="detail-row-icon">💳</span><div><div class="detail-row-lbl">Pagamento</div><div class="detail-row-val">'+(sale.count===1?'À vista':sale.count+'× parcelas')+'</div></div></div>';
+  if(sale.qty&&sale.qty>1)infoRows+='<div class="detail-row"><span class="detail-row-icon">📦</span><div><div class="detail-row-lbl">Quantidade</div><div class="detail-row-val">'+sale.qty+' unidade'+(sale.qty>1?'s':'')+'</div></div></div>';
+  if(sale.purchaseDate)infoRows+='<div class="detail-row"><span class="detail-row-icon">📅</span><div><div class="detail-row-lbl">Data da compra</div><div class="detail-row-val">'+fmtDate(sale.purchaseDate)+'</div></div></div>';
 
   var parcH='';
   if(price>0){
