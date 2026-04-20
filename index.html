@@ -349,6 +349,10 @@ input,select{font-family:'Montserrat',sans-serif}
 <div id="header" style="background:linear-gradient(160deg,#100c04 0%,#0d0d0d 60%,#0d060a 100%);border-bottom:1px solid rgba(201,168,76,0.25);padding:28px 20px 20px;text-align:center;">
   <div style="font-family:'Cormorant Garamond',serif;font-size:clamp(2.6rem,10vw,4.2rem);font-weight:300;letter-spacing:0.35em;color:#f0e8dc;line-height:1;text-shadow:0 0 60px rgba(201,168,76,0.2);">Bela</div>
   <div style="font-size:0.53rem;letter-spacing:0.55em;text-transform:uppercase;color:#C9A84C;margin-top:8px;">Gestão de Vendas · Yasmim Andrade</div>
+  <div id="fb-status" style="margin-top:8px;display:inline-flex;align-items:center;gap:5px;font-size:0.42rem;letter-spacing:0.2em;text-transform:uppercase;color:rgba(240,232,220,0.3);background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:3px 10px;">
+    <span id="fb-dot" style="width:6px;height:6px;border-radius:50%;background:rgba(240,232,220,0.2);display:inline-block;"></span>
+    <span id="fb-label">Firebase aguardando...</span>
+  </div>
 </div>
 
 <div id="tab-nav">
@@ -1246,14 +1250,23 @@ function deleteSale(){
 load();renderAll();
 
 // Esta função é chamada após o Firebase SDK carregar (no final do body)
+function setFbStatus(ok, msg){
+  var dot=document.getElementById('fb-dot');
+  var lbl=document.getElementById('fb-label');
+  if(dot) dot.style.background=ok?'#7dd87d':'rgba(220,80,80,0.8)';
+  if(lbl) lbl.textContent=msg;
+}
+
 function iniciarFirebase(){
   try{
     var app=firebase.initializeApp({databaseURL:'https://htmls-ddd31-default-rtdb.firebaseio.com/'});
     var db=firebase.database(app);
     window._fbdb=db;
+    setFbStatus(true,'Firebase conectando...');
 
     // Listener: esgotados → sincroniza com localStorage
     db.ref('esgotados').on('value',function(snap){
+      setFbStatus(true,'Firebase ✓ conectado');
       var data=snap.val()||{};
       var mudou=false;
       getAllProducts().forEach(function(p){
@@ -1262,6 +1275,8 @@ function iniciarFirebase(){
         if(novoVal!==atualVal){if(novoVal)S.sold[p.id]=true;else delete S.sold[p.id];mudou=true;}
       });
       if(mudou)renderAll();
+    },function(err){
+      setFbStatus(false,'Firebase erro: '+err.code);
     });
 
     // Listener: produtos_custom → sincroniza customProducts do Firebase para o gestão
@@ -1462,10 +1477,14 @@ function instalarPWA(){
   if(_pwaPrompt){_pwaPrompt.prompt();_pwaPrompt=null;}
 }
 
-function toastMsg(msg){
+function toastMsg(msg,isError){
   var t=document.getElementById('toast');
-  t.textContent=msg;t.classList.add('show');
-  setTimeout(function(){t.classList.remove('show');t.textContent='✓ Salvo';},2200);
+  t.textContent=msg;
+  t.style.color=isError?'rgba(255,120,120,0.9)':'#7dd87d';
+  t.style.background=isError?'rgba(200,50,50,0.12)':'rgba(100,200,100,0.1)';
+  t.style.borderColor=isError?'rgba(200,50,50,0.3)':'rgba(100,200,100,0.3)';
+  t.classList.add('show');
+  setTimeout(function(){t.classList.remove('show');t.textContent='✓ Salvo';t.style.color='';t.style.background='';t.style.borderColor='';},3500);
 }
 
 // ─── PAGAMENTOS TAB ────────────────────────────────────────────────────────
@@ -2261,19 +2280,23 @@ function saveNewProd(){
   if(price>0)S.prices[nid]=price;
   save();
   // Publica no Firebase SOMENTE se tiver foto
-  try{
-    if(window._fbdb && foto){
-      var mostrarP=getMostrarPrecos();
-      window._fbdb.ref('produtos_custom/'+nid).set({
-        id:nid,name:name,brand:brand,category:_apCat,sub:sub,
-        foto:foto,price:(mostrarP&&price)?price:null,catalogTab:_apAba,custom:true
-      });
-      if(mostrarP&&price) window._fbdb.ref('precos/'+nid).set(price);
-    }
-  }catch(e){}
+  if(window._fbdb && foto){
+    var mostrarP=getMostrarPrecos();
+    window._fbdb.ref('produtos_custom/'+nid).set({
+      id:nid,name:name,brand:brand,category:_apCat,sub:sub,
+      foto:foto,price:(mostrarP&&price)?price:null,catalogTab:_apAba,custom:true
+    }).then(function(){
+      toastMsg('✓ Produto publicado no catálogo!');
+    }).catch(function(err){
+      toastMsg('⚠ Salvo localmente. Erro Firebase: '+err.code,true);
+    });
+    if(mostrarP&&price) window._fbdb.ref('precos/'+nid).set(price);
+  } else if(!window._fbdb){
+    toastMsg('⚠ Produto salvo só aqui. Firebase não conectou.',true);
+  }
   document.getElementById('modal-add-prod').classList.remove('open');
   renderAll();renderProdTab();
-  toastMsg(foto?'✓ Produto publicado no catálogo!':'✓ Produto salvo! Adicione uma foto para publicar no catálogo.');
+  if(!foto) toastMsg('✓ Salvo! Adicione uma foto para publicar no catálogo.');
 }
 
 
