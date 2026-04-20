@@ -1014,7 +1014,10 @@ function onPI(id,v){
   else{el.innerHTML='';}
   renderDash();renderFooter();
 }
-function toggleEsg(id){S.sold[id]=!S.sold[id];save();recard(id);renderDash();renderFooter();if(S.filter!=='todos')renderList();}
+function toggleEsg(id){S.sold[id]=!S.sold[id];save();recard(id);renderDash();renderFooter();if(S.filter!=='todos')renderList();
+  // Sincroniza com Firebase
+  try{if(window._fbdb)window._fbdb.ref('esgotados/'+id).set(S.sold[id]?true:null);}catch(e){}
+}
 function setF(f){S.filter=f;renderFilters();renderList();}
 function onSearch(v){S.search=v;renderList();}
 
@@ -1140,6 +1143,25 @@ function deleteSale(){
 }
 
 load();renderAll();
+
+// Esta função é chamada após o Firebase SDK carregar (no final do body)
+function iniciarFirebase(){
+  try{
+    var app=firebase.initializeApp({databaseURL:'https://htmls-ddd31-default-rtdb.firebaseio.com/'});
+    var db=firebase.database(app);
+    window._fbdb=db;
+    db.ref('esgotados').on('value',function(snap){
+      var data=snap.val()||{};
+      var mudou=false;
+      getAllProducts().forEach(function(p){
+        var novoVal=data[p.id]===true;
+        var atualVal=!!S.sold[p.id];
+        if(novoVal!==atualVal){if(novoVal)S.sold[p.id]=true;else delete S.sold[p.id];mudou=true;}
+      });
+      if(mudou)renderAll();
+    });
+  }catch(e){}
+}
 
 // ─── TABS ──────────────────────────────────────────────────────────────────
 function switchTab(name){
@@ -2064,5 +2086,9 @@ function savePagMeta(){
   renderPag();
 }
 </script>
+<!-- Firebase SDK (carrega por último para não bloquear o app) -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script>iniciarFirebase();</script>
 </body>
 </html>
