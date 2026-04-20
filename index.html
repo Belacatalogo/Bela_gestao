@@ -487,6 +487,13 @@ input,select{font-family:'Montserrat',sans-serif}
       <button class="cfg-btn cfg-btn-green" onclick="sincronizarPrecos()">↑ Sincronizar todos os preços agora</button>
       <div class="cfg-last-backup" id="cfg-sync-status"></div>
     </div>
+
+    <div class="cfg-card">
+      <div class="cfg-card-title">📦 Sincronizar produtos com o catálogo</div>
+      <div class="cfg-card-desc">Publica no catálogo todos os produtos que você tem aqui no gestão <strong style="color:#e8c97a;">com foto cadastrada</strong>. Produtos sem foto são ignorados. Produtos removidos do gestão são removidos do catálogo também.</div>
+      <button class="cfg-btn cfg-btn-gold" onclick="sincronizarProdutos()">⟳ Sincronizar produtos agora</button>
+      <div class="cfg-last-backup" id="cfg-sync-prod-status"></div>
+    </div>
   </div>
 
   <div class="cfg-section">
@@ -1280,7 +1287,6 @@ function iniciarFirebase(){
     });
 
     // Listener: produtos_custom → sincroniza customProducts do Firebase para o gestão
-    // (útil se abrir o gestão em outro dispositivo)
     db.ref('produtos_custom').once('value',function(snap){
       var data=snap.val()||{};
       var fbIds=Object.keys(data).map(Number);
@@ -1293,9 +1299,22 @@ function iniciarFirebase(){
           S.customProducts.push({id:p.id,name:p.name,brand:p.brand,category:p.category,sub:p.sub||'',custom:true,foto:p.foto||'',catalogTab:p.catalogTab||'todos'});
           if(p.price)S.prices[p.id]=p.price;
           novos++;
+        } else {
+          // Atualiza preço do produto existente se vier do Firebase
+          var p=data[id];
+          if(p && p.price) S.prices[p.id]=p.price;
         }
       });
       if(novos>0){save();renderAll();renderProdTab();toastMsg(novos+' produto(s) sincronizado(s) do Firebase');}
+    });
+
+    // Listener: precos → atualiza preços locais em tempo real (inclui produtos fixos)
+    db.ref('precos').on('value',function(snap){
+      var data=snap.val()||{};
+      Object.keys(data).forEach(function(id){
+        var numId=Number(id);
+        if(data[id]>0) S.prices[numId]=data[id];
+      });
     });
 
   }catch(e){}
@@ -1398,8 +1417,24 @@ function toggleMostrarPrecos(){
   var atual=getMostrarPrecos();
   var novo=!atual;
   try{localStorage.setItem('bela-mostrar-precos',String(novo));}catch(e){}
-  // Sincroniza com Firebase
   try{if(window._fbdb)window._fbdb.ref('config/mostrarPrecos').set(novo);}catch(e){}
+  // Se ativou mostrar precos: re-publica todos os precos no Firebase
+  if(novo && window._fbdb){
+    getAllProducts().forEach(function(p){
+      var price=gp(p.id);
+      if(price>0){
+        window._fbdb.ref('precos/'+p.id).set(price);
+        if(p.custom) window._fbdb.ref('produtos_custom/'+p.id+'/price').set(price);
+      }
+    });
+  }
+  // Se ocultou: remove todos os precos do Firebase
+  if(!novo && window._fbdb){
+    getAllProducts().forEach(function(p){
+      window._fbdb.ref('precos/'+p.id).remove();
+      if(p.custom) window._fbdb.ref('produtos_custom/'+p.id+'/price').set(null);
+    });
+  }
   renderConfigPrecos();
   toastMsg(novo?'✓ Preços visíveis no catálogo':'✓ Preços ocultados no catálogo');
 }
@@ -1416,22 +1451,92 @@ function renderConfigPrecos(){
 function sincronizarPrecos(){
   if(!window._fbdb){toastMsg('⚠ Firebase não conectado');return;}
   var total=0;
+  var mostrarP=getMostrarPrecos();
   var produtos=getAllProducts();
   produtos.forEach(function(p){
     var price=gp(p.id);
-    if(price>0){
-      // Produtos customizados
+    if(price>0 && mostrarP){
       if(p.custom){
         window._fbdb.ref('produtos_custom/'+p.id+'/price').set(price);
       }
-      // Todos os preços em nó separado para o catálogo ler
       window._fbdb.ref('precos/'+p.id).set(price);
       total++;
+    } else if(!mostrarP){
+      window._fbdb.ref('precos/'+p.id).remove();
+      if(p.custom) window._fbdb.ref('produtos_custom/'+p.id+'/price').set(null);
     }
   });
   var statusEl=document.getElementById('cfg-sync-status');
-  if(statusEl) statusEl.textContent='✓ '+total+' preço(s) sincronizado(s) agora às '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
-  toastMsg('✓ '+total+' preços enviados ao catálogo!');
+  if(statusEl){
+    if(mostrarP) statusEl.textContent='✓ '+total+' preço(s) sincronizado(s) às '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+    else statusEl.textContent='✓ Preços ocultados no catálogo às '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  }
+  toastMsg(mostrarP?'✓ '+total+' preços enviados ao catálogo!':'✓ Preços removidos do catálogo!');
+}
+
+// ── SINCRONIZAR PRODUTOS COM FIREBASE ────────────────────────────────────────
+function sincronizarProdutos(){
+  if(!window._fbdb){toastMsg('⚠ Firebase não conectado');return;}
+
+  var mostrarP = getMostrarPrecos();
+  var produtos = getAllProducts();
+  var publicados = 0;
+  var removidos = 0;
+
+  // Busca o que já está no Firebase para comparar
+  window._fbdb.ref('produtos_custom').once('value', function(snap){
+    var fbData = snap.val() || {};
+    var fbIds = Object.keys(fbData).map(Number);
+
+    // Monta o conjunto de IDs locais COM foto
+    var localComFoto = {};
+    produtos.forEach(function(p){
+      if(p.custom && p.foto){
+        localComFoto[p.id] = p;
+      }
+    });
+
+    // Produtos que estão no Firebase mas não existem mais no gestão (ou ficaram sem foto) → remover
+    fbIds.forEach(function(fbId){
+      if(!localComFoto[fbId]){
+        window._fbdb.ref('produtos_custom/' + fbId).remove();
+        window._fbdb.ref('precos/' + fbId).remove();
+        removidos++;
+      }
+    });
+
+    // Publica / atualiza todos os produtos locais com foto
+    Object.keys(localComFoto).forEach(function(id){
+      var p = localComFoto[id];
+      var price = gp(p.id);
+      var payload = {
+        id: p.id,
+        name: p.name,
+        brand: p.brand,
+        category: p.category,
+        sub: p.sub || '',
+        foto: p.foto,
+        price: (mostrarP && price > 0) ? price : null,
+        catalogTab: p.catalogTab || 'todos',
+        custom: true
+      };
+      window._fbdb.ref('produtos_custom/' + p.id).set(payload);
+      if(mostrarP && price > 0){
+        window._fbdb.ref('precos/' + p.id).set(price);
+      } else {
+        window._fbdb.ref('precos/' + p.id).remove();
+      }
+      publicados++;
+    });
+
+    var agora = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+    var statusEl = document.getElementById('cfg-sync-prod-status');
+    var msg = '✓ ' + publicados + ' produto(s) publicado(s)';
+    if(removidos > 0) msg += ' · ' + removidos + ' removido(s)';
+    msg += ' — ' + agora;
+    if(statusEl) statusEl.textContent = msg;
+    toastMsg('✓ ' + publicados + ' produtos sincronizados!');
+  });
 }
 
 function renderConfig(){
@@ -2212,9 +2317,14 @@ function removeCustomProd(id){
   S.customProducts=(S.customProducts||[]).filter(function(p){return p.id!==id;});
   delete S.prices[id];delete S.sold[id];delete S.sales[id];
   save();renderAll();renderProdTab();
-  // Remove do Firebase
-  try{if(window._fbdb){window._fbdb.ref('produtos_custom/'+id).remove();}}catch(e){}
-  toastMsg('Produto removido do catálogo');
+  // Remove do Firebase (produto E preço)
+  try{
+    if(window._fbdb){
+      window._fbdb.ref('produtos_custom/'+id).remove();
+      window._fbdb.ref('precos/'+id).remove();
+    }
+  }catch(e){}
+  toastMsg('✓ Produto removido do catálogo');
 }
 
 function openAddProdModal(){
