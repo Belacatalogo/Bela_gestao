@@ -440,8 +440,16 @@ input,select{font-family:'Montserrat',sans-serif}
     <div class="cfg-section-title">Gerenciar Produtos</div>
     <div class="cfg-card">
       <div class="cfg-card-title">➕ Adicionar produto</div>
-      <div class="cfg-card-desc">Adicione um produto novo ao seu catálogo. Ele aparece misturado com os outros na aba Vendas e entra no backup automaticamente.</div>
+      <div class="cfg-card-desc">Adicione um produto novo ao seu catálogo. Sem foto, ele fica salvo aqui mas não vai ao catálogo.</div>
       <button class="cfg-btn cfg-btn-gold" onclick="openAddProdModal()">+ Novo produto</button>
+    </div>
+    <div class="cfg-card">
+      <div class="cfg-card-title">✏️ Editar produto existente</div>
+      <div class="cfg-card-desc">Busque um produto para editar foto, preço, aba ou descrição. Produtos sem foto não aparecem no catálogo.</div>
+      <div style="position:relative;margin-bottom:8px;">
+        <input id="edit-prod-search" class="modal-input" type="text" placeholder="🔍 Buscar produto pelo nome..." oninput="buscarProdEdit(this.value)" autocomplete="off">
+      </div>
+      <div id="edit-prod-results" style="display:none;max-height:220px;overflow-y:auto;border:1px solid rgba(201,168,76,0.15);border-radius:6px;"></div>
     </div>
   </div>
   <div class="cfg-section">
@@ -454,6 +462,26 @@ input,select{font-family:'Montserrat',sans-serif}
 
 <!-- ═══ ABA CONFIG / BACKUP ═══ -->
 <div id="tab-config" class="tab-page">
+
+  <div class="cfg-section">
+    <div class="cfg-section-title">Configurações do Catálogo</div>
+
+    <div class="cfg-card">
+      <div class="cfg-card-title">💰 Mostrar preços no catálogo</div>
+      <div class="cfg-card-desc">Quando ativado, os preços aparecem nos produtos do catálogo para as clientes. Quando desativado, aparece &quot;Consulte&quot; no lugar do preço.</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <span id="cfg-preco-status" style="font-size:0.6rem;letter-spacing:0.14em;text-transform:uppercase;color:rgba(240,232,220,0.5);">Carregando...</span>
+        <button id="cfg-preco-toggle" onclick="toggleMostrarPrecos()" class="cfg-btn cfg-btn-gold" style="width:auto;padding:9px 18px;margin:0;">...</button>
+      </div>
+    </div>
+
+    <div class="cfg-card">
+      <div class="cfg-card-title">🔄 Sincronizar preços com o catálogo</div>
+      <div class="cfg-card-desc">Envia para o catálogo os preços que você já cadastrou nos produtos aqui no gestão. Assim você não precisa redigitar os preços dos produtos existentes.</div>
+      <button class="cfg-btn cfg-btn-green" onclick="sincronizarPrecos()">↑ Sincronizar todos os preços agora</button>
+      <div class="cfg-last-backup" id="cfg-sync-status"></div>
+    </div>
+  </div>
 
   <div class="cfg-section">
     <div class="cfg-section-title">Backup dos Dados</div>
@@ -611,12 +639,76 @@ input,select{font-family:'Montserrat',sans-serif}
       <input id="ap-sub" class="modal-input" type="text" placeholder="Ex: Deo Parfum 90ml">
     </div>
     <div class="modal-field">
-      <div class="modal-field-lbl">Categoria</div>
+      <div class="modal-field-lbl">Preço de Venda (R$)</div>
+      <div class="price-inner" style="margin-top:2px;">
+        <span class="price-rs" style="font-size:0.8rem;">R$</span>
+        <input id="ap-price" class="modal-input" type="number" min="0" step="0.01" placeholder="0,00" style="width:100%;">
+      </div>
+    </div>
+    <div class="modal-field">
+      <div class="modal-field-lbl">URL da Foto <span style="color:rgba(240,232,220,0.25);font-size:0.4rem;"> — cole o link do imgbb</span></div>
+      <input id="ap-foto" class="modal-input" type="url" placeholder="https://i.ibb.co/...">
+      <div id="ap-foto-preview" style="margin-top:6px;display:none;"><img id="ap-foto-img" src="" alt="Preview" style="width:80px;height:80px;object-fit:cover;border-radius:5px;border:1px solid rgba(201,168,76,0.3);"></div>
+    </div>
+    <div class="modal-field">
+      <div class="modal-field-lbl">Categoria (Gestão)</div>
       <div class="parc-sel" id="ap-cat-sel" style="flex-wrap:wrap;gap:5px;"></div>
+    </div>
+    <div class="modal-field">
+      <div class="modal-field-lbl">Aba no Catálogo *</div>
+      <div class="parc-sel" id="ap-aba-sel" style="flex-wrap:wrap;gap:5px;"></div>
     </div>
     <div class="modal-btns">
       <button class="modal-btn-cancel" onclick="closeAddProdModal()">Cancelar</button>
-      <button class="modal-btn-save" onclick="saveNewProd()">Salvar</button>
+      <button class="modal-btn-save" onclick="saveNewProd()">Salvar & Publicar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: EDITAR PRODUTO -->
+<div id="modal-edit-prod" class="modal-overlay" onclick="closeEditProdModal(event)">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Editar Produto</div>
+    <div class="modal-sub" id="ep-sub">Editando produto</div>
+    <div class="modal-field">
+      <div class="modal-field-lbl">Nome</div>
+      <input id="ep-name" class="modal-input" type="text">
+    </div>
+    <div class="modal-field">
+      <div class="modal-field-lbl">Marca</div>
+      <input id="ep-brand" class="modal-input" type="text">
+    </div>
+    <div class="modal-field">
+      <div class="modal-field-lbl">Descrição</div>
+      <input id="ep-sub-input" class="modal-input" type="text">
+    </div>
+    <div class="modal-field">
+      <div class="modal-field-lbl">Preço de Venda (R$)</div>
+      <div class="price-inner" style="margin-top:2px;">
+        <span class="price-rs" style="font-size:0.8rem;">R$</span>
+        <input id="ep-price" class="modal-input" type="number" min="0" step="0.01" placeholder="0,00" style="width:100%;">
+      </div>
+    </div>
+    <div class="modal-field">
+      <div class="modal-field-lbl">URL da Foto <span style="color:rgba(240,232,220,0.25);font-size:0.4rem;"> — cole o link do imgbb</span></div>
+      <input id="ep-foto" class="modal-input" type="url" placeholder="https://i.ibb.co/...">
+      <div id="ep-foto-preview" style="margin-top:6px;display:none;"><img id="ep-foto-img" src="" alt="Preview" style="width:80px;height:80px;object-fit:cover;border-radius:5px;border:1px solid rgba(201,168,76,0.3);"></div>
+    </div>
+    <div class="modal-field">
+      <div class="modal-field-lbl">Categoria (Gestão)</div>
+      <div class="parc-sel" id="ep-cat-sel" style="flex-wrap:wrap;gap:5px;"></div>
+    </div>
+    <div class="modal-field">
+      <div class="modal-field-lbl">Aba no Catálogo</div>
+      <div class="parc-sel" id="ep-aba-sel" style="flex-wrap:wrap;gap:5px;"></div>
+    </div>
+    <div id="ep-sem-foto-aviso" style="display:none;background:rgba(232,192,96,0.07);border:1px solid rgba(232,192,96,0.25);border-radius:6px;padding:10px 12px;font-size:0.52rem;color:rgba(232,192,96,0.8);letter-spacing:0.1em;margin-bottom:4px;">
+      ⚠ Sem foto — este produto não aparece no catálogo. Adicione uma foto para publicar.
+    </div>
+    <div class="modal-btns">
+      <button class="modal-btn-cancel" onclick="closeEditProdModal()">Cancelar</button>
+      <button class="modal-btn-save" onclick="saveEditProd()">Salvar & Publicar</button>
     </div>
   </div>
 </div>
@@ -1015,6 +1107,11 @@ function onPI(id,v){
   if(price>0){el.className='profit-boxes';el.innerHTML=pboxH('Lucro 15%',fmt(price*0.15),G)+pboxH('Sua parte 7,5%',fmt(price*0.075),R)+pboxH('Sócia 7,5%',fmt(price*0.075),R);}
   else{el.innerHTML='';}
   renderDash();renderFooter();
+  // Sincroniza preço com Firebase se for produto customizado
+  try{
+    var cp=S.customProducts&&S.customProducts.find(function(p){return p.id===id;});
+    if(cp&&window._fbdb)window._fbdb.ref('produtos_custom/'+id+'/price').set(price||null);
+  }catch(e){}
 }
 function toggleEsg(id){S.sold[id]=!S.sold[id];save();recard(id);renderDash();renderFooter();if(S.filter!=='todos')renderList();
   // Sincroniza com Firebase
@@ -1152,6 +1249,8 @@ function iniciarFirebase(){
     var app=firebase.initializeApp({databaseURL:'https://htmls-ddd31-default-rtdb.firebaseio.com/'});
     var db=firebase.database(app);
     window._fbdb=db;
+
+    // Listener: esgotados → sincroniza com localStorage
     db.ref('esgotados').on('value',function(snap){
       var data=snap.val()||{};
       var mudou=false;
@@ -1162,6 +1261,26 @@ function iniciarFirebase(){
       });
       if(mudou)renderAll();
     });
+
+    // Listener: produtos_custom → sincroniza customProducts do Firebase para o gestão
+    // (útil se abrir o gestão em outro dispositivo)
+    db.ref('produtos_custom').once('value',function(snap){
+      var data=snap.val()||{};
+      var fbIds=Object.keys(data).map(Number);
+      var localIds=(S.customProducts||[]).map(function(p){return p.id;});
+      var novos=0;
+      fbIds.forEach(function(id){
+        if(localIds.indexOf(id)<0){
+          var p=data[id];
+          if(!S.customProducts)S.customProducts=[];
+          S.customProducts.push({id:p.id,name:p.name,brand:p.brand,category:p.category,sub:p.sub||'',custom:true,foto:p.foto||'',catalogTab:p.catalogTab||'todos'});
+          if(p.price)S.prices[p.id]=p.price;
+          novos++;
+        }
+      });
+      if(novos>0){save();renderAll();renderProdTab();toastMsg(novos+' produto(s) sincronizado(s) do Firebase');}
+    });
+
   }catch(e){}
 }
 
@@ -1251,7 +1370,56 @@ function apagarTudo(){
   toastMsg('Dados apagados');
 }
 
+// ── MOSTRAR PREÇOS NO CATÁLOGO ──────────────────────────────────────────────
+function getMostrarPrecos(){
+  try{
+    var v=localStorage.getItem('bela-mostrar-precos');
+    return v===null?true:(v==='true');
+  }catch(e){return true;}
+}
+function toggleMostrarPrecos(){
+  var atual=getMostrarPrecos();
+  var novo=!atual;
+  try{localStorage.setItem('bela-mostrar-precos',String(novo));}catch(e){}
+  // Sincroniza com Firebase
+  try{if(window._fbdb)window._fbdb.ref('config/mostrarPrecos').set(novo);}catch(e){}
+  renderConfigPrecos();
+  toastMsg(novo?'✓ Preços visíveis no catálogo':'✓ Preços ocultados no catálogo');
+}
+function renderConfigPrecos(){
+  var ativo=getMostrarPrecos();
+  var st=document.getElementById('cfg-preco-status');
+  var btn=document.getElementById('cfg-preco-toggle');
+  if(st) st.textContent=ativo?'✓ Preços visíveis':'○ Preços ocultos';
+  if(st) st.style.color=ativo?'#7dd87d':'rgba(240,232,220,0.35)';
+  if(btn){btn.textContent=ativo?'Ocultar preços':'Mostrar preços';btn.className='cfg-btn '+(ativo?'cfg-btn-red':'cfg-btn-green');btn.style.cssText='width:auto;padding:9px 18px;margin:0;';}
+}
+
+// ── SINCRONIZAR PREÇOS COM FIREBASE ──────────────────────────────────────────
+function sincronizarPrecos(){
+  if(!window._fbdb){toastMsg('⚠ Firebase não conectado');return;}
+  var total=0;
+  var produtos=getAllProducts();
+  produtos.forEach(function(p){
+    var price=gp(p.id);
+    if(price>0){
+      // Produtos customizados
+      if(p.custom){
+        window._fbdb.ref('produtos_custom/'+p.id+'/price').set(price);
+      }
+      // Todos os preços em nó separado para o catálogo ler
+      window._fbdb.ref('precos/'+p.id).set(price);
+      total++;
+    }
+  });
+  var statusEl=document.getElementById('cfg-sync-status');
+  if(statusEl) statusEl.textContent='✓ '+total+' preço(s) sincronizado(s) agora às '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  toastMsg('✓ '+total+' preços enviados ao catálogo!');
+}
+
 function renderConfig(){
+  // preços toggle
+  renderConfigPrecos();
   // info
   var nVendas=0;
   Object.values(S.sales||{}).forEach(function(arr){nVendas+=arr.length;});
@@ -1976,6 +2144,17 @@ function renderCobrancas(){
 
 // ── PRODUTOS CUSTOMIZADOS ─────────────────────────────────────────────────────
 var _apCat='feminino';
+var _apAba='todos';
+
+var ABAS_CATALOGO=[
+  {id:'todos',      label:'Todos'},
+  {id:'colecao',    label:'Coleção'},
+  {id:'maes',       label:'Dia das Mães'},
+  {id:'beleza',     label:'Beleza & Kids'},
+  {id:'maquiagens', label:'Maquiagens'},
+  {id:'infantis',   label:'Infantis'},
+];
+
 function renderProdTab(){
   var list=document.getElementById('custom-prod-list');
   var empty=document.getElementById('custom-prod-empty');
@@ -1985,31 +2164,61 @@ function renderProdTab(){
   empty.style.display='none';
   list.innerHTML=prods.map(function(p){
     var cat=CAT[p.category]||{label:p.category,color:'#C9A84C'};
-    return '<div class="cprod-card">'+
+    var abaInfo=ABAS_CATALOGO.find(function(a){return a.id===p.catalogTab;})||{label:'Todos'};
+    var semFoto=!p.foto;
+    return '<div class="cprod-card" style="'+(semFoto?'border-color:rgba(232,192,96,0.25);':'')+'">' +
+      (p.foto
+        ? '<img src="'+esc(p.foto)+'" alt="'+esc(p.name)+'" style="width:48px;height:48px;object-fit:cover;border-radius:4px;flex-shrink:0;">'
+        : '<div style="width:48px;height:48px;border-radius:4px;background:rgba(232,192,96,0.07);border:1px dashed rgba(232,192,96,0.3);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;position:relative;" title="Sem foto — não aparece no catálogo">📷</div>')+
       '<div class="cprod-info">'+
         '<div class="cprod-name">'+esc(p.name)+'</div>'+
         '<div class="cprod-brand" style="color:'+cat.color+';">'+esc(p.brand)+'</div>'+
         (p.sub?'<div class="cprod-sub">'+esc(p.sub)+'</div>':'')+
+        '<div style="margin-top:3px;font-size:0.4rem;letter-spacing:0.2em;color:'+(semFoto?'rgba(232,192,96,0.55)':'rgba(201,168,76,0.45)')+';">'+
+          (semFoto?'⚠ Sem foto — fora do catálogo':'📂 '+abaInfo.label+(gp(p.id)>0?' · '+fmt(gp(p.id)):''))+
+        '</div>'+
       '</div>'+
-      '<button class="cprod-del" onclick="removeCustomProd('+p.id+')">✕</button>'+
+      '<div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0;">'+
+        '<button class="cprod-del" style="background:rgba(201,168,76,0.08);border-color:rgba(201,168,76,0.25);color:#e8c97a;font-size:0.7rem;" onclick="openEditProdModal('+p.id+')">✏</button>'+
+        '<button class="cprod-del" onclick="removeCustomProd('+p.id+')">✕</button>'+
+      '</div>'+
     '</div>';
   }).join('');
 }
+
 function removeCustomProd(id){
   if(!confirm('Remover este produto? As vendas registradas nele serao perdidas.'))return;
   S.customProducts=(S.customProducts||[]).filter(function(p){return p.id!==id;});
   delete S.prices[id];delete S.sold[id];delete S.sales[id];
   save();renderAll();renderProdTab();
+  // Remove do Firebase
+  try{if(window._fbdb){window._fbdb.ref('produtos_custom/'+id).remove();}}catch(e){}
+  toastMsg('Produto removido do catálogo');
 }
+
 function openAddProdModal(){
   _apCat='feminino';
+  _apAba='todos';
   document.getElementById('ap-name').value='';
   document.getElementById('ap-brand').value='';
   document.getElementById('ap-sub').value='';
+  document.getElementById('ap-price').value='';
+  document.getElementById('ap-foto').value='';
+  document.getElementById('ap-foto-preview').style.display='none';
   renderApCats();
+  renderApAbas();
   document.getElementById('modal-add-prod').classList.add('open');
   setTimeout(function(){document.getElementById('ap-name').focus();},350);
+  // Preview de foto ao colar URL
+  document.getElementById('ap-foto').oninput=function(){
+    var url=this.value.trim();
+    var prev=document.getElementById('ap-foto-preview');
+    var img=document.getElementById('ap-foto-img');
+    if(url){img.src=url;prev.style.display='block';}
+    else{prev.style.display='none';}
+  };
 }
+
 function renderApCats(){
   var cats=['feminino','masculino','kit','hidratante','maes','kids'];
   document.getElementById('ap-cat-sel').innerHTML=cats.map(function(c){
@@ -2019,29 +2228,206 @@ function renderApCats(){
   }).join('');
 }
 function selApCat(c){_apCat=c;renderApCats();}
+
+function renderApAbas(){
+  document.getElementById('ap-aba-sel').innerHTML=ABAS_CATALOGO.map(function(a){
+    var active=_apAba===a.id;
+    var col='#C9A84C';
+    return '<button type="button" class="ap-cat-btn'+(active?' active':'')+'" style="'+(active?'background:'+col+';border-color:'+col+';color:#080808;':'')+'" onclick="selApAba(\''+a.id+'\')">'+a.label+'</button>';
+  }).join('');
+}
+function selApAba(a){_apAba=a;renderApAbas();}
+
 function closeAddProdModal(e){
   if(e&&e.target!==document.getElementById('modal-add-prod'))return;
   document.getElementById('modal-add-prod').classList.remove('open');
 }
+
 function saveNewProd(){
   var name=document.getElementById('ap-name').value.trim();
   var brand=document.getElementById('ap-brand').value.trim();
   var sub=document.getElementById('ap-sub').value.trim();
+  var foto=document.getElementById('ap-foto').value.trim();
+  var price=parseFloat(String(document.getElementById('ap-price').value).replace(',','.'))||0;
   if(!name){document.getElementById('ap-name').focus();return;}
   if(!brand){document.getElementById('ap-brand').focus();return;}
   if(!S.customProducts)S.customProducts=[];
   var usedIds=getAllProducts().map(function(p){return p.id;});
   var nid=1000;while(usedIds.indexOf(nid)>=0)nid++;
-  S.customProducts.push({id:nid,name:name,brand:brand,category:_apCat,sub:sub,custom:true});
+  var newProd={id:nid,name:name,brand:brand,category:_apCat,sub:sub,custom:true,foto:foto,catalogTab:_apAba};
+  S.customProducts.push(newProd);
+  if(price>0)S.prices[nid]=price;
   save();
+  // Publica no Firebase SOMENTE se tiver foto
+  try{
+    if(window._fbdb && foto){
+      var mostrarP=getMostrarPrecos();
+      window._fbdb.ref('produtos_custom/'+nid).set({
+        id:nid,name:name,brand:brand,category:_apCat,sub:sub,
+        foto:foto,price:(mostrarP&&price)?price:null,catalogTab:_apAba,custom:true
+      });
+      if(mostrarP&&price) window._fbdb.ref('precos/'+nid).set(price);
+    }
+  }catch(e){}
   document.getElementById('modal-add-prod').classList.remove('open');
   renderAll();renderProdTab();
-  toastMsg('Produto adicionado');
+  toastMsg(foto?'✓ Produto publicado no catálogo!':'✓ Produto salvo! Adicione uma foto para publicar no catálogo.');
 }
 
 
 function togglePagParc(pid,idx,i){
   togglePagParcWithHist(pid,idx,i);
+}
+
+// ── BUSCA DE PRODUTO PARA EDITAR ─────────────────────────────────────────────
+function buscarProdEdit(q){
+  var results=document.getElementById('edit-prod-results');
+  if(!results)return;
+  q=q.trim().toLowerCase();
+  if(!q){results.style.display='none';results.innerHTML='';return;}
+  var prods=(S.customProducts||[]).filter(function(p){
+    return p.name.toLowerCase().indexOf(q)>=0||p.brand.toLowerCase().indexOf(q)>=0;
+  });
+  if(!prods.length){
+    results.style.display='block';
+    results.innerHTML='<div style="padding:12px;font-size:0.6rem;color:rgba(240,232,220,0.3);text-align:center;letter-spacing:0.2em;">Nenhum produto encontrado</div>';
+    return;
+  }
+  results.style.display='block';
+  results.innerHTML=prods.map(function(p){
+    var semFoto=!p.foto;
+    return '<div onclick="openEditProdModal('+p.id+')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.05);transition:background 0.2s;" onmouseover="this.style.background=\'rgba(201,168,76,0.07)\'" onmouseout="this.style.background=\'\'">'+
+      (p.foto
+        ? '<img src="'+esc(p.foto)+'" style="width:38px;height:38px;object-fit:cover;border-radius:4px;flex-shrink:0;">'
+        : '<div style="width:38px;height:38px;border-radius:4px;background:rgba(232,192,96,0.07);border:1px dashed rgba(232,192,96,0.3);display:flex;align-items:center;justify-content:center;font-size:0.9rem;flex-shrink:0;">📷</div>')+
+      '<div style="flex:1;min-width:0;">'+
+        '<div style="font-family:\'Cormorant Garamond\',serif;font-size:0.95rem;color:#f0e8dc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(p.name)+'</div>'+
+        '<div style="font-size:0.44rem;letter-spacing:0.2em;color:'+(semFoto?'rgba(232,192,96,0.55)':'rgba(201,168,76,0.5)')+';">'+
+          (semFoto?'⚠ Sem foto':esc(p.brand))+
+        '</div>'+
+      '</div>'+
+      '<div style="font-size:0.7rem;color:rgba(201,168,76,0.5);">✏</div>'+
+    '</div>';
+  }).join('');
+}
+
+// ── MODAL EDITAR PRODUTO ──────────────────────────────────────────────────────
+var _epId=null;
+var _epCat='feminino';
+var _epAba='todos';
+
+function openEditProdModal(id){
+  var p=(S.customProducts||[]).find(function(x){return x.id===id;});
+  if(!p)return;
+  _epId=id;
+  _epCat=p.category||'feminino';
+  _epAba=p.catalogTab||'todos';
+
+  document.getElementById('ep-sub').textContent=p.name;
+  document.getElementById('ep-name').value=p.name;
+  document.getElementById('ep-brand').value=p.brand;
+  document.getElementById('ep-sub-input').value=p.sub||'';
+  document.getElementById('ep-price').value=gp(id)||'';
+  document.getElementById('ep-foto').value=p.foto||'';
+
+  // preview foto
+  var prev=document.getElementById('ep-foto-preview');
+  var img=document.getElementById('ep-foto-img');
+  if(p.foto){img.src=p.foto;prev.style.display='block';}
+  else{prev.style.display='none';}
+
+  // aviso sem foto
+  document.getElementById('ep-sem-foto-aviso').style.display=p.foto?'none':'block';
+
+  // preview listener
+  document.getElementById('ep-foto').oninput=function(){
+    var url=this.value.trim();
+    if(url){img.src=url;prev.style.display='block';document.getElementById('ep-sem-foto-aviso').style.display='none';}
+    else{prev.style.display='none';document.getElementById('ep-sem-foto-aviso').style.display='block';}
+  };
+
+  renderEpCats();
+  renderEpAbas();
+
+  // Limpa busca
+  var inp=document.getElementById('edit-prod-search');
+  var res=document.getElementById('edit-prod-results');
+  if(inp)inp.value='';
+  if(res){res.style.display='none';res.innerHTML='';}
+
+  document.getElementById('modal-edit-prod').classList.add('open');
+}
+
+function closeEditProdModal(e){
+  if(e&&e.target!==document.getElementById('modal-edit-prod'))return;
+  document.getElementById('modal-edit-prod').classList.remove('open');
+  _epId=null;
+}
+
+function renderEpCats(){
+  var cats=['feminino','masculino','kit','hidratante','maes','kids'];
+  document.getElementById('ep-cat-sel').innerHTML=cats.map(function(c){
+    var info=CAT[c]||{label:c};var a=_epCat===c;
+    var col=(CAT[c]&&CAT[c].color)||'#C9A84C';
+    return '<button type="button" class="ap-cat-btn'+(a?' active':'')+'" style="'+(a?'background:'+col+';border-color:'+col+';color:#080808;':'')+'" onclick="selEpCat(\''+c+'\')" >'+info.label+'</button>';
+  }).join('');
+}
+function selEpCat(c){_epCat=c;renderEpCats();}
+
+function renderEpAbas(){
+  document.getElementById('ep-aba-sel').innerHTML=ABAS_CATALOGO.map(function(a){
+    var active=_epAba===a.id;
+    var col='#C9A84C';
+    return '<button type="button" class="ap-cat-btn'+(active?' active':'')+'" style="'+(active?'background:'+col+';border-color:'+col+';color:#080808;':'')+'" onclick="selEpAba(\''+a.id+'\')" >'+a.label+'</button>';
+  }).join('');
+}
+function selEpAba(a){_epAba=a;renderEpAbas();}
+
+function saveEditProd(){
+  if(_epId===null)return;
+  var name=document.getElementById('ep-name').value.trim();
+  var brand=document.getElementById('ep-brand').value.trim();
+  var sub=document.getElementById('ep-sub-input').value.trim();
+  var foto=document.getElementById('ep-foto').value.trim();
+  var price=parseFloat(String(document.getElementById('ep-price').value).replace(',','.'))||0;
+  if(!name){document.getElementById('ep-name').focus();return;}
+  if(!brand){document.getElementById('ep-brand').focus();return;}
+
+  var prods=S.customProducts||[];
+  var idx=prods.findIndex(function(p){return p.id===_epId;});
+  if(idx<0)return;
+
+  prods[idx].name=name;
+  prods[idx].brand=brand;
+  prods[idx].sub=sub;
+  prods[idx].foto=foto;
+  prods[idx].category=_epCat;
+  prods[idx].catalogTab=_epAba;
+  if(price>0) S.prices[_epId]=price;
+
+  save();
+
+  // Sincroniza Firebase — só publica se tiver foto
+  try{
+    if(window._fbdb){
+      if(foto){
+        var mostrarP=getMostrarPrecos();
+        window._fbdb.ref('produtos_custom/'+_epId).set({
+          id:_epId,name:name,brand:brand,category:_epCat,sub:sub,
+          foto:foto,price:(mostrarP&&price)?price:null,catalogTab:_epAba,custom:true
+        });
+        if(mostrarP&&price) window._fbdb.ref('precos/'+_epId).set(price);
+      } else {
+        // Remove do catálogo se tirou a foto
+        window._fbdb.ref('produtos_custom/'+_epId).remove();
+      }
+    }
+  }catch(e){}
+
+  document.getElementById('modal-edit-prod').classList.remove('open');
+  _epId=null;
+  renderAll();renderProdTab();
+  toastMsg(foto?'✓ Produto atualizado no catálogo!':'✓ Salvo! Adicione foto para publicar no catálogo.');
 }
 
 function setPagF(f){PAG_FILTER=f;renderPag();}
