@@ -681,7 +681,7 @@ function statsFiltered(){
       var meta=S.pagMeta&&S.pagMeta[p.id+'_'+idx]||{};
       if(!DASH_ALL&&!dashSaleInPeriod(meta))return;
       totalSales++;var c=ci(price,s);
-      ts+=price;tr+=c.paidAmt;tp+=c.pendingAmt;pr+=c.profitPaidEach;pp+=c.profitPendingEach;
+      ts+=price*(s.qty||1);tr+=c.paidAmt;tp+=c.pendingAmt;pr+=c.profitPaidEach;pp+=c.profitPendingEach;
     });
   });
   var esg=getAllProducts().filter(function(p){return S.sold[p.id];}).length;
@@ -840,11 +840,13 @@ function getSales(id){return S.sales[id]||[];}
 function getAllProducts(){return PRODUCTS.concat(S.customProducts||[]);}
 
 function ci(price,sale){
+  var qty=(sale&&sale.qty&&sale.qty>1)?sale.qty:1;
+  var total=price*qty;
   if(!sale||sale.count===1){
-    var p=price*0.15;
-    return{paidAmt:price,pendingAmt:0,allPaid:true,profitPaidEach:p/2,profitPendingEach:0};
+    var p=total*0.15;
+    return{paidAmt:total,pendingAmt:0,allPaid:true,profitPaidEach:p/2,profitPendingEach:0};
   }
-  var pv=price/sale.count,pc=(sale.paid||[]).filter(Boolean).length;
+  var pv=total/sale.count,pc=(sale.paid||[]).filter(Boolean).length;
   var pa=pv*pc,pe=pv*(sale.count-pc);
   return{paidAmt:pa,pendingAmt:pe,allPaid:pc===sale.count,profitPaidEach:(pa*0.15)/2,profitPendingEach:(pe*0.15)/2};
 }
@@ -855,7 +857,7 @@ function stats(){
     var price=gp(p.id);
     getSales(p.id).forEach(function(s){
       totalSales++;var c=ci(price,s);
-      ts+=price;tr+=c.paidAmt;tp+=c.pendingAmt;pr+=c.profitPaidEach;pp+=c.profitPendingEach;
+      ts+=price*(s.qty||1);tr+=c.paidAmt;tp+=c.pendingAmt;pr+=c.profitPaidEach;pp+=c.profitPendingEach;
     });
   });
   var esg=getAllProducts().filter(function(p){return S.sold[p.id];}).length;
@@ -1094,7 +1096,7 @@ function openDetailModal(pid,idx){
   var parcH='';
   if(price>0){
     var cards=Array.from({length:sale.count}).map(function(_,i){
-      var ip=sale.paid&&sale.paid[i];var pv=price/sale.count;
+      var ip=sale.paid&&sale.paid[i];var pv=price*(sale.qty||1)/sale.count;
       return '<button onclick="toggleSaleP('+pid+','+idx+','+i+')" class="parc-btn" style="background:'+(ip?'rgba(100,200,100,0.12)':'rgba(232,192,96,0.07)')+';border:'+(ip?'1px solid rgba(100,200,100,0.38)':'1px solid rgba(232,192,96,0.28)')+';">'+
         '<div class="parc-top"><span class="parc-name" style="color:'+(ip?GRN:YLW)+';"> '+(sale.count===1?'Total':'('+(i+1)+'ª)')+'</span><span style="color:'+(ip?GRN:YLW)+';font-size:1rem;">'+(ip?'✓':'○')+'</span></div>'+
         '<div class="parc-val" style="color:'+(ip?GRN:'#e8c97a')+';">'+fmt(pv)+'</div>'+
@@ -1528,7 +1530,7 @@ function renderPag(){
     // parcelas clicáveis (marcar como pago diretamente)
     var dotsH='';
     if(sale.count>1){
-      var pv=price/sale.count;
+      var pv=price*(sale.qty||1)/sale.count;
       dotsH='<div style="font-size:0.42rem;letter-spacing:0.22em;text-transform:uppercase;color:rgba(240,232,220,0.28);margin-bottom:5px;">Toque na parcela para marcar como recebida</div>'+
         '<div class="pag-parc-track">'+
         Array.from({length:sale.count}).map(function(_,i){
@@ -1544,7 +1546,7 @@ function renderPag(){
       // à vista não pago (caso raro)
       dotsH='<div class="pag-parc-track"><div class="pag-parc-dot" onclick="togglePagParc('+p.id+','+item.idx+',0)" style="background:rgba(232,192,96,0.06);border:1px solid rgba(232,192,96,0.2);">'+
         '<div class="pag-parc-dot-num" style="color:'+YLW+';">Total</div>'+
-        '<div class="pag-parc-dot-val" style="color:#e8c97a;">'+fmt(price)+'</div>'+
+        '<div class="pag-parc-dot-val" style="color:#e8c97a;">'+fmt(price*(sale.qty||1))+'</div>'+
         '<div class="pag-parc-dot-stat" style="color:rgba(232,192,96,0.5);">○ Pendente</div>'+
       '</div></div>';
     }
