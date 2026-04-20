@@ -445,11 +445,13 @@ input,select{font-family:'Montserrat',sans-serif}
     </div>
     <div class="cfg-card">
       <div class="cfg-card-title">✏️ Editar produto existente</div>
-      <div class="cfg-card-desc">Busque um produto para editar foto, preço, aba ou descrição. Produtos sem foto não aparecem no catálogo.</div>
+      <div class="cfg-card-desc">Digite pelo menos 1 letra para ver sugestões. Toque no produto para editar foto, preço ou aba.</div>
       <div style="position:relative;margin-bottom:8px;">
-        <input id="edit-prod-search" class="modal-input" type="text" placeholder="🔍 Buscar produto pelo nome..." oninput="buscarProdEdit(this.value)" autocomplete="off">
+        <input id="edit-prod-search" class="modal-input" type="text" placeholder="🔍 Digite o nome ou marca..." oninput="buscarProdEdit(this.value)" autocomplete="off" style="padding-right:36px;">
+        <button onclick="limparBuscaEdit()" id="edit-prod-clear" style="display:none;position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:rgba(240,232,220,0.35);font-size:1rem;cursor:pointer;padding:4px;">✕</button>
       </div>
-      <div id="edit-prod-results" style="display:none;max-height:220px;overflow-y:auto;border:1px solid rgba(201,168,76,0.15);border-radius:6px;"></div>
+      <div id="edit-prod-count" style="display:none;font-size:0.44rem;letter-spacing:0.22em;text-transform:uppercase;color:rgba(201,168,76,0.4);margin-bottom:6px;padding:0 2px;"></div>
+      <div id="edit-prod-results" style="display:none;max-height:260px;overflow-y:auto;border:1px solid rgba(201,168,76,0.15);border-radius:6px;"></div>
     </div>
   </div>
   <div class="cfg-section">
@@ -2280,36 +2282,100 @@ function togglePagParc(pid,idx,i){
 }
 
 // ── BUSCA DE PRODUTO PARA EDITAR ─────────────────────────────────────────────
+function limparBuscaEdit(){
+  var inp=document.getElementById('edit-prod-search');
+  var res=document.getElementById('edit-prod-results');
+  var cnt=document.getElementById('edit-prod-count');
+  var clr=document.getElementById('edit-prod-clear');
+  if(inp)inp.value='';
+  if(res){res.style.display='none';res.innerHTML='';}
+  if(cnt)cnt.style.display='none';
+  if(clr)clr.style.display='none';
+}
+
+function destacar(texto, q){
+  if(!q)return esc(texto);
+  var idx=texto.toLowerCase().indexOf(q.toLowerCase());
+  if(idx<0)return esc(texto);
+  return esc(texto.substring(0,idx))+'<span style="color:#e8c97a;font-weight:600;">'+esc(texto.substring(idx,idx+q.length))+'</span>'+esc(texto.substring(idx+q.length));
+}
+
 function buscarProdEdit(q){
   var results=document.getElementById('edit-prod-results');
+  var cnt=document.getElementById('edit-prod-count');
+  var clr=document.getElementById('edit-prod-clear');
   if(!results)return;
-  q=q.trim().toLowerCase();
-  if(!q){results.style.display='none';results.innerHTML='';return;}
-  var prods=(S.customProducts||[]).filter(function(p){
-    return p.name.toLowerCase().indexOf(q)>=0||p.brand.toLowerCase().indexOf(q)>=0;
-  });
-  if(!prods.length){
-    results.style.display='block';
-    results.innerHTML='<div style="padding:12px;font-size:0.6rem;color:rgba(240,232,220,0.3);text-align:center;letter-spacing:0.2em;">Nenhum produto encontrado</div>';
+
+  // Mostra/oculta botao limpar
+  if(clr)clr.style.display=q?'block':'none';
+
+  q=q.trim();
+  if(!q){
+    results.style.display='none';results.innerHTML='';
+    if(cnt)cnt.style.display='none';
     return;
   }
+
+  // Garante que produtos do Firebase estejam carregados
+  var prods=S.customProducts||[];
+
+  // Se lista vazia, tenta buscar direto do Firebase
+  if(!prods.length && window._fbdb){
+    results.style.display='block';
+    results.innerHTML='<div style="padding:14px;font-size:0.6rem;color:rgba(240,232,220,0.3);text-align:center;letter-spacing:0.2em;">Carregando...</div>';
+    window._fbdb.ref('produtos_custom').once('value',function(snap){
+      var data=snap.val()||{};
+      Object.keys(data).forEach(function(id){
+        var p=data[id];
+        if(!S.customProducts)S.customProducts=[];
+        if(!S.customProducts.find(function(x){return x.id===p.id;})){
+          S.customProducts.push({id:p.id,name:p.name,brand:p.brand,category:p.category,sub:p.sub||'',custom:true,foto:p.foto||'',catalogTab:p.catalogTab||'todos'});
+          if(p.price)S.prices[p.id]=p.price;
+        }
+      });
+      buscarProdEdit(document.getElementById('edit-prod-search').value);
+    });
+    return;
+  }
+
+  var ql=q.toLowerCase();
+  var filtrados=prods.filter(function(p){
+    return (p.name||'').toLowerCase().indexOf(ql)>=0
+        || (p.brand||'').toLowerCase().indexOf(ql)>=0
+        || (p.sub||'').toLowerCase().indexOf(ql)>=0;
+  });
+
+  // Contador
+  if(cnt){
+    cnt.style.display='block';
+    cnt.textContent=filtrados.length+' produto'+(filtrados.length!==1?'s':'')+' encontrado'+(filtrados.length!==1?'s':'');
+  }
+
+  if(!filtrados.length){
+    results.style.display='block';
+    results.innerHTML='<div style="padding:14px;font-size:0.6rem;color:rgba(240,232,220,0.25);text-align:center;letter-spacing:0.2em;">Nenhum produto encontrado para "'+esc(q)+'"</div>';
+    return;
+  }
+
   results.style.display='block';
-  results.innerHTML=prods.map(function(p){
+  results.innerHTML=filtrados.map(function(p){
     var semFoto=!p.foto;
-    return '<div onclick="openEditProdModal('+p.id+')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.05);transition:background 0.2s;" onmouseover="this.style.background=\'rgba(201,168,76,0.07)\'" onmouseout="this.style.background=\'\'">'+
+    var cat=CAT[p.category]||{color:'#C9A84C'};
+    return '<div onclick="limparBuscaEdit();openEditProdModal('+p.id+')" style="display:flex;align-items:center;gap:10px;padding:11px 13px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.04);transition:background 0.18s;active-background:rgba(201,168,76,0.1);" ontouchstart="this.style.background=\'rgba(201,168,76,0.08)\'" ontouchend="this.style.background=\'\'" onmouseover="this.style.background=\'rgba(201,168,76,0.07)\'" onmouseout="this.style.background=\'\'">'+
       (p.foto
-        ? '<img src="'+esc(p.foto)+'" style="width:38px;height:38px;object-fit:cover;border-radius:4px;flex-shrink:0;">'
-        : '<div style="width:38px;height:38px;border-radius:4px;background:rgba(232,192,96,0.07);border:1px dashed rgba(232,192,96,0.3);display:flex;align-items:center;justify-content:center;font-size:0.9rem;flex-shrink:0;">📷</div>')+
+        ? '<img src="'+esc(p.foto)+'" style="width:42px;height:42px;object-fit:cover;border-radius:5px;flex-shrink:0;border:1px solid rgba(201,168,76,0.15);">'
+        : '<div style="width:42px;height:42px;border-radius:5px;background:rgba(232,192,96,0.06);border:1px dashed rgba(232,192,96,0.25);display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;">📷</div>')+
       '<div style="flex:1;min-width:0;">'+
-        '<div style="font-family:\'Cormorant Garamond\',serif;font-size:0.95rem;color:#f0e8dc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(p.name)+'</div>'+
-        '<div style="font-size:0.44rem;letter-spacing:0.2em;color:'+(semFoto?'rgba(232,192,96,0.55)':'rgba(201,168,76,0.5)')+';">'+
-          (semFoto?'⚠ Sem foto':esc(p.brand))+
+        '<div style="font-family:\'Cormorant Garamond\',serif;font-size:1rem;color:#f0e8dc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+destacar(p.name,q)+'</div>'+
+        '<div style="font-size:0.44rem;letter-spacing:0.2em;margin-top:1px;color:'+(semFoto?'rgba(232,192,96,0.55)':cat.color||'rgba(201,168,76,0.5)')+';">'+
+          (semFoto?'⚠ Sem foto — fora do catálogo':destacar(p.brand,q))+
         '</div>'+
       '</div>'+
-      '<div style="font-size:0.7rem;color:rgba(201,168,76,0.5);">✏</div>'+
+      '<div style="font-size:0.75rem;color:rgba(201,168,76,0.45);flex-shrink:0;">✏</div>'+
     '</div>';
   }).join('');
 }
+
 
 // ── MODAL EDITAR PRODUTO ──────────────────────────────────────────────────────
 var _epId=null;
