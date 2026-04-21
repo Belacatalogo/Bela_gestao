@@ -472,24 +472,50 @@ input,select{font-family:'Montserrat',sans-serif}
   <div class="cfg-section">
     <div class="cfg-section-title">IA — Análise de Foto</div>
     <div class="cfg-card">
-      <div class="cfg-card-title">🔑 Chave da API Gemini (Google)</div>
+      <div class="cfg-card-title">🔑 Chaves da API Gemini (Google)</div>
       <div class="cfg-card-desc">
-        Cole aqui sua chave da API do Google Gemini para ativar a análise automática de fotos de produtos. A chave fica salva <strong style="color:#e8c97a;">só no seu celular</strong> e nunca vai para o GitHub ou internet.<br><br>
-        Para obter gratuitamente: acesse <strong style="color:#e8c97a;">aistudio.google.com</strong> → Get API Key → Create API Key.
+        Cadastre até <strong style="color:#e8c97a;">3 chaves</strong> do Google Gemini. O app faz <strong style="color:#e8c97a;">rodízio automático</strong> — quando uma cota esgota, já usa a próxima sem você precisar fazer nada.<br><br>
+        Para criar chaves gratuitas: <strong style="color:#e8c97a;">aistudio.google.com</strong> → Get API Key → Create API Key. Crie uma por conta Google.
       </div>
-      <div style="position:relative;margin-bottom:8px;">
+
+      <!-- Chave 1 -->
+      <div style="font-size:0.42rem;letter-spacing:0.22em;text-transform:uppercase;color:rgba(201,168,76,0.5);margin-bottom:4px;">Chave 1 (principal)</div>
+      <div style="position:relative;margin-bottom:6px;">
         <input id="cfg-gemini-key-input" class="modal-input" type="password"
-          placeholder="Cole sua chave aqui: AIzaSy..."
+          placeholder="AIzaSy..."
           style="padding-right:44px;font-size:0.7rem;"
           oninput="cfgGeminiKeyChanged()">
-        <button onclick="toggleGeminiKeyVisibility()" id="cfg-gemini-eye"
+        <button onclick="toggleGeminiKeyVisibility('cfg-gemini-key-input','cfg-gemini-eye')" id="cfg-gemini-eye"
           style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:rgba(240,232,220,0.3);font-size:1rem;cursor:pointer;padding:4px;">👁</button>
       </div>
+
+      <!-- Chave 2 -->
+      <div style="font-size:0.42rem;letter-spacing:0.22em;text-transform:uppercase;color:rgba(201,168,76,0.5);margin-bottom:4px;">Chave 2 (backup)</div>
+      <div style="position:relative;margin-bottom:6px;">
+        <input id="cfg-gemini-key-input-2" class="modal-input" type="password"
+          placeholder="AIzaSy... (opcional)"
+          style="padding-right:44px;font-size:0.7rem;"
+          oninput="cfgGeminiKeyChanged()">
+        <button onclick="toggleGeminiKeyVisibility('cfg-gemini-key-input-2','cfg-gemini-eye-2')" id="cfg-gemini-eye-2"
+          style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:rgba(240,232,220,0.3);font-size:1rem;cursor:pointer;padding:4px;">👁</button>
+      </div>
+
+      <!-- Chave 3 -->
+      <div style="font-size:0.42rem;letter-spacing:0.22em;text-transform:uppercase;color:rgba(201,168,76,0.5);margin-bottom:4px;">Chave 3 (backup 2)</div>
+      <div style="position:relative;margin-bottom:8px;">
+        <input id="cfg-gemini-key-input-3" class="modal-input" type="password"
+          placeholder="AIzaSy... (opcional)"
+          style="padding-right:44px;font-size:0.7rem;"
+          oninput="cfgGeminiKeyChanged()">
+        <button onclick="toggleGeminiKeyVisibility('cfg-gemini-key-input-3','cfg-gemini-eye-3')" id="cfg-gemini-eye-3"
+          style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:rgba(240,232,220,0.3);font-size:1rem;cursor:pointer;padding:4px;">👁</button>
+      </div>
+
       <div id="cfg-gemini-status" style="font-size:0.48rem;letter-spacing:0.14em;color:rgba(240,232,220,0.3);margin-bottom:8px;min-height:14px;"></div>
       <div style="display:flex;gap:8px;">
-        <button class="cfg-btn cfg-btn-gold" style="flex:1;margin:0;" onclick="salvarChaveGemini()">💾 Salvar chave</button>
+        <button class="cfg-btn cfg-btn-gold" style="flex:1;margin:0;" onclick="salvarChaveGemini()">💾 Salvar chaves</button>
         <button class="cfg-btn cfg-btn-green" style="width:auto;padding:10px 14px;margin:0;" onclick="testarChaveGemini()" title="Testar">🔍 Testar</button>
-        <button class="cfg-btn cfg-btn-red" style="width:auto;padding:10px 14px;margin:0;" onclick="apagarChaveGemini()" title="Apagar chave">✕</button>
+        <button class="cfg-btn cfg-btn-red" style="width:auto;padding:10px 14px;margin:0;" onclick="apagarChaveGemini()" title="Apagar chaves">✕</button>
       </div>
     </div>
   </div>
@@ -2593,8 +2619,8 @@ async function analisarFotoIA(){
     return;
   }
 
-  var GEMINI_KEY = localStorage.getItem('bela-gemini-key')||'';
-  if(!GEMINI_KEY){
+  var GEMINI_KEYS = getGeminiKeys();
+  if(!GEMINI_KEYS.length){
     status.style.display='block';
     status.style.color='rgba(220,100,100,0.7)';
     status.textContent='Configure sua chave Gemini na aba ⚙ Config → IA (Análise de Foto)';
@@ -2631,40 +2657,90 @@ async function analisarFotoIA(){
 
     status.textContent = 'IA analisando o produto...';
 
-    var modelo = localStorage.getItem('bela-gemini-modelo')||'gemini-2.5-flash';
-    var resp, data;
-    for(var tentativa = 0; tentativa < 4; tentativa++){
-      if(tentativa > 0){
-        var espera = tentativa * 3000;
-        status.textContent = 'Servidor ocupado, aguardando '+(espera/1000)+'s e tentando novamente ('+(tentativa+1)+'/4)...';
-        await new Promise(function(r){setTimeout(r, espera);});
-        status.textContent = 'Tentando novamente...';
-      }
-      resp = await fetch(
-        'https://generativelanguage.googleapis.com/v1beta/models/'+modelo+':generateContent?key=' + GEMINI_KEY,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{
-              parts: [
-                imagePart,
-                { text: 'Você é um especialista em cosméticos brasileiros (O Boticário, Eudora, Natura, Avon, etc). Analise esta foto de produto com atenção máxima.\n\nResponda SOMENTE com JSON válido, sem markdown:\n{"nome":"nome completo e exato do produto","marca":"marca exata","descricao":"descrição DETALHADA: liste TODOS os itens do kit OU tipo+volume+linha. Ex para kit: \'Creme Hidratante Acetinado 250g + Body Splash 200ml + Sabonete Líquido 250ml\'. Ex para perfume: \'Deo Parfum Feminino 75ml — Linha Lily\'. Seja específica, nunca use apenas \'perfume\' ou \'kit\'","categorias":["cat1","cat2"],"aba":"todos|colecao|maes|beleza|maquiagens|infantis"}\n\nRegras para categorias (pode ter VÁRIAS):\n- "feminino" = produto para mulher (perfume fem, creme, sabonete fem)\n- "masculino" = produto para homem\n- "kit" = conjunto com 2+ itens\n- "hidratante" = creme, loção, sabonete, óleo corporal, body splash\n- "kids" = infantil/bebê\nEx: kit feminino com hidratante → ["kit","feminino","hidratante"]\n\nRegras para aba:\n- todos=geral, colecao=lançamento/especial, maes=dia das mães, beleza=beleza e kids, maquiagens=maquiagem, infantis=bebê'+dicaTxt }
-              ]
-            }],
-            generationConfig: { temperature: 0.1, maxOutputTokens: 512 }
-          })
+    // Lista de modelos para tentar em ordem (fallback automático)
+    var modelosSalvo = localStorage.getItem('bela-gemini-modelo');
+    var modelosFallback = [
+      modelosSalvo||'gemini-2.5-flash',
+      'gemini-2.0-flash',
+      'gemini-2.0-flash-lite',
+      'gemini-1.5-flash',
+      'gemini-2.5-flash-lite',
+      'gemini-2.0-flash-001',
+      'gemini-2.0-flash-lite-001',
+      'gemini-1.5-flash-latest',
+    ].filter(function(v,i,a){return a.indexOf(v)===i;}); // deduplica
+
+    var resp, data, modeloUsado;
+    var erroFinal = '';
+
+    // Rodízio: tenta cada chave × cada modelo
+    outerLoop:
+    for(var ki = 0; ki < GEMINI_KEYS.length; ki++){
+      var GEMINI_KEY = GEMINI_KEYS[ki];
+      var keyLabel = GEMINI_KEYS.length > 1 ? ' (chave '+(ki+1)+')' : '';
+
+      modeloLoop:
+      for(var mi = 0; mi < modelosFallback.length; mi++){
+        var modelo = modelosFallback[mi];
+        status.textContent = 'Tentando modelo: '+modelo+keyLabel+'...';
+
+        for(var tentativa = 0; tentativa < 3; tentativa++){
+          if(tentativa > 0){
+            var espera = tentativa * 3000;
+            status.textContent = 'Aguardando '+(espera/1000)+'s... ('+modelo+keyLabel+')';
+            await new Promise(function(r){setTimeout(r, espera);});
+          }
+          try{
+            resp = await fetch(
+              'https://generativelanguage.googleapis.com/v1beta/models/'+modelo+':generateContent?key=' + GEMINI_KEY,
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  contents: [{
+                    parts: [
+                      imagePart,
+                      { text: 'Você é um especialista em cosméticos brasileiros (O Boticário, Eudora, Natura, Avon, etc). Analise esta foto de produto com atenção máxima.\n\nResponda SOMENTE com JSON válido, sem markdown:\n{"nome":"nome completo e exato do produto","marca":"marca exata","descricao":"descrição DETALHADA: liste TODOS os itens do kit OU tipo+volume+linha. Ex para kit: \'Creme Hidratante Acetinado 250g + Body Splash 200ml + Sabonete Líquido 250ml\'. Ex para perfume: \'Deo Parfum Feminino 75ml — Linha Lily\'. Seja específica, nunca use apenas \'perfume\' ou \'kit\'","categorias":["cat1","cat2"],"aba":"todos|colecao|maes|beleza|maquiagens|infantis"}\n\nRegras para categorias (pode ter VÁRIAS):\n- "feminino" = produto para mulher (perfume fem, creme, sabonete fem)\n- "masculino" = produto para homem\n- "kit" = conjunto com 2+ itens\n- "hidratante" = creme, loção, sabonete, óleo corporal, body splash\n- "kids" = infantil/bebê\nEx: kit feminino com hidratante → ["kit","feminino","hidratante"]\n\nRegras para aba:\n- todos=geral, colecao=lançamento/especial, maes=dia das mães, beleza=beleza e kids, maquiagens=maquiagem, infantis=bebê'+dicaTxt }
+                    ]
+                  }],
+                  generationConfig: { temperature: 0.1, maxOutputTokens: 512 }
+                })
+              }
+            );
+            data = await resp.json();
+          }catch(fetchErr){
+            erroFinal = fetchErr.message||String(fetchErr);
+            continue;
+          }
+
+          if(resp.ok){
+            modeloUsado = modelo;
+            localStorage.setItem('bela-gemini-modelo', modelo);
+            break outerLoop;
+          }
+
+          var errTxt = (data.error&&data.error.message)||'';
+          var isQuota = errTxt.toLowerCase().includes('quota')||errTxt.toLowerCase().includes('limit')||resp.status===429;
+          var isOverload = errTxt.toLowerCase().includes('demand')||errTxt.toLowerCase().includes('overload')||errTxt.toLowerCase().includes('retry')||resp.status===503;
+
+          erroFinal = errTxt||'Erro '+resp.status;
+
+          if(isQuota){
+            // Cota esgotada neste modelo — tenta próximo modelo, depois próxima chave
+            status.textContent = 'Cota esgotada'+keyLabel+', tentando próximo...';
+            break modeloLoop; // pula para próxima chave direto
+          }
+          if(isOverload){
+            continue; // tenta de novo após espera
+          }
+          // Erro não recuperável nesta chave
+          break modeloLoop;
         }
-      );
-      data = await resp.json();
-      if(resp.ok) break;
-      var errTxt = (data.error&&data.error.message)||'';
-      var retentar = errTxt.toLowerCase().includes('demand')||errTxt.toLowerCase().includes('overload')||errTxt.toLowerCase().includes('retry')||errTxt.toLowerCase().includes('503')||resp.status===503||resp.status===429;
-      if(!retentar) break;
+      }
     }
 
-    if(!resp.ok){
-      var msg = (data.error&&data.error.message)||'Erro '+resp.status;
+    if(!resp||!resp.ok){
+      var msg = erroFinal || (data&&data.error&&data.error.message) || 'Todos os modelos Gemini falharam. Verifique sua cota no Google AI Studio.';
       throw new Error(msg);
     }
 
@@ -2729,8 +2805,11 @@ async function analisarFotoIA(){
     icon.textContent = '⚠';
     txt.textContent = 'Erro ao analisar';
     status.style.color = 'rgba(220,100,100,0.6)';
-    // Mostra o erro real para facilitar diagnóstico
     var errMsg = err && err.message ? err.message : String(err);
+    // Mensagem amigável para cota esgotada
+    if(errMsg.toLowerCase().includes('quota')||errMsg.toLowerCase().includes('limit')){
+      errMsg = 'Cota da API Gemini esgotada. Aguarde alguns minutos e tente novamente, ou crie uma nova chave em aistudio.google.com.';
+    }
     status.textContent = '⚠ ' + errMsg;
     console.error('Gemini erro:', err);
   } finally {
@@ -3023,16 +3102,29 @@ function setPagSort(s){PAG_SORT=s;renderPag();}
 function setPagF(f){PAG_FILTER=f;renderPag();}
 function setPagSort(s){PAG_SORT=s;renderPag();}
 
-// ── CHAVE GEMINI ──────────────────────────────────────────────────────────────
+// ── CHAVES GEMINI (suporte a 3 chaves com rodízio automático) ─────────────────
+function getGeminiKeys(){
+  // Retorna array com as chaves cadastradas (sem vazias)
+  return [
+    localStorage.getItem('bela-gemini-key')||'',
+    localStorage.getItem('bela-gemini-key-2')||'',
+    localStorage.getItem('bela-gemini-key-3')||''
+  ].filter(function(k){return k.trim()!=='';});
+}
+
 function carregarChaveGeminiNaUI(){
-  var key=localStorage.getItem('bela-gemini-key')||'';
-  var inp=document.getElementById('cfg-gemini-key-input');
+  var inp1=document.getElementById('cfg-gemini-key-input');
+  var inp2=document.getElementById('cfg-gemini-key-input-2');
+  var inp3=document.getElementById('cfg-gemini-key-input-3');
   var st=document.getElementById('cfg-gemini-status');
-  if(!inp)return;
-  inp.value=key;
-  if(key){
+  if(!inp1)return;
+  if(inp1)inp1.value=localStorage.getItem('bela-gemini-key')||'';
+  if(inp2)inp2.value=localStorage.getItem('bela-gemini-key-2')||'';
+  if(inp3)inp3.value=localStorage.getItem('bela-gemini-key-3')||'';
+  var total=getGeminiKeys().length;
+  if(total>0){
     st.style.color='rgba(125,216,125,0.7)';
-    st.textContent='✓ Chave salva — IA de análise de fotos ativa';
+    st.textContent='✓ '+total+' chave'+(total>1?'s':'')+' salva'+(total>1?'s':'')+' — rodízio automático ativo';
   } else {
     st.style.color='rgba(240,232,220,0.25)';
     st.textContent='Sem chave — análise de fotos desativada';
@@ -3043,32 +3135,52 @@ function cfgGeminiKeyChanged(){
   if(st){st.style.color='rgba(201,168,76,0.5)';st.textContent='Clique em Salvar para confirmar';}
 }
 function salvarChaveGemini(){
-  var key=(document.getElementById('cfg-gemini-key-input').value||'').trim();
-  if(!key){apagarChaveGemini();return;}
-  localStorage.setItem('bela-gemini-key',key);
+  var k1=((document.getElementById('cfg-gemini-key-input')||{}).value||'').trim();
+  var k2=((document.getElementById('cfg-gemini-key-input-2')||{}).value||'').trim();
+  var k3=((document.getElementById('cfg-gemini-key-input-3')||{}).value||'').trim();
+  if(k1) localStorage.setItem('bela-gemini-key',k1); else localStorage.removeItem('bela-gemini-key');
+  if(k2) localStorage.setItem('bela-gemini-key-2',k2); else localStorage.removeItem('bela-gemini-key-2');
+  if(k3) localStorage.setItem('bela-gemini-key-3',k3); else localStorage.removeItem('bela-gemini-key-3');
+  var total=getGeminiKeys().length;
   var st=document.getElementById('cfg-gemini-status');
-  st.style.color='rgba(125,216,125,0.7)';
-  st.textContent='✓ Chave salva com sucesso!';
-  toastMsg('✓ Chave Gemini salva!');
+  if(total>0){
+    st.style.color='rgba(125,216,125,0.7)';
+    st.textContent='✓ '+total+' chave'+(total>1?'s':'')+' salva'+(total>1?'s':'')+' com sucesso!';
+    toastMsg('✓ '+total+' chave'+(total>1?'s':'')+' Gemini salva'+(total>1?'s':'')+'!');
+  } else {
+    apagarChaveGemini();
+  }
 }
 function apagarChaveGemini(){
   localStorage.removeItem('bela-gemini-key');
-  var inp=document.getElementById('cfg-gemini-key-input');
+  localStorage.removeItem('bela-gemini-key-2');
+  localStorage.removeItem('bela-gemini-key-3');
+  ['cfg-gemini-key-input','cfg-gemini-key-input-2','cfg-gemini-key-input-3'].forEach(function(id){
+    var el=document.getElementById(id); if(el)el.value='';
+  });
   var st=document.getElementById('cfg-gemini-status');
-  if(inp)inp.value='';
-  if(st){st.style.color='rgba(240,232,220,0.25)';st.textContent='Chave removida — análise de fotos desativada';}
-  toastMsg('✓ Chave removida');
+  if(st){st.style.color='rgba(240,232,220,0.25)';st.textContent='Chaves removidas — análise de fotos desativada';}
+  toastMsg('✓ Chaves removidas');
 }
-function toggleGeminiKeyVisibility(){
-  var inp=document.getElementById('cfg-gemini-key-input');
+function toggleGeminiKeyVisibility(inputId, btnId){
+  // suporte legado (sem args) e novo (com ids)
+  var id = inputId||'cfg-gemini-key-input';
+  var inp=document.getElementById(id);
   if(!inp)return;
   inp.type=inp.type==='password'?'text':'password';
 }
 
 async function testarChaveGemini(){
-  var key=(document.getElementById('cfg-gemini-key-input').value||'').trim()||localStorage.getItem('bela-gemini-key')||'';
+  var keys=getGeminiKeys();
+  // Pega também o que está digitado nos campos mas ainda não salvo
+  var v1=((document.getElementById('cfg-gemini-key-input')||{}).value||'').trim();
+  var v2=((document.getElementById('cfg-gemini-key-input-2')||{}).value||'').trim();
+  var v3=((document.getElementById('cfg-gemini-key-input-3')||{}).value||'').trim();
+  var digited=[v1,v2,v3].filter(function(k){return k!=='';});
+  // Usa digitadas se existirem, senão usa salvas
+  var toTest=digited.length?digited:keys;
   var st=document.getElementById('cfg-gemini-status');
-  if(!key){st.style.color='rgba(220,100,100,0.7)';st.textContent='Cole a chave primeiro';return;}
+  if(!toTest.length){st.style.color='rgba(220,100,100,0.7)';st.textContent='Cole pelo menos uma chave primeiro';return;}
 
   var modelos=[
     'gemini-2.5-flash',
@@ -3081,37 +3193,34 @@ async function testarChaveGemini(){
     'gemini-1.5-flash',
   ];
 
-  st.style.color='rgba(201,168,76,0.6)';st.textContent='⏳ Testando modelos disponíveis...';
+  st.style.color='rgba(201,168,76,0.6)';st.textContent='⏳ Testando chaves e modelos...';
+  var resultados=[];
 
-  for(var i=0;i<modelos.length;i++){
-    var modelo=modelos[i];
-    try{
-      var resp=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+modelo+':generateContent?key='+key,{
-        method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({contents:[{parts:[{text:'ok'}]}],generationConfig:{maxOutputTokens:5}})
-      });
-      var data=await resp.json();
-      if(resp.ok){
-        // Encontrou modelo que funciona! Salva e usa esse
-        localStorage.setItem('bela-gemini-modelo',modelo);
-        st.style.color='rgba(125,216,125,0.8)';
-        st.textContent='✓ Funcionou com: '+modelo+' — IA ativa!';
-        toastMsg('✓ Modelo '+modelo+' ativo!');
-        return;
-      }
-    }catch(e){}
+  for(var ki=0;ki<toTest.length;ki++){
+    var key=toTest[ki];
+    var worked=false;
+    for(var i=0;i<modelos.length;i++){
+      var modelo=modelos[i];
+      try{
+        var resp=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+modelo+':generateContent?key='+key,{
+          method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({contents:[{parts:[{text:'ok'}]}],generationConfig:{maxOutputTokens:5}})
+        });
+        var data=await resp.json();
+        if(resp.ok){
+          localStorage.setItem('bela-gemini-modelo',modelo);
+          resultados.push('Chave '+(ki+1)+': ✓ ('+modelo+')');
+          worked=true;
+          break;
+        }
+      }catch(e){}
+    }
+    if(!worked) resultados.push('Chave '+(ki+1)+': ✗ inválida ou sem cota');
   }
-  // Nenhum funcionou — busca lista real de modelos
-  try{
-    var lr=await fetch('https://generativelanguage.googleapis.com/v1beta/models?key='+key);
-    var ld=await lr.json();
-    var nomes=(ld.models||[]).filter(function(m){return m.supportedGenerationMethods&&m.supportedGenerationMethods.indexOf('generateContent')>=0;}).map(function(m){return m.name.replace('models/','');});
-    st.style.color='rgba(220,100,100,0.8)';
-    st.textContent='✗ Nenhum modelo funcionou. Disponíveis: '+(nomes.length?nomes.join(', '):'nenhum');
-  }catch(e){
-    st.style.color='rgba(220,100,100,0.8)';
-    st.textContent='✗ Chave inválida ou sem acesso à API';
-  }
+  var allOk=resultados.every(function(r){return r.indexOf('✓')>=0;});
+  st.style.color=allOk?'rgba(125,216,125,0.8)':'rgba(220,160,80,0.8)';
+  st.textContent=resultados.join(' · ');
+  if(allOk) toastMsg('✓ Todas as chaves OK!');
 }
 
 function fmtDate(d){
