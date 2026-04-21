@@ -681,7 +681,7 @@ input,select{font-family:'Montserrat',sans-serif}
       </div>
     </div>
     <div class="modal-field">
-      <div class="modal-field-lbl">Categoria (Gestão)</div>
+      <div class="modal-field-lbl">Categoria (Gestão) <span style="color:rgba(240,232,220,0.2);font-size:0.38rem;letter-spacing:0.1em;">— pode selecionar várias</span> <span id="ap-cat-lbl" style="color:#C9A84C;font-size:0.42rem;"></span></div>
       <div class="parc-sel" id="ap-cat-sel" style="flex-wrap:wrap;gap:5px;"></div>
     </div>
     <div class="modal-field">
@@ -726,7 +726,7 @@ input,select{font-family:'Montserrat',sans-serif}
       <div id="ep-foto-preview" style="margin-top:6px;display:none;"><img id="ep-foto-img" src="" alt="Preview" style="width:80px;height:80px;object-fit:cover;border-radius:5px;border:1px solid rgba(201,168,76,0.3);"></div>
     </div>
     <div class="modal-field">
-      <div class="modal-field-lbl">Categoria (Gestão)</div>
+      <div class="modal-field-lbl">Categoria (Gestão) <span style="color:rgba(240,232,220,0.2);font-size:0.38rem;letter-spacing:0.1em;">— pode selecionar várias</span> <span id="ep-cat-lbl" style="color:#C9A84C;font-size:0.42rem;"></span></div>
       <div class="parc-sel" id="ep-cat-sel" style="flex-wrap:wrap;gap:5px;"></div>
     </div>
     <div class="modal-field">
@@ -938,13 +938,13 @@ var PRODUCTS=[
 // ─── STATE ─────────────────────────────────────────────────────────────────
 // S.sales[id] = [{sid, name, phone, cpf, count, paid:[]}]
 // S.sold[id]  = true → produto esgotado (sem estoque)
-var S={prices:{},sold:{},sales:{},pagMeta:{},customProducts:[],clients:{},filter:'todos',search:''};
+var S={prices:{},sold:{},sales:{},pagMeta:{},customProducts:[],clients:{},filter:'todos',filters:[],search:''};
 var SKEY='bela-mgmt-v6';
 
 function load(){
   try{
     var r=localStorage.getItem(SKEY);
-    if(r){var d=JSON.parse(r);if(d.prices)S.prices=d.prices;if(d.sold)S.sold=d.sold;if(d.sales)S.sales=d.sales;if(d.pagMeta)S.pagMeta=d.pagMeta;if(d.customProducts)S.customProducts=d.customProducts;if(d.clients)S.clients=d.clients;return;}
+    if(r){var d=JSON.parse(r);if(d.prices)S.prices=d.prices;if(d.sold)S.sold=d.sold;if(d.sales)S.sales=d.sales;if(d.pagMeta)S.pagMeta=d.pagMeta;if(d.customProducts)S.customProducts=d.customProducts;if(d.clients)S.clients=d.clients;if(d.filters)S.filters=d.filters;return;}
     // migração de versões anteriores
     var old=localStorage.getItem('bela-mgmt-v5')||localStorage.getItem('bela-mgmt-v4')||localStorage.getItem('bela-mgmt-v3');
     if(old){
@@ -967,7 +967,7 @@ var _st;
 function save(){
   clearTimeout(_st);
   _st=setTimeout(function(){
-    try{localStorage.setItem(SKEY,JSON.stringify({prices:S.prices,sold:S.sold,sales:S.sales,pagMeta:S.pagMeta||{},customProducts:S.customProducts||[],clients:S.clients||{}}));toast();}catch(e){}
+    try{localStorage.setItem(SKEY,JSON.stringify({prices:S.prices,sold:S.sold,sales:S.sales,pagMeta:S.pagMeta||{},customProducts:S.customProducts||[],clients:S.clients||{},filters:S.filters||[]}));toast();}catch(e){}
   },400);
 }
 function toast(){toastMsg('✓ Salvo');}
@@ -1007,14 +1007,36 @@ function stats(){
 }
 
 function filtered(){
+  var activeFilters=S.filters&&S.filters.length?S.filters:['todos'];
   return getAllProducts().filter(function(p){
     var sales=getSales(p.id),hasSales=sales.length>0;
     var hasParc=sales.some(function(s){return s.count>1;});
     var esg=!!S.sold[p.id];
-    var mf=S.filter==='todos'?true:S.filter==='comVenda'?hasSales:S.filter==='semVenda'?!hasSales:
-      S.filter==='parcelas'?hasParc:S.filter==='esgotado'?esg:p.category===S.filter;
+    // Each active filter must pass (AND logic for categories, OR for status)
+    var catFilters=activeFilters.filter(function(f){return['feminino','masculino','kit','hidratante','maes','kids'].indexOf(f)>=0;});
+    var statusFilters=activeFilters.filter(function(f){return['comVenda','semVenda','parcelas','esgotado'].indexOf(f)>=0;});
+    var isTodos=activeFilters.indexOf('todos')>=0||activeFilters.length===0;
+    // Category match — suporta p.categories (array) e p.category (legado)
+    var pCats=p.categories&&p.categories.length?p.categories:[p.category];
+    var catMatch;
+    if(catFilters.length>0){
+      catMatch=catFilters.some(function(f){return pCats.indexOf(f)>=0;});
+    } else if(isTodos){
+      catMatch=pCats.indexOf('maes')<0; // "Todos" exclui Dia das Mães
+    } else {
+      catMatch=true;
+    }
+    // Status match (all selected status must pass — AND)
+    var statusMatch=statusFilters.every(function(f){
+      if(f==='comVenda') return hasSales;
+      if(f==='semVenda') return !hasSales;
+      if(f==='parcelas') return hasParc;
+      if(f==='esgotado') return esg;
+      return true;
+    });
     var q=S.search.toLowerCase();
-    return mf&&(!q||p.name.toLowerCase().indexOf(q)>=0||p.brand.toLowerCase().indexOf(q)>=0||p.sub.toLowerCase().indexOf(q)>=0);
+    var searchMatch=!q||p.name.toLowerCase().indexOf(q)>=0||p.brand.toLowerCase().indexOf(q)>=0||(p.sub||'').toLowerCase().indexOf(q)>=0;
+    return catMatch&&statusMatch&&searchMatch;
   });
 }
 
@@ -1061,8 +1083,9 @@ function cardH(p){
   var price=gp(p.id),sales=getSales(p.id),isEsg=!!S.sold[p.id];
   var hasSales=sales.length>0;
   var hpend=sales.some(function(s){return ci(price,s).pendingAmt>0;});
-  var cat=CAT[p.category];
-  var bg,border;
+  var cat=CAT[p.category]||{label:p.category,color:'#C9A84C'};
+  var pCats=p.categories&&p.categories.length?p.categories:[p.category];
+  var catBadgesH=pCats.map(function(c){var ci=CAT[c]||{label:c,color:'#C9A84C'};return '<span class="cat-badge" style="background:'+ci.color+'22;color:'+ci.color+';">'+ci.label+'</span>';}).join(' ');  var bg,border;
   if(isEsg&&!hpend){bg='rgba(25,55,25,0.22)';border='1px solid rgba(100,200,100,0.2)';}
   else if(hpend){bg='rgba(55,45,5,0.4)';border='1px solid rgba(232,192,96,0.28)';}
   else if(hasSales){bg='rgba(20,38,20,0.18)';border='1px solid rgba(100,200,100,0.12)';}
@@ -1070,7 +1093,7 @@ function cardH(p){
   return '<div id="card-'+p.id+'" class="card" style="background:'+bg+';border:'+border+';">'+
     '<div class="row1">'+
       '<div style="flex:1;min-width:0;">'+
-        '<span class="cat-badge" style="background:'+cat.color+'22;color:'+cat.color+';">'+cat.label+'</span>'+
+        catBadgesH+
         '<div class="prod-name" style="color:'+(isEsg?'rgba(240,232,220,0.45)':'#f0e8dc')+';text-decoration:'+(isEsg?'line-through':'none')+';">'+p.name+'</div>'+
         '<div class="prod-brand" style="opacity:'+(isEsg?0.4:1)+';">'+p.brand+'</div>'+
         '<div class="prod-sub">'+p.sub+'</div>'+
@@ -1114,10 +1137,31 @@ function renderDash(){
   document.getElementById('pct-lbl').textContent=pct+'%';
 }
 function renderFilters(){
+  var activeFilters=S.filters&&S.filters.length?S.filters:['todos'];
   document.getElementById('filters').innerHTML=FILTERS.map(function(f){
-    var a=S.filter===f.id;
-    return '<button onclick="setF(\''+f.id+'\')" class="filter-btn" style="background:'+(a?G:'transparent')+';border:1px solid '+(a?G:'rgba(201,168,76,0.2)')+';color:'+(a?'#080808':'rgba(240,232,220,0.48)')+';font-weight:'+(a?600:400)+';">'+f.label+'</button>';
+    var a=activeFilters.indexOf(f.id)>=0;
+    var isTodos=f.id==='todos';
+    var col=isTodos?G:(CAT[f.id]?CAT[f.id].color:G);
+    return '<button onclick="setF(\''+f.id+'\')" class="filter-btn" style="background:'+(a?col:'transparent')+';border:1px solid '+(a?col:'rgba(201,168,76,0.2)')+';color:'+(a?'#080808':'rgba(240,232,220,0.48)')+';font-weight:'+(a?600:400)+';">'+f.label+'</button>';
   }).join('');
+}
+function setF(f){
+  if(!S.filters)S.filters=[];
+  if(f==='todos'){
+    // Todos limpa todos os outros
+    S.filters=['todos'];
+  } else {
+    // Remove 'todos' quando seleciona qualquer outro
+    S.filters=S.filters.filter(function(x){return x!=='todos';});
+    var idx=S.filters.indexOf(f);
+    if(idx>=0){
+      S.filters.splice(idx,1);
+      if(S.filters.length===0)S.filters=['todos'];
+    } else {
+      S.filters.push(f);
+    }
+  }
+  renderFilters();renderList();
 }
 function renderList(){
   var fl=filtered();
@@ -1163,11 +1207,9 @@ function onPI(id,v){
     if(cp&&window._fbdb)window._fbdb.ref('produtos_custom/'+id+'/price').set(price||null);
   }catch(e){}
 }
-function toggleEsg(id){S.sold[id]=!S.sold[id];save();recard(id);renderDash();renderFooter();if(S.filter!=='todos')renderList();
-  // Sincroniza com Firebase
+function toggleEsg(id){S.sold[id]=!S.sold[id];save();recard(id);renderDash();renderFooter();renderList();
   try{if(window._fbdb)window._fbdb.ref('esgotados/'+id).set(S.sold[id]?true:null);}catch(e){}
 }
-function setF(f){S.filter=f;renderFilters();renderList();}
 function onSearch(v){S.search=v;renderList();}
 
 // ─── SALE MODAL ────────────────────────────────────────────────────────────
@@ -2315,7 +2357,7 @@ function renderCobrancas(){
 }
 
 // ── PRODUTOS CUSTOMIZADOS ─────────────────────────────────────────────────────
-var _apCat='feminino';
+var _apCats=['feminino'];
 var _apAba='todos';
 
 var ABAS_CATALOGO=[
@@ -2336,6 +2378,7 @@ function renderProdTab(){
   empty.style.display='none';
   list.innerHTML=prods.map(function(p){
     var cat=CAT[p.category]||{label:p.category,color:'#C9A84C'};
+    var pCats=p.categories&&p.categories.length?p.categories:[p.category];
     var abaInfo=ABAS_CATALOGO.find(function(a){return a.id===p.catalogTab;})||{label:'Todos'};
     var semFoto=!p.foto;
     return '<div class="cprod-card" style="'+(semFoto?'border-color:rgba(232,192,96,0.25);':'')+'">' +
@@ -2344,7 +2387,7 @@ function renderProdTab(){
         : '<div style="width:48px;height:48px;border-radius:4px;background:rgba(232,192,96,0.07);border:1px dashed rgba(232,192,96,0.3);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;position:relative;" title="Sem foto — não aparece no catálogo">📷</div>')+
       '<div class="cprod-info">'+
         '<div class="cprod-name">'+esc(p.name)+'</div>'+
-        '<div class="cprod-brand" style="color:'+cat.color+';">'+esc(p.brand)+'</div>'+
+        '<div class="cprod-brand" style="color:'+pCats.map(function(c){return (CAT[c]&&CAT[c].color)||'#C9A84C';}).join(', ')+';">'+esc(p.brand)+'  <span style="opacity:0.6;">'+pCats.map(function(c){return (CAT[c]&&CAT[c].label)||c;}).join(' · ')+'</span></div>'+
         (p.sub?'<div class="cprod-sub">'+esc(p.sub)+'</div>':'')+
         '<div style="margin-top:3px;font-size:0.4rem;letter-spacing:0.2em;color:'+(semFoto?'rgba(232,192,96,0.55)':'rgba(201,168,76,0.45)')+';">'+
           (semFoto?'⚠ Sem foto — fora do catálogo':'📂 '+abaInfo.label+(gp(p.id)>0?' · '+fmt(gp(p.id)):''))+
@@ -2374,7 +2417,7 @@ function removeCustomProd(id){
 }
 
 function openAddProdModal(){
-  _apCat='feminino';
+  _apCats=['feminino'];
   _apAba='todos';
   _apFotoBase64=null;
   document.getElementById('ap-name').value='';
@@ -2409,12 +2452,24 @@ function openAddProdModal(){
 function renderApCats(){
   var cats=['feminino','masculino','kit','hidratante','maes','kids'];
   document.getElementById('ap-cat-sel').innerHTML=cats.map(function(c){
-    var info=CAT[c]||{label:c};var a=_apCat===c;
+    var info=CAT[c]||{label:c};
+    var a=_apCats.indexOf(c)>=0;
     var col=(CAT[c]&&CAT[c].color)||'#C9A84C';
     return '<button type="button" class="ap-cat-btn'+(a?' active':'')+'" style="'+(a?'background:'+col+';border-color:'+col+';color:#080808;':'')+'" onclick="selApCat(\''+c+'\')">'+info.label+'</button>';
   }).join('');
+  // Mostra quantas selecionadas
+  var lbl=document.getElementById('ap-cat-lbl');
+  if(lbl)lbl.textContent=_apCats.length>1?'('+_apCats.length+' selecionadas)':'';
 }
-function selApCat(c){_apCat=c;renderApCats();}
+function selApCat(c){
+  var idx=_apCats.indexOf(c);
+  if(idx>=0){
+    if(_apCats.length>1)_apCats.splice(idx,1); // não deixa desmarcar a última
+  } else {
+    _apCats.push(c);
+  }
+  renderApCats();
+}
 
 function renderApAbas(){
   document.getElementById('ap-aba-sel').innerHTML=ABAS_CATALOGO.map(function(a){
@@ -2443,7 +2498,7 @@ function saveNewProd(){
   if(!S.customProducts)S.customProducts=[];
   var usedIds=getAllProducts().map(function(p){return p.id;});
   var nid=1000;while(usedIds.indexOf(nid)>=0)nid++;
-  var newProd={id:nid,name:name,brand:brand,category:_apCat,sub:sub,custom:true,foto:foto,catalogTab:_apAba};
+  var newProd={id:nid,name:name,brand:brand,category:_apCats[0],categories:_apCats.slice(),sub:sub,custom:true,foto:foto,catalogTab:_apAba};
   S.customProducts.push(newProd);
   if(price>0)S.prices[nid]=price;
   save();
@@ -2451,7 +2506,7 @@ function saveNewProd(){
   if(window._fbdb && fotoUrl){
     var mostrarP=getMostrarPrecos();
     window._fbdb.ref('produtos_custom/'+nid).set({
-      id:nid,name:name,brand:brand,category:_apCat,sub:sub,
+      id:nid,name:name,brand:brand,category:_apCats[0],categories:_apCats.slice(),sub:sub,
       foto:fotoUrl,price:(mostrarP&&price)?price:null,catalogTab:_apAba,custom:true
     }).then(function(){
       toastMsg('✓ Produto publicado no catálogo!');
@@ -2514,34 +2569,46 @@ async function analisarFotoIA(){
   status.textContent = 'A IA está identificando o produto...';
 
   try {
-    var imageContent;
+    // Prepara dados da imagem para Gemini
+    var imagePart;
     if(_apFotoBase64){
       var parts = _apFotoBase64.split(',');
       var mediaType = parts[0].match(/:(.*?);/)[1];
-      imageContent = { type:'image', source:{ type:'base64', media_type:mediaType, data:parts[1] } };
+      imagePart = { inline_data: { mime_type: mediaType, data: parts[1] } };
     } else {
-      imageContent = { type:'image', source:{ type:'url', url:url } };
+      // Para URL pública, busca como blob e converte para base64
+      var imgResp = await fetch(url);
+      var blob = await imgResp.blob();
+      var b64 = await new Promise(function(res){
+        var r=new FileReader();r.onload=function(e){res(e.target.result.split(',')[1]);};r.readAsDataURL(blob);
+      });
+      imagePart = { inline_data: { mime_type: blob.type||'image/jpeg', data: b64 } };
     }
 
-    var resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        messages: [{
-          role: 'user',
-          content: [
-            imageContent,
-            { type:'text', text:'Esta é uma foto de um produto cosmético ou de beleza (perfume, creme, hidratante, kit, etc). Analise a imagem e extraia as informações do produto.\n\nResponda SOMENTE com JSON válido, sem markdown, sem texto extra:\n{"nome":"nome completo do produto","marca":"nome da marca","descricao":"tipo + volume/tamanho se visível, ex: Deo Parfum 90ml","categoria":"feminino|masculino|kit|hidratante|kids"}\n\nSe não conseguir identificar algum campo, use string vazia "". Para categoria: feminino para perfumes/cosméticos femininos, masculino para masculinos, kit para kits/combos, hidratante para cremes/loções/hidratantes, kids para infantis.' }
-          ]
-        }]
-      })
-    });
+    var GEMINI_KEY = 'AIzaSyC5pVUxfBg8hQeWXBa5hXBnMvNzGbRFpLo';
+    var resp = await fetch(
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + GEMINI_KEY,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              imagePart,
+              { text: 'Esta é uma foto de um produto cosmético ou de beleza (perfume, creme, hidratante, kit, etc) de marcas como O Boticário, Eudora, Natura, Avon ou similar. Analise a imagem e extraia as informações.\n\nResponda SOMENTE com JSON válido, sem markdown, sem texto extra:\n{"nome":"nome completo do produto","marca":"nome da marca","descricao":"tipo + volume/tamanho se visível, ex: Deo Parfum 90ml","categoria":"feminino|masculino|kit|hidratante|kids"}\n\nSe não conseguir identificar algum campo, use string vazia "". Categoria: feminino para perfumes/cosméticos femininos, masculino para masculinos, kit para kits/combos, hidratante para cremes/loções/hidratantes, kids para infantis.' }
+            ]
+          }],
+          generationConfig: { temperature: 0.1, maxOutputTokens: 256 }
+        })
+      }
+    );
 
-    if(!resp.ok) throw new Error('HTTP '+resp.status);
+    if(!resp.ok){
+      var errData = await resp.json().catch(function(){return {};});
+      throw new Error((errData.error&&errData.error.message)||'HTTP '+resp.status);
+    }
     var data = await resp.json();
-    var raw = data.content.map(function(b){ return b.text||''; }).join('');
+    var raw = data.candidates&&data.candidates[0]&&data.candidates[0].content&&data.candidates[0].content.parts&&data.candidates[0].content.parts[0]&&data.candidates[0].content.parts[0].text||'';
     raw = raw.replace(/```json|```/g,'').trim();
     var parsed = JSON.parse(raw);
 
@@ -2549,7 +2616,7 @@ async function analisarFotoIA(){
     if(parsed.marca)     document.getElementById('ap-brand').value = parsed.marca;
     if(parsed.descricao) document.getElementById('ap-sub').value   = parsed.descricao;
     if(parsed.categoria && ['feminino','masculino','kit','hidratante','kids'].indexOf(parsed.categoria)>=0){
-      _apCat = parsed.categoria; renderApCats();
+      _apCats = [parsed.categoria]; renderApCats();
     }
 
     icon.textContent = '✓';
@@ -2564,8 +2631,8 @@ async function analisarFotoIA(){
     icon.textContent = '⚠';
     txt.textContent = 'Erro ao analisar';
     status.style.color = 'rgba(220,100,100,0.6)';
-    status.textContent = 'Não foi possível analisar. Preencha manualmente.';
-    console.error('IA erro:',err);
+    status.textContent = 'Não foi possível analisar. Tente novamente ou preencha manualmente.';
+    console.error('Gemini erro:',err);
   } finally {
     btn.disabled = false;
     btn.style.opacity = '1';
@@ -2698,14 +2765,14 @@ function buscarProdEdit(q){
 
 // ── MODAL EDITAR PRODUTO ──────────────────────────────────────────────────────
 var _epId=null;
-var _epCat='feminino';
+var _epCats=['feminino'];
 var _epAba='todos';
 
 function openEditProdModal(id){
   var p=(S.customProducts||[]).find(function(x){return x.id===id;});
   if(!p)return;
   _epId=id;
-  _epCat=p.category||'feminino';
+  _epCats=p.categories&&p.categories.length?p.categories.slice():[p.category||'feminino'];
   _epAba=p.catalogTab||'todos';
 
   document.getElementById('ep-sub').textContent=p.name;
@@ -2752,12 +2819,23 @@ function closeEditProdModal(e){
 function renderEpCats(){
   var cats=['feminino','masculino','kit','hidratante','maes','kids'];
   document.getElementById('ep-cat-sel').innerHTML=cats.map(function(c){
-    var info=CAT[c]||{label:c};var a=_epCat===c;
+    var info=CAT[c]||{label:c};
+    var a=_epCats.indexOf(c)>=0;
     var col=(CAT[c]&&CAT[c].color)||'#C9A84C';
     return '<button type="button" class="ap-cat-btn'+(a?' active':'')+'" style="'+(a?'background:'+col+';border-color:'+col+';color:#080808;':'')+'" onclick="selEpCat(\''+c+'\')" >'+info.label+'</button>';
   }).join('');
+  var lbl=document.getElementById('ep-cat-lbl');
+  if(lbl)lbl.textContent=_epCats.length>1?'('+_epCats.length+' selecionadas)':'';
 }
-function selEpCat(c){_epCat=c;renderEpCats();}
+function selEpCat(c){
+  var idx=_epCats.indexOf(c);
+  if(idx>=0){
+    if(_epCats.length>1)_epCats.splice(idx,1);
+  } else {
+    _epCats.push(c);
+  }
+  renderEpCats();
+}
 
 function renderEpAbas(){
   document.getElementById('ep-aba-sel').innerHTML=ABAS_CATALOGO.map(function(a){
@@ -2786,7 +2864,8 @@ function saveEditProd(){
   prods[idx].brand=brand;
   prods[idx].sub=sub;
   prods[idx].foto=foto;
-  prods[idx].category=_epCat;
+  prods[idx].category=_epCats[0];
+  prods[idx].categories=_epCats.slice();
   prods[idx].catalogTab=_epAba;
   if(price>0) S.prices[_epId]=price;
 
@@ -2798,7 +2877,7 @@ function saveEditProd(){
       if(foto){
         var mostrarP=getMostrarPrecos();
         window._fbdb.ref('produtos_custom/'+_epId).set({
-          id:_epId,name:name,brand:brand,category:_epCat,sub:sub,
+          id:_epId,name:name,brand:brand,category:_epCats[0],categories:_epCats.slice(),sub:sub,
           foto:foto,price:(mostrarP&&price)?price:null,catalogTab:_epAba,custom:true
         });
         if(mostrarP&&price) window._fbdb.ref('precos/'+_epId).set(price);
