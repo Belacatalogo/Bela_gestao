@@ -2673,37 +2673,36 @@ async function analisarFotoIA(){
     var resp, data, modeloUsado;
     var erroFinal = '';
 
-    // Rodízio: tenta cada chave × cada modelo
-    outerLoop:
-    for(var ki = 0; ki < GEMINI_KEYS.length; ki++){
+    // Rodízio: tenta cada chave × cada modelo — lógica com flags (sem labeled break)
+    var sucessoGlobal = false;
+
+    for(var ki = 0; ki < GEMINI_KEYS.length && !sucessoGlobal; ki++){
       var GEMINI_KEY = GEMINI_KEYS[ki];
-      var keyLabel = GEMINI_KEYS.length > 1 ? ' (chave '+(ki+1)+')' : '';
+      var keyLabel = GEMINI_KEYS.length > 1 ? ' (chave '+(ki+1)+'/'+GEMINI_KEYS.length+')' : '';
+      var cotaEsgotada = false;
 
-      modeloLoop:
-      for(var mi = 0; mi < modelosFallback.length; mi++){
+      for(var mi = 0; mi < modelosFallback.length && !sucessoGlobal && !cotaEsgotada; mi++){
         var modelo = modelosFallback[mi];
-        status.textContent = 'Tentando modelo: '+modelo+keyLabel+'...';
+        status.textContent = 'Tentando'+keyLabel+': '+modelo+'...';
 
-        for(var tentativa = 0; tentativa < 3; tentativa++){
+        for(var tentativa = 0; tentativa < 3 && !sucessoGlobal && !cotaEsgotada; tentativa++){
           if(tentativa > 0){
             var espera = tentativa * 3000;
-            status.textContent = 'Aguardando '+(espera/1000)+'s... ('+modelo+keyLabel+')';
-            await new Promise(function(r){setTimeout(r, espera);});
+            status.textContent = 'Aguardando '+(espera/1000)+'s...'+keyLabel;
+            await new Promise(function(r){setTimeout(r,espera);});
           }
           try{
             resp = await fetch(
-              'https://generativelanguage.googleapis.com/v1beta/models/'+modelo+':generateContent?key=' + GEMINI_KEY,
+              'https://generativelanguage.googleapis.com/v1beta/models/'+modelo+':generateContent?key='+GEMINI_KEY,
               {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  contents: [{
-                    parts: [
-                      imagePart,
-  { text: 'Você é especialista em cosméticos brasileiros (O Boticário, Eudora, Natura, Avon, OUI, etc).\n'+(dica?'INFORMAÇÃO DA VENDEDORA sobre este produto: "'+dica+'" — use isso obrigatoriamente para preencher todos os campos.\n':'')+'\nAnalise a foto e responda SOMENTE com JSON válido (sem markdown, sem texto fora do JSON):\n\n{"nome":"nome completo do produto","marca":"marca exata","descricao":"OBRIGATÓRIO — mínimo 10 palavras. Para perfume/deo parfum: escreva o tipo (Ex Parfum / Deo Parfum / Eau de Toilette), volume em ml e linha/coleção se visível. Ex: \'Eau de Parfum Feminino 75ml — Linha Le Charmeur\'. Para kit: liste TODOS os itens com volume. NUNCA deixe vazio.","categorias":["valores"],"aba":"valor"}\n\nREGRAS CATEGORIAS — inclua TODAS que se aplicam:\n"feminino" → perfume/produto para mulher\n"masculino" → perfume/produto para homem\n"kit" → conjunto com 2 ou mais itens\n"hidratante" → creme corporal, loção, sabonete líquido, body splash, óleo\n"kids" → produto infantil ou bebê\nSempre inclua ao menos uma categoria. Ex perfume feminino: ["feminino"]. Ex kit feminino com creme: ["kit","feminino","hidratante"].\n\nREGRAS ABA:\n"todos"=produto geral · "colecao"=lançamento ou edição especial · "maes"=dia das mães · "beleza"=beleza e kids · "maquiagens"=maquiagem · "infantis"=bebê/infantil\nPadrão: use "todos" se não souber.' }
-                    ]
-                  }],
-                  generationConfig: { temperature: 0.1, maxOutputTokens: 512 }
+                method:'POST',
+                headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({
+                  contents:[{parts:[
+                    imagePart,
+                    {text:'Você é especialista em cosméticos brasileiros (O Boticário, Eudora, Natura, Avon, OUI, etc).\n'+(dica?'INFORMAÇÃO DA VENDEDORA sobre este produto: "'+dica+'" — use isso obrigatoriamente para preencher todos os campos.\n':'')+'\nAnalise a foto e responda SOMENTE com JSON válido (sem markdown, sem texto fora do JSON):\n\n{"nome":"nome completo do produto","marca":"marca exata","descricao":"OBRIGATÓRIO — mínimo 10 palavras. Para perfume/deo parfum: escreva o tipo (Ex Parfum / Deo Parfum / Eau de Toilette), volume em ml e linha/coleção se visível. Ex: \'Eau de Parfum Feminino 75ml — Linha Le Charmeur\'. Para kit: liste TODOS os itens com volume. NUNCA deixe vazio.","categorias":["valores"],"aba":"valor"}\n\nREGRAS CATEGORIAS — inclua TODAS que se aplicam:\n"feminino" → perfume/produto para mulher\n"masculino" → perfume/produto para homem\n"kit" → conjunto com 2 ou mais itens\n"hidratante" → creme corporal, loção, sabonete líquido, body splash, óleo\n"kids" → produto infantil ou bebê\nSempre inclua ao menos uma categoria. Ex perfume feminino: ["feminino"]. Ex kit feminino com creme: ["kit","feminino","hidratante"].\n\nREGRAS ABA:\n"todos"=produto geral · "colecao"=lançamento ou edição especial · "maes"=dia das mães · "beleza"=beleza e kids · "maquiagens"=maquiagem · "infantis"=bebê/infantil\nPadrão: use "todos" se não souber.'}
+                  ]}],
+                  generationConfig:{temperature:0.1,maxOutputTokens:512}
                 })
               }
             );
@@ -2715,28 +2714,27 @@ async function analisarFotoIA(){
 
           if(resp.ok){
             modeloUsado = modelo;
-            localStorage.setItem('bela-gemini-modelo', modelo);
-            break outerLoop;
+            localStorage.setItem('bela-gemini-modelo',modelo);
+            sucessoGlobal = true;
+            break;
           }
 
           var errTxt = (data.error&&data.error.message)||'';
-          var isQuota = errTxt.toLowerCase().includes('quota')||errTxt.toLowerCase().includes('limit')||resp.status===429;
-          var isOverload = errTxt.toLowerCase().includes('demand')||errTxt.toLowerCase().includes('overload')||errTxt.toLowerCase().includes('retry')||resp.status===503;
-
-          erroFinal = errTxt||'Erro '+resp.status;
+          erroFinal = errTxt||('Erro '+resp.status);
+          var isQuota    = resp.status===429||errTxt.toLowerCase().includes('quota')||errTxt.toLowerCase().includes('rate');
+          var isOverload = resp.status===503||errTxt.toLowerCase().includes('overload')||errTxt.toLowerCase().includes('retry');
 
           if(isQuota){
-            // Cota esgotada neste modelo — tenta próximo modelo, depois próxima chave
-            status.textContent = 'Cota esgotada'+keyLabel+', tentando próximo...';
-            break modeloLoop; // pula para próxima chave direto
+            status.textContent = 'Cota esgotada'+keyLabel+', tentando próxima chave...';
+            cotaEsgotada = true;
+            break;
           }
-          if(isOverload){
-            continue; // tenta de novo após espera
-          }
-          // Erro não recuperável nesta chave
-          break modeloLoop;
+          if(isOverload){ continue; }
+          break; // outro erro: tenta próximo modelo
         }
       }
+    }
+
     }
 
     if(!resp||!resp.ok){
@@ -2806,9 +2804,13 @@ async function analisarFotoIA(){
     txt.textContent = 'Erro ao analisar';
     status.style.color = 'rgba(220,100,100,0.6)';
     var errMsg = err && err.message ? err.message : String(err);
-    // Mensagem amigável para cota esgotada
-    if(errMsg.toLowerCase().includes('quota')||errMsg.toLowerCase().includes('limit')){
-      errMsg = 'Cota da API Gemini esgotada. Aguarde alguns minutos e tente novamente, ou crie uma nova chave em aistudio.google.com.';
+    var nChaves = getGeminiKeys().length;
+    if(errMsg.toLowerCase().includes('quota')||errMsg.toLowerCase().includes('rate')||errMsg.toLowerCase().includes('limit')){
+      if(nChaves >= 2){
+        errMsg = 'Cota esgotada nas '+nChaves+' chaves cadastradas. Aguarde alguns minutos — o limite do Gemini gratuito renova por minuto/dia.';
+      } else {
+        errMsg = 'Cota da API Gemini esgotada. Aguarde alguns minutos, ou cadastre mais chaves em ⚙ Config.';
+      }
     }
     status.textContent = '⚠ ' + errMsg;
     console.error('Gemini erro:', err);
