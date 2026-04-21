@@ -639,6 +639,28 @@ input,select{font-family:'Montserrat',sans-serif}
     <div class="modal-handle"></div>
     <div class="modal-title">Novo Produto</div>
     <div class="modal-sub">Preencha as informações</div>
+
+    <!-- FOTO PRIMEIRO + botão IA -->
+    <div class="modal-field">
+      <div class="modal-field-lbl">URL da Foto <span style="color:rgba(240,232,220,0.25);font-size:0.4rem;"> — cole o link do imgbb</span></div>
+      <input id="ap-foto" class="modal-input" type="url" placeholder="https://i.ibb.co/...">
+      <div id="ap-foto-preview" style="margin-top:8px;display:none;align-items:flex-start;gap:10px;">
+        <img id="ap-foto-img" src="" alt="Preview" style="width:80px;height:80px;object-fit:cover;border-radius:5px;border:1px solid rgba(201,168,76,0.3);flex-shrink:0;">
+        <div style="flex:1;">
+          <button type="button" id="ap-ai-btn" onclick="analisarFotoIA()" style="width:100%;padding:9px 12px;background:linear-gradient(135deg,rgba(201,168,76,0.15),rgba(201,168,76,0.08));border:1px solid rgba(201,168,76,0.4);border-radius:6px;color:#e8c97a;font-size:0.55rem;font-weight:500;letter-spacing:0.14em;text-transform:uppercase;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:all 0.2s;">
+            <span id="ap-ai-icon">✦</span> <span id="ap-ai-txt">Analisar com IA</span>
+          </button>
+          <div id="ap-ai-status" style="font-size:0.46rem;letter-spacing:0.14em;color:rgba(201,168,76,0.5);text-align:center;margin-top:5px;display:none;"></div>
+        </div>
+      </div>
+      <!-- Upload direto de arquivo -->
+      <div style="margin-top:7px;display:flex;align-items:center;gap:8px;">
+        <input type="file" id="ap-foto-file" accept="image/*" style="display:none" onchange="handleApFotoUpload(this)">
+        <button type="button" onclick="document.getElementById('ap-foto-file').click()" style="padding:7px 12px;background:rgba(255,255,255,0.04);border:1px dashed rgba(201,168,76,0.2);border-radius:6px;color:rgba(240,232,220,0.35);font-size:0.5rem;letter-spacing:0.14em;text-transform:uppercase;cursor:pointer;white-space:nowrap;">📷 Usar foto do celular</button>
+        <span style="font-size:0.44rem;color:rgba(240,232,220,0.2);letter-spacing:0.1em;">a IA também analisa</span>
+      </div>
+    </div>
+
     <div class="modal-field">
       <div class="modal-field-lbl">Nome *</div>
       <input id="ap-name" class="modal-input" type="text" placeholder="Ex: Glamour Secret Black">
@@ -657,11 +679,6 @@ input,select{font-family:'Montserrat',sans-serif}
         <span class="price-rs" style="font-size:0.8rem;">R$</span>
         <input id="ap-price" class="modal-input" type="number" min="0" step="0.01" placeholder="0,00" style="width:100%;">
       </div>
-    </div>
-    <div class="modal-field">
-      <div class="modal-field-lbl">URL da Foto <span style="color:rgba(240,232,220,0.25);font-size:0.4rem;"> — cole o link do imgbb</span></div>
-      <input id="ap-foto" class="modal-input" type="url" placeholder="https://i.ibb.co/...">
-      <div id="ap-foto-preview" style="margin-top:6px;display:none;"><img id="ap-foto-img" src="" alt="Preview" style="width:80px;height:80px;object-fit:cover;border-radius:5px;border:1px solid rgba(201,168,76,0.3);"></div>
     </div>
     <div class="modal-field">
       <div class="modal-field-lbl">Categoria (Gestão)</div>
@@ -722,6 +739,26 @@ input,select{font-family:'Montserrat',sans-serif}
     <div class="modal-btns">
       <button class="modal-btn-cancel" onclick="closeEditProdModal()">Cancelar</button>
       <button class="modal-btn-save" onclick="saveEditProd()">Salvar & Publicar</button>
+    </div>
+    <div style="margin-top:10px;">
+      <button type="button" onclick="confirmarApagarProduto()" style="width:100%;padding:11px;border-radius:6px;background:rgba(200,60,60,0.08);border:1px solid rgba(200,60,60,0.22);color:rgba(220,100,100,0.7);font-size:0.56rem;letter-spacing:0.16em;text-transform:uppercase;cursor:pointer;transition:all 0.2s;" ontouchstart="this.style.background='rgba(200,60,60,0.16)'" ontouchend="this.style.background='rgba(200,60,60,0.08)'">🗑 Apagar produto do catálogo</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: CONFIRMAR APAGAR PRODUTO -->
+<div id="modal-confirm-del" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal-sheet" style="max-width:360px;margin:0 auto;">
+    <div class="modal-handle"></div>
+    <div class="modal-title" style="color:rgba(220,100,100,0.85);">Apagar produto?</div>
+    <div class="modal-sub" id="confirm-del-name" style="color:rgba(240,232,220,0.5);margin-bottom:14px;font-size:0.6rem;"></div>
+    <div style="background:rgba(200,60,60,0.07);border:1px solid rgba(200,60,60,0.2);border-radius:7px;padding:12px;font-size:0.55rem;letter-spacing:0.08em;color:rgba(240,232,220,0.5);line-height:1.6;margin-bottom:18px;">
+      ⚠ O produto será removido do catálogo e do Firebase.<br>
+      As <strong style="color:rgba(240,232,220,0.7);">vendas registradas não serão apagadas.</strong>
+    </div>
+    <div class="modal-btns">
+      <button class="modal-btn-cancel" onclick="document.getElementById('modal-confirm-del').classList.remove('open')">Cancelar</button>
+      <button style="flex:1;padding:13px;border-radius:6px;background:rgba(200,60,60,0.18);border:1px solid rgba(200,60,60,0.35);color:rgba(220,100,100,0.9);font-size:0.6rem;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;cursor:pointer;" onclick="executarApagarProduto()">Apagar</button>
     </div>
   </div>
 </div>
@@ -2339,22 +2376,32 @@ function removeCustomProd(id){
 function openAddProdModal(){
   _apCat='feminino';
   _apAba='todos';
+  _apFotoBase64=null;
   document.getElementById('ap-name').value='';
   document.getElementById('ap-brand').value='';
   document.getElementById('ap-sub').value='';
   document.getElementById('ap-price').value='';
   document.getElementById('ap-foto').value='';
+  document.getElementById('ap-foto').placeholder='https://i.ibb.co/...';
   document.getElementById('ap-foto-preview').style.display='none';
+  // Reset botão IA
+  var aiBtn=document.getElementById('ap-ai-btn');
+  if(aiBtn){aiBtn.style.background='';aiBtn.style.borderColor='';aiBtn.style.color='#e8c97a';}
+  var aiIcon=document.getElementById('ap-ai-icon');if(aiIcon)aiIcon.textContent='✦';
+  var aiTxt=document.getElementById('ap-ai-txt');if(aiTxt)aiTxt.textContent='Analisar com IA';
+  var aiStatus=document.getElementById('ap-ai-status');if(aiStatus)aiStatus.style.display='none';
+  // Reset file input
+  var fi=document.getElementById('ap-foto-file');if(fi)fi.value='';
   renderApCats();
   renderApAbas();
   document.getElementById('modal-add-prod').classList.add('open');
-  setTimeout(function(){document.getElementById('ap-name').focus();},350);
   // Preview de foto ao colar URL
   document.getElementById('ap-foto').oninput=function(){
     var url=this.value.trim();
     var prev=document.getElementById('ap-foto-preview');
     var img=document.getElementById('ap-foto-img');
-    if(url){img.src=url;prev.style.display='block';}
+    _apFotoBase64=null;
+    if(url){img.src=url;prev.style.display='flex';}
     else{prev.style.display='none';}
   };
 }
@@ -2387,7 +2434,9 @@ function saveNewProd(){
   var name=document.getElementById('ap-name').value.trim();
   var brand=document.getElementById('ap-brand').value.trim();
   var sub=document.getElementById('ap-sub').value.trim();
-  var foto=document.getElementById('ap-foto').value.trim();
+  var fotoUrl=document.getElementById('ap-foto').value.trim();
+  // Se veio do celular, usa base64 localmente; se veio de URL usa a URL
+  var foto = fotoUrl || (_apFotoBase64 || '');
   var price=parseFloat(String(document.getElementById('ap-price').value).replace(',','.'))||0;
   if(!name){document.getElementById('ap-name').focus();return;}
   if(!brand){document.getElementById('ap-brand').focus();return;}
@@ -2398,12 +2447,12 @@ function saveNewProd(){
   S.customProducts.push(newProd);
   if(price>0)S.prices[nid]=price;
   save();
-  // Publica no Firebase SOMENTE se tiver foto
-  if(window._fbdb && foto){
+  // Publica no Firebase SOMENTE se tiver URL (base64 é muito grande para Firebase)
+  if(window._fbdb && fotoUrl){
     var mostrarP=getMostrarPrecos();
     window._fbdb.ref('produtos_custom/'+nid).set({
       id:nid,name:name,brand:brand,category:_apCat,sub:sub,
-      foto:foto,price:(mostrarP&&price)?price:null,catalogTab:_apAba,custom:true
+      foto:fotoUrl,price:(mostrarP&&price)?price:null,catalogTab:_apAba,custom:true
     }).then(function(){
       toastMsg('✓ Produto publicado no catálogo!');
     }).catch(function(err){
@@ -2421,6 +2470,134 @@ function saveNewProd(){
 
 function togglePagParc(pid,idx,i){
   togglePagParcWithHist(pid,idx,i);
+}
+
+// ── ANÁLISE DE FOTO COM IA ────────────────────────────────────────────────────
+var _apFotoBase64 = null;
+
+function handleApFotoUpload(input){
+  var file = input.files[0];
+  if(!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e){
+    _apFotoBase64 = e.target.result;
+    var img = document.getElementById('ap-foto-img');
+    var prev = document.getElementById('ap-foto-preview');
+    img.src = _apFotoBase64;
+    prev.style.display = 'flex';
+    document.getElementById('ap-foto').value = '';
+    document.getElementById('ap-foto').placeholder = '(foto carregada do celular)';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function analisarFotoIA(){
+  var url = document.getElementById('ap-foto').value.trim();
+  var btn = document.getElementById('ap-ai-btn');
+  var icon = document.getElementById('ap-ai-icon');
+  var txt = document.getElementById('ap-ai-txt');
+  var status = document.getElementById('ap-ai-status');
+
+  if(!url && !_apFotoBase64){
+    status.style.display='block';
+    status.style.color='rgba(220,100,100,0.7)';
+    status.textContent='Cole a URL da foto ou use uma foto do celular primeiro';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.style.opacity = '0.7';
+  icon.textContent = '⏳';
+  txt.textContent = 'Analisando...';
+  status.style.display = 'block';
+  status.style.color = 'rgba(201,168,76,0.5)';
+  status.textContent = 'A IA está identificando o produto...';
+
+  try {
+    var imageContent;
+    if(_apFotoBase64){
+      var parts = _apFotoBase64.split(',');
+      var mediaType = parts[0].match(/:(.*?);/)[1];
+      imageContent = { type:'image', source:{ type:'base64', media_type:mediaType, data:parts[1] } };
+    } else {
+      imageContent = { type:'image', source:{ type:'url', url:url } };
+    }
+
+    var resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{
+          role: 'user',
+          content: [
+            imageContent,
+            { type:'text', text:'Esta é uma foto de um produto cosmético ou de beleza (perfume, creme, hidratante, kit, etc). Analise a imagem e extraia as informações do produto.\n\nResponda SOMENTE com JSON válido, sem markdown, sem texto extra:\n{"nome":"nome completo do produto","marca":"nome da marca","descricao":"tipo + volume/tamanho se visível, ex: Deo Parfum 90ml","categoria":"feminino|masculino|kit|hidratante|kids"}\n\nSe não conseguir identificar algum campo, use string vazia "". Para categoria: feminino para perfumes/cosméticos femininos, masculino para masculinos, kit para kits/combos, hidratante para cremes/loções/hidratantes, kids para infantis.' }
+          ]
+        }]
+      })
+    });
+
+    if(!resp.ok) throw new Error('HTTP '+resp.status);
+    var data = await resp.json();
+    var raw = data.content.map(function(b){ return b.text||''; }).join('');
+    raw = raw.replace(/```json|```/g,'').trim();
+    var parsed = JSON.parse(raw);
+
+    if(parsed.nome)      document.getElementById('ap-name').value  = parsed.nome;
+    if(parsed.marca)     document.getElementById('ap-brand').value = parsed.marca;
+    if(parsed.descricao) document.getElementById('ap-sub').value   = parsed.descricao;
+    if(parsed.categoria && ['feminino','masculino','kit','hidratante','kids'].indexOf(parsed.categoria)>=0){
+      _apCat = parsed.categoria; renderApCats();
+    }
+
+    icon.textContent = '✓';
+    txt.textContent = 'Preenchido pela IA!';
+    btn.style.background = 'linear-gradient(135deg,rgba(125,216,125,0.15),rgba(125,216,125,0.07))';
+    btn.style.borderColor = 'rgba(125,216,125,0.4)';
+    btn.style.color = '#7dd87d';
+    status.style.color = 'rgba(125,216,125,0.6)';
+    status.textContent = 'Verifique e ajuste se necessário ✓';
+
+  } catch(err) {
+    icon.textContent = '⚠';
+    txt.textContent = 'Erro ao analisar';
+    status.style.color = 'rgba(220,100,100,0.6)';
+    status.textContent = 'Não foi possível analisar. Preencha manualmente.';
+    console.error('IA erro:',err);
+  } finally {
+    btn.disabled = false;
+    btn.style.opacity = '1';
+  }
+}
+
+// ── APAGAR PRODUTO ────────────────────────────────────────────────────────────
+function confirmarApagarProduto(){
+  if(_epId===null) return;
+  var p = (S.customProducts||[]).find(function(x){return x.id===_epId;});
+  if(!p) return;
+  document.getElementById('confirm-del-name').textContent = p.name + ' — ' + p.brand;
+  document.getElementById('modal-confirm-del').classList.add('open');
+}
+
+function executarApagarProduto(){
+  if(_epId===null) return;
+  var id = _epId;
+  S.customProducts = (S.customProducts||[]).filter(function(p){ return p.id!==id; });
+  delete S.prices[id];
+  try{
+    if(window._fbdb){
+      window._fbdb.ref('produtos_custom/'+id).remove();
+      window._fbdb.ref('precos/'+id).remove();
+    }
+  }catch(e){}
+  save();
+  document.getElementById('modal-confirm-del').classList.remove('open');
+  document.getElementById('modal-edit-prod').classList.remove('open');
+  _epId = null;
+  renderAll(); renderProdTab();
+  toastMsg('🗑 Produto removido do catálogo.');
 }
 
 // ── BUSCA DE PRODUTO PARA EDITAR ─────────────────────────────────────────────
