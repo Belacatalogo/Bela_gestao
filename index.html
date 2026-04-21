@@ -2586,38 +2586,41 @@ async function analisarFotoIA(){
     return;
   }
 
+  var GEMINI_KEY = localStorage.getItem('bela-gemini-key')||'';
+  if(!GEMINI_KEY){
+    status.style.display='block';
+    status.style.color='rgba(220,100,100,0.7)';
+    status.textContent='Configure sua chave Gemini na aba ⚙ Config → IA (Análise de Foto)';
+    return;
+  }
+
   btn.disabled = true;
   btn.style.opacity = '0.7';
   icon.textContent = '⏳';
   txt.textContent = 'Analisando...';
   status.style.display = 'block';
   status.style.color = 'rgba(201,168,76,0.5)';
-  status.textContent = 'A IA está identificando o produto...';
+  status.textContent = 'Enviando para a IA...';
 
   try {
-    // Prepara dados da imagem para Gemini
     var imagePart;
+
     if(_apFotoBase64){
+      // Foto do celular — já temos o base64
       var parts = _apFotoBase64.split(',');
       var mediaType = parts[0].match(/:(.*?);/)[1];
       imagePart = { inline_data: { mime_type: mediaType, data: parts[1] } };
     } else {
-      // Para URL pública, busca como blob e converte para base64
-      var imgResp = await fetch(url);
-      var blob = await imgResp.blob();
-      var b64 = await new Promise(function(res){
-        var r=new FileReader();r.onload=function(e){res(e.target.result.split(',')[1]);};r.readAsDataURL(blob);
-      });
-      imagePart = { inline_data: { mime_type: blob.type||'image/jpeg', data: b64 } };
+      // URL pública — tenta passar direto como file_data (sem CORS)
+      // Gemini aceita URLs públicas diretamente via file_data com fetch_config
+      // Mas a forma mais segura é carregar via Image + canvas para base64
+      status.textContent = 'Carregando imagem...';
+      var b64Data = await urlParaBase64(url);
+      imagePart = { inline_data: { mime_type: 'image/jpeg', data: b64Data } };
     }
 
-    var GEMINI_KEY = localStorage.getItem('bela-gemini-key')||'';
-    if(!GEMINI_KEY){
-      icon.textContent='⚠'; txt.textContent='Chave não configurada';
-      status.style.color='rgba(220,100,100,0.7)';
-      status.textContent='Configure sua chave Gemini na aba ⚙ Config → IA (Análise de Foto)';
-      btn.disabled=false; btn.style.opacity='1'; return;
-    }
+    status.textContent = 'IA analisando o produto...';
+
     var resp = await fetch(
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + GEMINI_KEY,
       {
@@ -2627,21 +2630,33 @@ async function analisarFotoIA(){
           contents: [{
             parts: [
               imagePart,
-              { text: 'Esta é uma foto de um produto cosmético ou de beleza (perfume, creme, hidratante, kit, etc) de marcas como O Boticário, Eudora, Natura, Avon ou similar. Analise a imagem e extraia as informações.\n\nResponda SOMENTE com JSON válido, sem markdown, sem texto extra:\n{"nome":"nome completo do produto","marca":"nome da marca","descricao":"tipo + volume/tamanho se visível, ex: Deo Parfum 90ml","categoria":"feminino|masculino|kit|hidratante|kids"}\n\nSe não conseguir identificar algum campo, use string vazia "". Categoria: feminino para perfumes/cosméticos femininos, masculino para masculinos, kit para kits/combos, hidratante para cremes/loções/hidratantes, kids para infantis.' }
+              { text: 'Analise esta foto de produto cosmético/beleza. Responda SOMENTE com JSON (sem markdown, sem texto antes ou depois):\n{"nome":"nome do produto","marca":"marca","descricao":"tipo e volume ex: Deo Parfum 90ml","categoria":"feminino|masculino|kit|hidratante|kids"}\nUse "" para campos não identificáveis.' }
             ]
           }],
-          generationConfig: { temperature: 0.1, maxOutputTokens: 256 }
+          generationConfig: { temperature: 0.1, maxOutputTokens: 300 }
         })
       }
     );
 
-    if(!resp.ok){
-      var errData = await resp.json().catch(function(){return {};});
-      throw new Error((errData.error&&errData.error.message)||'HTTP '+resp.status);
-    }
     var data = await resp.json();
-    var raw = data.candidates&&data.candidates[0]&&data.candidates[0].content&&data.candidates[0].content.parts&&data.candidates[0].content.parts[0]&&data.candidates[0].content.parts[0].text||'';
+
+    if(!resp.ok){
+      var msg = (data.error&&data.error.message)||'Erro '+resp.status;
+      throw new Error(msg);
+    }
+
+    // Extrai texto da resposta
+    var raw = '';
+    try{ raw = data.candidates[0].content.parts[0].text; }catch(e){}
+    if(!raw && data.candidates&&data.candidates[0]&&data.candidates[0].finishReason){
+      throw new Error('Gemini bloqueou: '+data.candidates[0].finishReason);
+    }
+
+    // Limpa e parseia JSON
     raw = raw.replace(/```json|```/g,'').trim();
+    // Garante que começa em { e termina em }
+    var start = raw.indexOf('{'), end = raw.lastIndexOf('}');
+    if(start>=0 && end>start) raw = raw.substring(start, end+1);
     var parsed = JSON.parse(raw);
 
     if(parsed.nome)      document.getElementById('ap-name').value  = parsed.nome;
@@ -2663,12 +2678,37 @@ async function analisarFotoIA(){
     icon.textContent = '⚠';
     txt.textContent = 'Erro ao analisar';
     status.style.color = 'rgba(220,100,100,0.6)';
-    status.textContent = 'Não foi possível analisar. Tente novamente ou preencha manualmente.';
-    console.error('Gemini erro:',err);
+    // Mostra o erro real para facilitar diagnóstico
+    var errMsg = err && err.message ? err.message : String(err);
+    status.textContent = '⚠ ' + errMsg;
+    console.error('Gemini erro:', err);
   } finally {
     btn.disabled = false;
     btn.style.opacity = '1';
   }
+}
+
+// Converte URL de imagem para base64 via canvas (evita CORS do fetch direto)
+function urlParaBase64(url){
+  return new Promise(function(resolve, reject){
+    var img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = function(){
+      try{
+        var canvas = document.createElement('canvas');
+        canvas.width = Math.min(img.naturalWidth, 1024);
+        canvas.height = Math.round(img.naturalHeight * canvas.width / img.naturalWidth);
+        var ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        var dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        resolve(dataUrl.split(',')[1]);
+      }catch(e){ reject(new Error('Canvas bloqueado (CORS): tente usar "Foto do celular" em vez de URL')); }
+    };
+    img.onerror = function(){
+      reject(new Error('Não carregou a imagem. Tente usar "📷 Usar foto do celular"'));
+    };
+    img.src = url;
+  });
 }
 
 // ── APAGAR PRODUTO ────────────────────────────────────────────────────────────
