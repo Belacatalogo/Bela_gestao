@@ -714,7 +714,8 @@ input,select{font-family:'Montserrat',sans-serif}
       <div class="parc-sel" id="ap-cat-sel" style="flex-wrap:wrap;gap:5px;"></div>
     </div>
     <div class="modal-field">
-      <div class="modal-field-lbl">Aba no Catálogo *</div>
+      <div class="modal-field-lbl">Abas no Catálogo * <span id="ap-aba-lbl" style="color:#C9A84C;font-size:0.42rem;"></span></div>
+      <div style="font-size:0.44rem;letter-spacing:0.12em;color:rgba(240,232,220,0.28);margin-bottom:5px;">Pode selecionar várias abas — produto aparecerá em todas</div>
       <div class="parc-sel" id="ap-aba-sel" style="flex-wrap:wrap;gap:5px;"></div>
     </div>
     <div class="modal-btns">
@@ -759,7 +760,8 @@ input,select{font-family:'Montserrat',sans-serif}
       <div class="parc-sel" id="ep-cat-sel" style="flex-wrap:wrap;gap:5px;"></div>
     </div>
     <div class="modal-field">
-      <div class="modal-field-lbl">Aba no Catálogo</div>
+      <div class="modal-field-lbl">Abas no Catálogo <span id="ep-aba-lbl" style="color:#C9A84C;font-size:0.42rem;"></span></div>
+      <div style="font-size:0.44rem;letter-spacing:0.12em;color:rgba(240,232,220,0.28);margin-bottom:5px;">Pode selecionar várias abas — produto aparecerá em todas</div>
       <div class="parc-sel" id="ep-aba-sel" style="flex-wrap:wrap;gap:5px;"></div>
     </div>
     <div id="ep-sem-foto-aviso" style="display:none;background:rgba(232,192,96,0.07);border:1px solid rgba(232,192,96,0.25);border-radius:6px;padding:10px 12px;font-size:0.52rem;color:rgba(232,192,96,0.8);letter-spacing:0.1em;margin-bottom:4px;">
@@ -2389,7 +2391,7 @@ function renderCobrancas(){
 
 // ── PRODUTOS CUSTOMIZADOS ─────────────────────────────────────────────────────
 var _apCats=['feminino'];
-var _apAba='todos';
+var _apAbas=['todos'];
 
 var ABAS_CATALOGO=[
   {id:'todos',      label:'Todos'},
@@ -2421,7 +2423,7 @@ function renderProdTab(){
         '<div class="cprod-brand" style="color:'+pCats.map(function(c){return (CAT[c]&&CAT[c].color)||'#C9A84C';}).join(', ')+';">'+esc(p.brand)+'  <span style="opacity:0.6;">'+pCats.map(function(c){return (CAT[c]&&CAT[c].label)||c;}).join(' · ')+'</span></div>'+
         (p.sub?'<div class="cprod-sub">'+esc(p.sub)+'</div>':'')+
         '<div style="margin-top:3px;font-size:0.4rem;letter-spacing:0.2em;color:'+(semFoto?'rgba(232,192,96,0.55)':'rgba(201,168,76,0.45)')+';">'+
-          (semFoto?'⚠ Sem foto — fora do catálogo':'📂 '+abaInfo.label+(gp(p.id)>0?' · '+fmt(gp(p.id)):''))+
+          (semFoto?'⚠ Sem foto — fora do catálogo':'📂 '+(function(){var tabs=p.catalogTabs&&p.catalogTabs.length?p.catalogTabs:[p.catalogTab||'todos'];return tabs.map(function(tid){var a=ABAS_CATALOGO.find(function(x){return x.id===tid;});return a?a.label:tid;}).join(' + ');})()+(gp(p.id)>0?' · '+fmt(gp(p.id)):''))+
         '</div>'+
       '</div>'+
       '<div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0;">'+
@@ -2449,7 +2451,7 @@ function removeCustomProd(id){
 
 function openAddProdModal(){
   _apCats=['feminino'];
-  _apAba='todos';
+  _apAbas=['todos'];
   _apFotoBase64=null;
   document.getElementById('ap-name').value='';
   document.getElementById('ap-brand').value='';
@@ -2506,12 +2508,19 @@ function selApCat(c){
 
 function renderApAbas(){
   document.getElementById('ap-aba-sel').innerHTML=ABAS_CATALOGO.map(function(a){
-    var active=_apAba===a.id;
+    var active=_apAbas.indexOf(a.id)>=0;
     var col='#C9A84C';
-    return '<button type="button" class="ap-cat-btn'+(active?' active':'')+'" style="'+(active?'background:'+col+';border-color:'+col+';color:#080808;':'')+'" onclick="selApAba(\''+a.id+'\')">'+a.label+'</button>';
+    return '<button type="button" class="ap-cat-btn'+(active?' active':'')+'" style="'+(active?'background:'+col+';border-color:'+col+';color:#080808;':'')+'" onclick="selApAba(\''+a.id+'\')">'+a.label+(active?' ✓':'')+'</button>';
   }).join('');
+  var lbl=document.getElementById('ap-aba-lbl');
+  if(lbl)lbl.textContent=_apAbas.length>1?'('+_apAbas.length+' abas)':'';
 }
-function selApAba(a){_apAba=a;renderApAbas();}
+function selApAba(a){
+  var idx=_apAbas.indexOf(a);
+  if(idx>=0){if(_apAbas.length>1)_apAbas.splice(idx,1);}
+  else{_apAbas.push(a);}
+  renderApAbas();
+}
 
 function closeAddProdModal(e){
   if(e&&e.target!==document.getElementById('modal-add-prod'))return;
@@ -2531,7 +2540,7 @@ function saveNewProd(){
   if(!S.customProducts)S.customProducts=[];
   var usedIds=getAllProducts().map(function(p){return p.id;});
   var nid=1000;while(usedIds.indexOf(nid)>=0)nid++;
-  var newProd={id:nid,name:name,brand:brand,category:_apCats[0],categories:_apCats.slice(),sub:sub,custom:true,foto:foto,catalogTab:_apAba};
+  var newProd={id:nid,name:name,brand:brand,category:_apCats[0],categories:_apCats.slice(),sub:sub,custom:true,foto:foto,catalogTab:_apAbas[0],catalogTabs:_apAbas.slice()};
   S.customProducts.push(newProd);
   if(price>0)S.prices[nid]=price;
   save();
@@ -2540,7 +2549,7 @@ function saveNewProd(){
     var mostrarP=getMostrarPrecos();
     window._fbdb.ref('produtos_custom/'+nid).set({
       id:nid,name:name,brand:brand,category:_apCats[0],categories:_apCats.slice(),sub:sub,
-      foto:fotoUrl,price:(mostrarP&&price)?price:null,catalogTab:_apAba,custom:true
+      foto:fotoUrl,price:(mostrarP&&price)?price:null,catalogTab:_apAbas[0],catalogTabs:_apAbas.slice(),custom:true
     }).then(function(){
       toastMsg('✓ Produto publicado no catálogo!');
     }).catch(function(err){
@@ -2715,7 +2724,7 @@ async function analisarFotoIA(){
     cats = cats.filter(function(c){ return validCats.indexOf(c) >= 0; });
     if(cats.length > 0){ _apCats = cats; renderApCats(); }
     if(parsed.aba && ['todos','colecao','maes','beleza','maquiagens','infantis'].indexOf(parsed.aba)>=0){
-      _apAba = parsed.aba; renderApAbas();
+      _apAbas = [parsed.aba]; renderApAbas();
     }
 
     icon.textContent = '✓';
@@ -2890,14 +2899,14 @@ function buscarProdEdit(q){
 // ── MODAL EDITAR PRODUTO ──────────────────────────────────────────────────────
 var _epId=null;
 var _epCats=['feminino'];
-var _epAba='todos';
+var _epAbas=['todos'];
 
 function openEditProdModal(id){
   var p=(S.customProducts||[]).find(function(x){return x.id===id;});
   if(!p)return;
   _epId=id;
   _epCats=p.categories&&p.categories.length?p.categories.slice():[p.category||'feminino'];
-  _epAba=p.catalogTab||'todos';
+  _epAbas=p.catalogTabs&&p.catalogTabs.length?p.catalogTabs.slice():(p.catalogTab?[p.catalogTab]:['todos']);
 
   document.getElementById('ep-sub').textContent=p.name;
   document.getElementById('ep-name').value=p.name;
@@ -2963,12 +2972,19 @@ function selEpCat(c){
 
 function renderEpAbas(){
   document.getElementById('ep-aba-sel').innerHTML=ABAS_CATALOGO.map(function(a){
-    var active=_epAba===a.id;
+    var active=_epAbas.indexOf(a.id)>=0;
     var col='#C9A84C';
-    return '<button type="button" class="ap-cat-btn'+(active?' active':'')+'" style="'+(active?'background:'+col+';border-color:'+col+';color:#080808;':'')+'" onclick="selEpAba(\''+a.id+'\')" >'+a.label+'</button>';
+    return '<button type="button" class="ap-cat-btn'+(active?' active':'')+'" style="'+(active?'background:'+col+';border-color:'+col+';color:#080808;':'')+'" onclick="selEpAba(\''+a.id+'\')">'+a.label+(active?' ✓':'')+'</button>';
   }).join('');
+  var lbl=document.getElementById('ep-aba-lbl');
+  if(lbl)lbl.textContent=_epAbas.length>1?'('+_epAbas.length+' abas)':'';
 }
-function selEpAba(a){_epAba=a;renderEpAbas();}
+function selEpAba(a){
+  var idx=_epAbas.indexOf(a);
+  if(idx>=0){if(_epAbas.length>1)_epAbas.splice(idx,1);}
+  else{_epAbas.push(a);}
+  renderEpAbas();
+}
 
 function saveEditProd(){
   if(_epId===null)return;
@@ -2990,7 +3006,8 @@ function saveEditProd(){
   prods[idx].foto=foto;
   prods[idx].category=_epCats[0];
   prods[idx].categories=_epCats.slice();
-  prods[idx].catalogTab=_epAba;
+  prods[idx].catalogTab=_epAbas[0];
+  prods[idx].catalogTabs=_epAbas.slice();
   if(price>0) S.prices[_epId]=price;
 
   save();
@@ -3002,7 +3019,7 @@ function saveEditProd(){
         var mostrarP=getMostrarPrecos();
         window._fbdb.ref('produtos_custom/'+_epId).set({
           id:_epId,name:name,brand:brand,category:_epCats[0],categories:_epCats.slice(),sub:sub,
-          foto:foto,price:(mostrarP&&price)?price:null,catalogTab:_epAba,custom:true
+          foto:foto,price:(mostrarP&&price)?price:null,catalogTab:_epAbas[0],catalogTabs:_epAbas.slice(),custom:true
         });
         if(mostrarP&&price) window._fbdb.ref('precos/'+_epId).set(price);
       } else {
