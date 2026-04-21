@@ -3022,11 +3022,14 @@ async function testarChaveGemini(){
   if(!key){st.style.color='rgba(220,100,100,0.7)';st.textContent='Cole a chave primeiro';return;}
 
   var modelos=[
-    'gemini-2.0-flash-lite',
+    'gemini-2.5-flash',
+    'gemini-flash-latest',
     'gemini-2.0-flash',
+    'gemini-2.0-flash-001',
+    'gemini-2.0-flash-lite',
+    'gemini-2.0-flash-lite-001',
+    'gemini-2.5-flash-lite',
     'gemini-1.5-flash',
-    'gemini-1.5-flash-8b',
-    'gemini-pro-vision',
   ];
 
   st.style.color='rgba(201,168,76,0.6)';st.textContent='⏳ Testando modelos disponíveis...';
