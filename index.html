@@ -672,6 +672,10 @@ input,select{font-family:'Montserrat',sans-serif}
       <div id="ap-foto-preview" style="margin-top:8px;display:none;align-items:flex-start;gap:10px;">
         <img id="ap-foto-img" src="" alt="Preview" style="width:80px;height:80px;object-fit:cover;border-radius:5px;border:1px solid rgba(201,168,76,0.3);flex-shrink:0;">
         <div style="flex:1;">
+          <!-- Campo de dica para kits montados -->
+          <input id="ap-ai-dica" class="modal-input" type="text"
+            placeholder="Dica (opcional): ex: kit c/ hidratante baunilha + body splash"
+            style="font-size:0.62rem;padding:7px 10px;margin-bottom:6px;border-color:rgba(201,168,76,0.18);color:rgba(240,232,220,0.6);">
           <button type="button" id="ap-ai-btn" onclick="analisarFotoIA()" style="width:100%;padding:9px 12px;background:linear-gradient(135deg,rgba(201,168,76,0.15),rgba(201,168,76,0.08));border:1px solid rgba(201,168,76,0.4);border-radius:6px;color:#e8c97a;font-size:0.55rem;font-weight:500;letter-spacing:0.14em;text-transform:uppercase;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:all 0.2s;">
             <span id="ap-ai-icon">✦</span> <span id="ap-ai-txt">Analisar com IA</span>
           </button>
@@ -2462,6 +2466,8 @@ function openAddProdModal(){
   var aiStatus=document.getElementById('ap-ai-status');if(aiStatus)aiStatus.style.display='none';
   // Reset file input
   var fi=document.getElementById('ap-foto-file');if(fi)fi.value='';
+  // Reset dica
+  var dica=document.getElementById('ap-ai-dica');if(dica)dica.value='';
   renderApCats();
   renderApAbas();
   document.getElementById('modal-add-prod').classList.add('open');
@@ -2620,6 +2626,9 @@ async function analisarFotoIA(){
       imagePart = { inline_data: { mime_type: 'image/jpeg', data: b64Data } };
     }
 
+    var dica = (document.getElementById('ap-ai-dica')&&document.getElementById('ap-ai-dica').value.trim())||'';
+    var dicaTxt = dica ? '\n\nINFORMAÇÃO EXTRA DA USUÁRIA sobre este produto/kit: "'+dica+'" — use isso para complementar o que você vê na foto e deixar a descrição bem completa.' : '';
+
     status.textContent = 'IA analisando o produto...';
 
     var modelo = localStorage.getItem('bela-gemini-modelo')||'gemini-2.5-flash';
@@ -2640,7 +2649,7 @@ async function analisarFotoIA(){
             contents: [{
               parts: [
                 imagePart,
-                { text: 'Analise esta foto de produto cosmético/beleza (perfume, hidratante, creme, kit, sabonete, etc) de marcas brasileiras como O Boticário, Eudora, Natura, Avon, etc.\n\nResponda SOMENTE com JSON válido, sem markdown, sem texto antes ou depois:\n{"nome":"nome completo do produto","marca":"marca exata","descricao":"tipo do produto + volume/tamanho se visível (ex: Deo Parfum 90ml, Loção Hidratante 400ml, Kit Perfume + Creme)","categoria":"feminino|masculino|kit|hidratante|kids","aba":"todos|colecao|maes|beleza|maquiagens|infantis"}\n\nRegras:\n- categoria: feminino=perfumes/cosméticos femininos, masculino=masculinos, kit=conjuntos/combos, hidratante=cremes/loções/sabonetes/óleos, kids=infantil\n- aba: todos=produtos gerais, colecao=lançamentos/especiais, maes=dia das mães, beleza=beleza e kids, maquiagens=maquiagem, infantis=bebê/criança\n- Use "" apenas se realmente não conseguir identificar o campo' }
+                { text: 'Você é um especialista em cosméticos brasileiros (O Boticário, Eudora, Natura, Avon, etc). Analise esta foto de produto com atenção máxima.\n\nResponda SOMENTE com JSON válido, sem markdown:\n{"nome":"nome completo e exato do produto","marca":"marca exata","descricao":"descrição DETALHADA: liste TODOS os itens do kit OU tipo+volume+linha. Ex para kit: \'Creme Hidratante Acetinado 250g + Body Splash 200ml + Sabonete Líquido 250ml\'. Ex para perfume: \'Deo Parfum Feminino 75ml — Linha Lily\'. Seja específica, nunca use apenas \'perfume\' ou \'kit\'","categorias":["cat1","cat2"],"aba":"todos|colecao|maes|beleza|maquiagens|infantis"}\n\nRegras para categorias (pode ter VÁRIAS):\n- "feminino" = produto para mulher (perfume fem, creme, sabonete fem)\n- "masculino" = produto para homem\n- "kit" = conjunto com 2+ itens\n- "hidratante" = creme, loção, sabonete, óleo corporal, body splash\n- "kids" = infantil/bebê\nEx: kit feminino com hidratante → ["kit","feminino","hidratante"]\n\nRegras para aba:\n- todos=geral, colecao=lançamento/especial, maes=dia das mães, beleza=beleza e kids, maquiagens=maquiagem, infantis=bebê'+dicaTxt }
               ]
             }],
             generationConfig: { temperature: 0.1, maxOutputTokens: 512 }
@@ -2680,13 +2689,17 @@ async function analisarFotoIA(){
       var mNome  = raw.match(/"nome"\s*:\s*"([^"]+)"/);
       var mMarca = raw.match(/"marca"\s*:\s*"([^"]+)"/);
       var mDesc  = raw.match(/"descricao"\s*:\s*"([^"]+)"/);
+      var mCats  = raw.match(/"categorias"\s*:\s*\[([^\]]+)\]/);
       var mCat   = raw.match(/"categoria"\s*:\s*"([^"]+)"/);
       var mAba   = raw.match(/"aba"\s*:\s*"([^"]+)"/);
+      var catsArr = [];
+      if(mCats) catsArr = mCats[1].match(/"([^"]+)"/g).map(function(s){return s.replace(/"/g,'');});
+      else if(mCat) catsArr = [mCat[1]];
       parsed = {
         nome:       mNome  ? mNome[1]  : '',
         marca:      mMarca ? mMarca[1] : '',
         descricao:  mDesc  ? mDesc[1]  : '',
-        categoria:  mCat   ? mCat[1]   : '',
+        categorias: catsArr,
         aba:        mAba   ? mAba[1]   : ''
       };
       if(!parsed.nome && !parsed.marca) throw new Error('Resposta da IA incompleta. Tente novamente.');
@@ -2695,9 +2708,11 @@ async function analisarFotoIA(){
     if(parsed.nome)      document.getElementById('ap-name').value  = parsed.nome;
     if(parsed.marca)     document.getElementById('ap-brand').value = parsed.marca;
     if(parsed.descricao) document.getElementById('ap-sub').value   = parsed.descricao;
-    if(parsed.categoria && ['feminino','masculino','kit','hidratante','kids'].indexOf(parsed.categoria)>=0){
-      _apCats = [parsed.categoria]; renderApCats();
-    }
+    // Suporta tanto "categorias" (array novo) quanto "categoria" (string legado)
+    var cats = parsed.categorias || (parsed.categoria ? [parsed.categoria] : []);
+    var validCats = ['feminino','masculino','kit','hidratante','kids'];
+    cats = cats.filter(function(c){ return validCats.indexOf(c) >= 0; });
+    if(cats.length > 0){ _apCats = cats; renderApCats(); }
     if(parsed.aba && ['todos','colecao','maes','beleza','maquiagens','infantis'].indexOf(parsed.aba)>=0){
       _apAba = parsed.aba; renderApAbas();
     }
