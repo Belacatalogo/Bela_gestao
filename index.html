@@ -2622,25 +2622,37 @@ async function analisarFotoIA(){
 
     status.textContent = 'IA analisando o produto...';
 
-    var modelo = localStorage.getItem('bela-gemini-modelo')||'gemini-2.0-flash-lite';
-    var resp = await fetch(
-      'https://generativelanguage.googleapis.com/v1beta/models/'+modelo+':generateContent?key=' + GEMINI_KEY,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{
-            parts: [
-              imagePart,
-              { text: 'Analise esta foto de produto cosmético/beleza. Responda SOMENTE com JSON (sem markdown, sem texto antes ou depois):\n{"nome":"nome do produto","marca":"marca","descricao":"tipo e volume ex: Deo Parfum 90ml","categoria":"feminino|masculino|kit|hidratante|kids"}\nUse "" para campos não identificáveis.' }
-            ]
-          }],
-          generationConfig: { temperature: 0.1, maxOutputTokens: 300 }
-        })
+    var modelo = localStorage.getItem('bela-gemini-modelo')||'gemini-2.5-flash';
+    var resp, data;
+    for(var tentativa = 0; tentativa < 4; tentativa++){
+      if(tentativa > 0){
+        var espera = tentativa * 3000;
+        status.textContent = 'Servidor ocupado, aguardando '+(espera/1000)+'s e tentando novamente ('+(tentativa+1)+'/4)...';
+        await new Promise(function(r){setTimeout(r, espera);});
+        status.textContent = 'Tentando novamente...';
       }
-    );
-
-    var data = await resp.json();
+      resp = await fetch(
+        'https://generativelanguage.googleapis.com/v1beta/models/'+modelo+':generateContent?key=' + GEMINI_KEY,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{
+              parts: [
+                imagePart,
+                { text: 'Analise esta foto de produto cosmético/beleza. Responda SOMENTE com JSON (sem markdown, sem texto antes ou depois):\n{"nome":"nome do produto","marca":"marca","descricao":"tipo e volume ex: Deo Parfum 90ml","categoria":"feminino|masculino|kit|hidratante|kids"}\nUse "" para campos não identificáveis.' }
+              ]
+            }],
+            generationConfig: { temperature: 0.1, maxOutputTokens: 300 }
+          })
+        }
+      );
+      data = await resp.json();
+      if(resp.ok) break;
+      var errTxt = (data.error&&data.error.message)||'';
+      var retentar = errTxt.toLowerCase().includes('demand')||errTxt.toLowerCase().includes('overload')||errTxt.toLowerCase().includes('retry')||errTxt.toLowerCase().includes('503')||resp.status===503||resp.status===429;
+      if(!retentar) break;
+    }
 
     if(!resp.ok){
       var msg = (data.error&&data.error.message)||'Erro '+resp.status;
