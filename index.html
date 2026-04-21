@@ -2643,7 +2643,7 @@ async function analisarFotoIA(){
                 { text: 'Analise esta foto de produto cosmético/beleza. Responda SOMENTE com JSON (sem markdown, sem texto antes ou depois):\n{"nome":"nome do produto","marca":"marca","descricao":"tipo e volume ex: Deo Parfum 90ml","categoria":"feminino|masculino|kit|hidratante|kids"}\nUse "" para campos não identificáveis.' }
               ]
             }],
-            generationConfig: { temperature: 0.1, maxOutputTokens: 300 }
+            generationConfig: { temperature: 0.1, maxOutputTokens: 512 }
           })
         }
       );
@@ -2666,12 +2666,29 @@ async function analisarFotoIA(){
       throw new Error('Gemini bloqueou: '+data.candidates[0].finishReason);
     }
 
-    // Limpa e parseia JSON
+    // Limpa e parseia JSON de forma robusta
     raw = raw.replace(/```json|```/g,'').trim();
-    // Garante que começa em { e termina em }
     var start = raw.indexOf('{'), end = raw.lastIndexOf('}');
     if(start>=0 && end>start) raw = raw.substring(start, end+1);
-    var parsed = JSON.parse(raw);
+
+    // Tenta parsear; se falhar, extrai campos com regex como fallback
+    var parsed = {};
+    try {
+      parsed = JSON.parse(raw);
+    } catch(je) {
+      // JSON cortado — extrai o que conseguir via regex
+      var mNome  = raw.match(/"nome"\s*:\s*"([^"]+)"/);
+      var mMarca = raw.match(/"marca"\s*:\s*"([^"]+)"/);
+      var mDesc  = raw.match(/"descricao"\s*:\s*"([^"]+)"/);
+      var mCat   = raw.match(/"categoria"\s*:\s*"([^"]+)"/);
+      parsed = {
+        nome:       mNome  ? mNome[1]  : '',
+        marca:      mMarca ? mMarca[1] : '',
+        descricao:  mDesc  ? mDesc[1]  : '',
+        categoria:  mCat   ? mCat[1]   : ''
+      };
+      if(!parsed.nome && !parsed.marca) throw new Error('Resposta da IA incompleta. Tente novamente.');
+    }
 
     if(parsed.nome)      document.getElementById('ap-name').value  = parsed.nome;
     if(parsed.marca)     document.getElementById('ap-brand').value = parsed.marca;
