@@ -2622,8 +2622,9 @@ async function analisarFotoIA(){
 
     status.textContent = 'IA analisando o produto...';
 
+    var modelo = localStorage.getItem('bela-gemini-modelo')||'gemini-2.0-flash-lite';
     var resp = await fetch(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + GEMINI_KEY,
+      'https://generativelanguage.googleapis.com/v1beta/models/'+modelo+':generateContent?key=' + GEMINI_KEY,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -3019,24 +3020,45 @@ async function testarChaveGemini(){
   var key=(document.getElementById('cfg-gemini-key-input').value||'').trim()||localStorage.getItem('bela-gemini-key')||'';
   var st=document.getElementById('cfg-gemini-status');
   if(!key){st.style.color='rgba(220,100,100,0.7)';st.textContent='Cole a chave primeiro';return;}
-  st.style.color='rgba(201,168,76,0.6)';st.textContent='⏳ Testando conexão...';
+
+  var modelos=[
+    'gemini-2.0-flash-lite',
+    'gemini-2.0-flash',
+    'gemini-1.5-flash',
+    'gemini-1.5-flash-8b',
+    'gemini-pro-vision',
+  ];
+
+  st.style.color='rgba(201,168,76,0.6)';st.textContent='⏳ Testando modelos disponíveis...';
+
+  for(var i=0;i<modelos.length;i++){
+    var modelo=modelos[i];
+    try{
+      var resp=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+modelo+':generateContent?key='+key,{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({contents:[{parts:[{text:'ok'}]}],generationConfig:{maxOutputTokens:5}})
+      });
+      var data=await resp.json();
+      if(resp.ok){
+        // Encontrou modelo que funciona! Salva e usa esse
+        localStorage.setItem('bela-gemini-modelo',modelo);
+        st.style.color='rgba(125,216,125,0.8)';
+        st.textContent='✓ Funcionou com: '+modelo+' — IA ativa!';
+        toastMsg('✓ Modelo '+modelo+' ativo!');
+        return;
+      }
+    }catch(e){}
+  }
+  // Nenhum funcionou — busca lista real de modelos
   try{
-    var resp=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key='+key,{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({contents:[{parts:[{text:'Responda apenas: ok'}]}],generationConfig:{maxOutputTokens:5}})
-    });
-    var data=await resp.json();
-    if(!resp.ok){
-      var msg=(data.error&&data.error.message)||'Erro '+resp.status;
-      st.style.color='rgba(220,100,100,0.8)';
-      st.textContent='✗ '+msg;
-    } else {
-      st.style.color='rgba(125,216,125,0.8)';
-      st.textContent='✓ Chave válida! IA funcionando.';
-    }
+    var lr=await fetch('https://generativelanguage.googleapis.com/v1beta/models?key='+key);
+    var ld=await lr.json();
+    var nomes=(ld.models||[]).filter(function(m){return m.supportedGenerationMethods&&m.supportedGenerationMethods.indexOf('generateContent')>=0;}).map(function(m){return m.name.replace('models/','');});
+    st.style.color='rgba(220,100,100,0.8)';
+    st.textContent='✗ Nenhum modelo funcionou. Disponíveis: '+(nomes.length?nomes.join(', '):'nenhum');
   }catch(e){
     st.style.color='rgba(220,100,100,0.8)';
-    st.textContent='✗ Erro de rede: '+e.message;
+    st.textContent='✗ Chave inválida ou sem acesso à API';
   }
 }
 
