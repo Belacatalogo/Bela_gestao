@@ -2640,7 +2640,7 @@ async function analisarFotoIA(){
             contents: [{
               parts: [
                 imagePart,
-                { text: 'Analise esta foto de produto cosmético/beleza. Responda SOMENTE com JSON (sem markdown, sem texto antes ou depois):\n{"nome":"nome do produto","marca":"marca","descricao":"tipo e volume ex: Deo Parfum 90ml","categoria":"feminino|masculino|kit|hidratante|kids"}\nUse "" para campos não identificáveis.' }
+                { text: 'Analise esta foto de produto cosmético/beleza (perfume, hidratante, creme, kit, sabonete, etc) de marcas brasileiras como O Boticário, Eudora, Natura, Avon, etc.\n\nResponda SOMENTE com JSON válido, sem markdown, sem texto antes ou depois:\n{"nome":"nome completo do produto","marca":"marca exata","descricao":"tipo do produto + volume/tamanho se visível (ex: Deo Parfum 90ml, Loção Hidratante 400ml, Kit Perfume + Creme)","categoria":"feminino|masculino|kit|hidratante|kids","aba":"todos|colecao|maes|beleza|maquiagens|infantis"}\n\nRegras:\n- categoria: feminino=perfumes/cosméticos femininos, masculino=masculinos, kit=conjuntos/combos, hidratante=cremes/loções/sabonetes/óleos, kids=infantil\n- aba: todos=produtos gerais, colecao=lançamentos/especiais, maes=dia das mães, beleza=beleza e kids, maquiagens=maquiagem, infantis=bebê/criança\n- Use "" apenas se realmente não conseguir identificar o campo' }
               ]
             }],
             generationConfig: { temperature: 0.1, maxOutputTokens: 512 }
@@ -2681,11 +2681,13 @@ async function analisarFotoIA(){
       var mMarca = raw.match(/"marca"\s*:\s*"([^"]+)"/);
       var mDesc  = raw.match(/"descricao"\s*:\s*"([^"]+)"/);
       var mCat   = raw.match(/"categoria"\s*:\s*"([^"]+)"/);
+      var mAba   = raw.match(/"aba"\s*:\s*"([^"]+)"/);
       parsed = {
         nome:       mNome  ? mNome[1]  : '',
         marca:      mMarca ? mMarca[1] : '',
         descricao:  mDesc  ? mDesc[1]  : '',
-        categoria:  mCat   ? mCat[1]   : ''
+        categoria:  mCat   ? mCat[1]   : '',
+        aba:        mAba   ? mAba[1]   : ''
       };
       if(!parsed.nome && !parsed.marca) throw new Error('Resposta da IA incompleta. Tente novamente.');
     }
@@ -2695,6 +2697,9 @@ async function analisarFotoIA(){
     if(parsed.descricao) document.getElementById('ap-sub').value   = parsed.descricao;
     if(parsed.categoria && ['feminino','masculino','kit','hidratante','kids'].indexOf(parsed.categoria)>=0){
       _apCats = [parsed.categoria]; renderApCats();
+    }
+    if(parsed.aba && ['todos','colecao','maes','beleza','maquiagens','infantis'].indexOf(parsed.aba)>=0){
+      _apAba = parsed.aba; renderApAbas();
     }
 
     icon.textContent = '✓';
