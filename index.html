@@ -470,6 +470,30 @@ input,select{font-family:'Montserrat',sans-serif}
 <div id="tab-config" class="tab-page">
 
   <div class="cfg-section">
+    <div class="cfg-section-title">IA — Análise de Foto</div>
+    <div class="cfg-card">
+      <div class="cfg-card-title">🔑 Chave da API Gemini (Google)</div>
+      <div class="cfg-card-desc">
+        Cole aqui sua chave da API do Google Gemini para ativar a análise automática de fotos de produtos. A chave fica salva <strong style="color:#e8c97a;">só no seu celular</strong> e nunca vai para o GitHub ou internet.<br><br>
+        Para obter gratuitamente: acesse <strong style="color:#e8c97a;">aistudio.google.com</strong> → Get API Key → Create API Key.
+      </div>
+      <div style="position:relative;margin-bottom:8px;">
+        <input id="cfg-gemini-key-input" class="modal-input" type="password"
+          placeholder="Cole sua chave aqui: AIzaSy..."
+          style="padding-right:44px;font-size:0.7rem;"
+          oninput="cfgGeminiKeyChanged()">
+        <button onclick="toggleGeminiKeyVisibility()" id="cfg-gemini-eye"
+          style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:rgba(240,232,220,0.3);font-size:1rem;cursor:pointer;padding:4px;">👁</button>
+      </div>
+      <div id="cfg-gemini-status" style="font-size:0.48rem;letter-spacing:0.14em;color:rgba(240,232,220,0.3);margin-bottom:8px;min-height:14px;"></div>
+      <div style="display:flex;gap:8px;">
+        <button class="cfg-btn cfg-btn-gold" style="flex:1;margin:0;" onclick="salvarChaveGemini()">💾 Salvar chave</button>
+        <button class="cfg-btn cfg-btn-red" style="width:auto;padding:10px 14px;margin:0;" onclick="apagarChaveGemini()" title="Apagar chave">✕</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="cfg-section">
     <div class="cfg-section-title">Configurações do Catálogo</div>
 
     <div class="cfg-card">
@@ -1630,6 +1654,8 @@ function sincronizarProdutos(){
 function renderConfig(){
   // preços toggle
   renderConfigPrecos();
+  // chave gemini
+  carregarChaveGeminiNaUI();
   // info
   var nVendas=0;
   Object.values(S.sales||{}).forEach(function(arr){nVendas+=arr.length;});
@@ -2585,7 +2611,13 @@ async function analisarFotoIA(){
       imagePart = { inline_data: { mime_type: blob.type||'image/jpeg', data: b64 } };
     }
 
-    var GEMINI_KEY = 'AIzaSyC5pVUxfBg8hQeWXBa5hXBnMvNzGbRFpLo';
+    var GEMINI_KEY = localStorage.getItem('bela-gemini-key')||'';
+    if(!GEMINI_KEY){
+      icon.textContent='⚠'; txt.textContent='Chave não configurada';
+      status.style.color='rgba(220,100,100,0.7)';
+      status.textContent='Configure sua chave Gemini na aba ⚙ Config → IA (Análise de Foto)';
+      btn.disabled=false; btn.style.opacity='1'; return;
+    }
     var resp = await fetch(
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + GEMINI_KEY,
       {
@@ -2896,6 +2928,51 @@ function saveEditProd(){
 
 function setPagF(f){PAG_FILTER=f;renderPag();}
 function setPagSort(s){PAG_SORT=s;renderPag();}
+
+function setPagF(f){PAG_FILTER=f;renderPag();}
+function setPagSort(s){PAG_SORT=s;renderPag();}
+
+// ── CHAVE GEMINI ──────────────────────────────────────────────────────────────
+function carregarChaveGeminiNaUI(){
+  var key=localStorage.getItem('bela-gemini-key')||'';
+  var inp=document.getElementById('cfg-gemini-key-input');
+  var st=document.getElementById('cfg-gemini-status');
+  if(!inp)return;
+  inp.value=key;
+  if(key){
+    st.style.color='rgba(125,216,125,0.7)';
+    st.textContent='✓ Chave salva — IA de análise de fotos ativa';
+  } else {
+    st.style.color='rgba(240,232,220,0.25)';
+    st.textContent='Sem chave — análise de fotos desativada';
+  }
+}
+function cfgGeminiKeyChanged(){
+  var st=document.getElementById('cfg-gemini-status');
+  if(st){st.style.color='rgba(201,168,76,0.5)';st.textContent='Clique em Salvar para confirmar';}
+}
+function salvarChaveGemini(){
+  var key=(document.getElementById('cfg-gemini-key-input').value||'').trim();
+  if(!key){apagarChaveGemini();return;}
+  localStorage.setItem('bela-gemini-key',key);
+  var st=document.getElementById('cfg-gemini-status');
+  st.style.color='rgba(125,216,125,0.7)';
+  st.textContent='✓ Chave salva com sucesso!';
+  toastMsg('✓ Chave Gemini salva!');
+}
+function apagarChaveGemini(){
+  localStorage.removeItem('bela-gemini-key');
+  var inp=document.getElementById('cfg-gemini-key-input');
+  var st=document.getElementById('cfg-gemini-status');
+  if(inp)inp.value='';
+  if(st){st.style.color='rgba(240,232,220,0.25)';st.textContent='Chave removida — análise de fotos desativada';}
+  toastMsg('✓ Chave removida');
+}
+function toggleGeminiKeyVisibility(){
+  var inp=document.getElementById('cfg-gemini-key-input');
+  if(!inp)return;
+  inp.type=inp.type==='password'?'text':'password';
+}
 
 function fmtDate(d){
   if(!d)return'—';
