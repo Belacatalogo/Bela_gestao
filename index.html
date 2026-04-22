@@ -260,6 +260,25 @@ input,select{font-family:'Montserrat',sans-serif}
 .cfg-info-lbl{color:rgba(240,232,220,0.3);letter-spacing:0.1em}
 .cfg-info-val{color:rgba(240,232,220,0.7);font-weight:400}
 
+/* ── CARROSSEL DA COLEÇÃO ── */
+.carr-item{display:flex;align-items:center;gap:10px;padding:8px;border-radius:6px;border:1px solid rgba(255,255,255,0.06);margin-bottom:4px;cursor:pointer;transition:all 0.2s;background:rgba(0,0,0,0.35)}
+.carr-item:active{background:rgba(201,168,76,0.08)}
+.carr-item.selected{background:rgba(201,168,76,0.14);border-color:rgba(201,168,76,0.55)}
+.carr-item-img{width:42px;height:42px;object-fit:cover;border-radius:4px;flex-shrink:0;border:1px solid rgba(255,255,255,0.08)}
+.carr-item-info{flex:1;min-width:0;overflow:hidden}
+.carr-item-name{font-family:'Cormorant Garamond',serif;font-size:0.95rem;font-weight:300;color:#f0e8dc;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.carr-item-brand{font-size:0.48rem;letter-spacing:0.24em;text-transform:uppercase;color:#C9A84C;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.carr-item-sub{font-size:0.52rem;color:rgba(240,232,220,0.4);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.carr-item-check{width:26px;height:26px;border-radius:50%;border:1.5px solid rgba(201,168,76,0.35);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:0.75rem;color:transparent;transition:all 0.2s;background:rgba(0,0,0,0.4)}
+.carr-item.selected .carr-item-check{background:#C9A84C;border-color:#C9A84C;color:#080808}
+.carr-item-order{background:#C9A84C;color:#080808;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:0.75rem;font-weight:600;flex-shrink:0}
+.carr-empty{text-align:center;padding:24px 12px;color:rgba(240,232,220,0.25);font-size:0.6rem;letter-spacing:0.25em;text-transform:uppercase}
+
+/* ── EMOJI PICKER ── */
+.emo-btn{width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;background:rgba(255,255,255,0.04);border:1px solid rgba(201,168,76,0.18);border-radius:6px;cursor:pointer;transition:all 0.2s}
+.emo-btn:active{background:rgba(201,168,76,0.12)}
+.emo-btn.selected{background:rgba(201,168,76,0.22);border-color:#C9A84C}
+
 /* ── TABS SCROLL ── */
 #tab-nav{overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
 #tab-nav::-webkit-scrollbar{display:none}
@@ -518,6 +537,73 @@ input,select{font-family:'Montserrat',sans-serif}
       <div class="cfg-card-desc">Atualiza o catálogo com os produtos do gestão <strong style="color:#e8c97a;">que têm foto</strong>. Produtos sem foto são <strong style="color:#e8c97a;">mantidos no catálogo</strong> se já estiverem lá. Só são removidos do catálogo produtos que foram <strong style="color:#e8c97a;">excluídos</strong> do gestão.</div>
       <button class="cfg-btn cfg-btn-gold" onclick="sincronizarProdutos()">⟳ Sincronizar produtos agora</button>
       <div class="cfg-last-backup" id="cfg-sync-prod-status"></div>
+    </div>
+  </div>
+
+  <!-- ═══ CARROSSEL DA ABA COLEÇÃO ═══ -->
+  <div class="cfg-section">
+    <div class="cfg-section-title">🎠 Carrossel da Coleção</div>
+
+    <div class="cfg-card">
+      <div class="cfg-card-title">✦ Produtos em destaque no carrossel</div>
+      <div class="cfg-card-desc">Escolha quais produtos aparecem no carrossel principal da aba <strong style="color:#e8c97a;">Coleção</strong> do catálogo. <strong style="color:#e8c97a;">Ideal: entre 3 e 8 produtos</strong> com fotos bonitas. Toque no produto para adicionar/remover do carrossel.</div>
+
+      <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap;">
+        <span id="carr-contador" style="font-size:0.6rem;letter-spacing:0.2em;color:#e8c97a;text-transform:uppercase;">0 selecionado(s)</span>
+        <button class="cfg-btn cfg-btn-red" style="width:auto;padding:6px 12px;margin:0;font-size:0.55rem;" onclick="limparCarrossel()">✕ Limpar seleção</button>
+      </div>
+
+      <input type="text" id="carr-busca" class="modal-input" placeholder="🔍 Buscar produto..." oninput="renderCarrosselLista()" style="margin-bottom:10px;">
+
+      <div id="carr-lista" style="max-height:420px;overflow-y:auto;background:rgba(0,0,0,0.3);border:1px solid rgba(201,168,76,0.15);border-radius:4px;padding:6px;"></div>
+
+      <div style="margin-top:12px;">
+        <button class="cfg-btn cfg-btn-gold" onclick="salvarCarrossel()">↑ Salvar carrossel no catálogo</button>
+        <div class="cfg-last-backup" id="cfg-carr-status"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ ABA COMEMORATIVA ═══ -->
+  <div class="cfg-section">
+    <div class="cfg-section-title">🎉 Aba Comemorativa</div>
+
+    <div class="cfg-card">
+      <div class="cfg-card-title">✨ Personalizar aba de datas comemorativas</div>
+      <div class="cfg-card-desc">Use esta aba para qualquer data comemorativa: <strong style="color:#e8c97a;">Dia das Mães, Dia dos Pais, Dia das Crianças, Natal, Black Friday</strong> e outras. Mude o nome, emoji e subtítulo conforme a época do ano.</div>
+
+      <div class="modal-field">
+        <div class="modal-field-lbl">Emoji</div>
+        <div id="aba-emoji-picker" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+      </div>
+
+      <div class="modal-field">
+        <div class="modal-field-lbl">Nome da aba <span style="opacity:0.5;font-size:0.45rem;">(ex: Dia das Mães, Dia dos Pais)</span></div>
+        <input type="text" id="aba-nome" class="modal-input" placeholder="Dia das Mães" maxlength="30">
+      </div>
+
+      <div class="modal-field">
+        <div class="modal-field-lbl">Título do topo da aba <span style="opacity:0.5;font-size:0.45rem;">(use &lt;br&gt; para quebrar linha)</span></div>
+        <input type="text" id="aba-titulo" class="modal-input" placeholder="Dia das<br>Mães" maxlength="60">
+      </div>
+
+      <div class="modal-field">
+        <div class="modal-field-lbl">Subtítulo <span style="opacity:0.5;font-size:0.45rem;">(frase de impacto)</span></div>
+        <input type="text" id="aba-subtitulo" class="modal-input" placeholder="Presentes que tocam o coração" maxlength="80">
+      </div>
+
+      <div class="modal-field">
+        <div class="modal-field-lbl">Selo pequeno <span style="opacity:0.5;font-size:0.45rem;">(aparece no topo)</span></div>
+        <input type="text" id="aba-badge" class="modal-input" placeholder="✦ Edição Especial" maxlength="40">
+      </div>
+
+      <div style="background:rgba(201,168,76,0.06);border:1px solid rgba(201,168,76,0.2);border-radius:4px;padding:12px;margin-bottom:12px;">
+        <div style="font-size:0.5rem;letter-spacing:0.25em;color:rgba(201,168,76,0.7);text-transform:uppercase;margin-bottom:6px;">Prévia</div>
+        <div style="font-size:0.65rem;color:rgba(240,232,220,0.7);">Aba: <strong id="aba-preview-nav" style="color:#e8c97a;">🌸 Dia das Mães</strong></div>
+      </div>
+
+      <button class="cfg-btn cfg-btn-gold" onclick="salvarAbaComemorativa()">↑ Salvar no catálogo</button>
+      <div class="cfg-last-backup" id="cfg-aba-status"></div>
     </div>
   </div>
 
@@ -1658,11 +1744,238 @@ function sincronizarProdutos(){
   });
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// ── CARROSSEL DA COLEÇÃO ───────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+var _carrSelecionados = []; // array de IDs (ordem importa)
+
+function carregarCarrosselDoFB(){
+  if(!window._fbdb){
+    // Sem Firebase: usa o que tiver salvo localmente
+    try{
+      var local=localStorage.getItem('bela-carrossel-ids');
+      _carrSelecionados=local?JSON.parse(local):[];
+    }catch(e){_carrSelecionados=[];}
+    renderCarrosselLista();
+    return;
+  }
+  window._fbdb.ref('carrossel/ids').once('value',function(snap){
+    var v=snap.val();
+    if(Array.isArray(v))_carrSelecionados=v.map(Number);
+    else if(v && typeof v==='object')_carrSelecionados=Object.values(v).map(Number);
+    else _carrSelecionados=[];
+    renderCarrosselLista();
+  },function(){
+    _carrSelecionados=[];
+    renderCarrosselLista();
+  });
+}
+
+function renderCarrosselLista(){
+  var lista=document.getElementById('carr-lista');
+  var cont=document.getElementById('carr-contador');
+  if(!lista)return;
+  var busca=(document.getElementById('carr-busca')||{}).value||'';
+  busca=busca.trim().toLowerCase();
+
+  // Só produtos com foto
+  var produtos=getAllProducts().filter(function(p){return !!p.foto;});
+  if(busca){
+    produtos=produtos.filter(function(p){
+      return (p.name||'').toLowerCase().indexOf(busca)>=0 ||
+             (p.brand||'').toLowerCase().indexOf(busca)>=0 ||
+             (p.sub||'').toLowerCase().indexOf(busca)>=0;
+    });
+  }
+
+  // Ordenar: selecionados primeiro (pela ordem de seleção), depois o resto por nome
+  var sel=_carrSelecionados.slice();
+  var selMap={};
+  sel.forEach(function(id,i){selMap[id]=i;});
+  produtos.sort(function(a,b){
+    var sa=selMap[a.id], sb=selMap[b.id];
+    if(sa!==undefined && sb!==undefined)return sa-sb;
+    if(sa!==undefined)return -1;
+    if(sb!==undefined)return 1;
+    return (a.name||'').localeCompare(b.name||'');
+  });
+
+  if(!produtos.length){
+    lista.innerHTML='<div class="carr-empty">Nenhum produto encontrado</div>';
+  } else {
+    lista.innerHTML=produtos.map(function(p){
+      var isSel=selMap[p.id]!==undefined;
+      var ordem=isSel?(selMap[p.id]+1):null;
+      return '<div class="carr-item'+(isSel?' selected':'')+'" onclick="toggleCarrProd('+p.id+')">'+
+        '<img class="carr-item-img" src="'+esc(p.foto)+'" alt="'+esc(p.name)+'" loading="lazy">'+
+        '<div class="carr-item-info">'+
+          '<div class="carr-item-name">'+esc(p.name||'')+'</div>'+
+          '<div class="carr-item-brand">'+esc(p.brand||'')+'</div>'+
+          (p.sub?'<div class="carr-item-sub">'+esc(p.sub)+'</div>':'')+
+        '</div>'+
+        (isSel?'<div class="carr-item-order">'+ordem+'</div>':'')+
+        '<div class="carr-item-check">'+(isSel?'✓':'')+'</div>'+
+      '</div>';
+    }).join('');
+  }
+
+  // Contador e aviso
+  var n=_carrSelecionados.length;
+  if(cont){
+    var cor='#e8c97a', aviso='';
+    if(n===0){cor='rgba(220,110,110,0.7)';aviso=' · adicione ao menos 1';}
+    else if(n<3){cor='rgba(232,201,122,0.8)';aviso=' · ideal 3 a 8';}
+    else if(n>8){cor='rgba(220,150,110,0.9)';aviso=' · muitos! ideal até 8';}
+    else{cor='#7dd87d';aviso=' · ótimo!';}
+    cont.style.color=cor;
+    cont.textContent=n+' selecionado(s)'+aviso;
+  }
+}
+
+function toggleCarrProd(id){
+  id=Number(id);
+  var i=_carrSelecionados.indexOf(id);
+  if(i>=0)_carrSelecionados.splice(i,1);
+  else _carrSelecionados.push(id);
+  // Salva local pra não perder se fechar
+  try{localStorage.setItem('bela-carrossel-ids',JSON.stringify(_carrSelecionados));}catch(e){}
+  renderCarrosselLista();
+}
+
+function limparCarrossel(){
+  if(!_carrSelecionados.length)return;
+  if(!confirm('Remover todos os produtos da seleção do carrossel?'))return;
+  _carrSelecionados=[];
+  try{localStorage.setItem('bela-carrossel-ids','[]');}catch(e){}
+  renderCarrosselLista();
+}
+
+function salvarCarrossel(){
+  if(!window._fbdb){toastMsg('⚠ Firebase não conectado',true);return;}
+  if(!_carrSelecionados.length){
+    if(!confirm('Nenhum produto selecionado. Salvar lista vazia? (O carrossel ficará vazio no catálogo)'))return;
+  }
+  window._fbdb.ref('carrossel/ids').set(_carrSelecionados.slice(),function(err){
+    var st=document.getElementById('cfg-carr-status');
+    if(err){
+      if(st)st.textContent='✗ Erro: '+err.message;
+      toastMsg('✗ Erro ao salvar',true);
+    } else {
+      var agora=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+      if(st)st.textContent='✓ Carrossel atualizado — '+agora;
+      toastMsg('✓ Carrossel salvo no catálogo!');
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ── ABA COMEMORATIVA ───────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+var ABA_EMOJIS=['🌸','🌷','🎁','👨','🧒','👶','🎄','💝','🎃','🌹','🎆','💐','🧡','💕','❤️','✨'];
+var _abaEmojiSel='🌸';
+
+function carregarAbaComemorativaDoFB(){
+  // Monta emoji picker
+  var picker=document.getElementById('aba-emoji-picker');
+  if(picker && !picker._built){
+    picker._built=true;
+    picker.innerHTML=ABA_EMOJIS.map(function(e){
+      return '<button type="button" class="emo-btn" data-emo="'+e+'" onclick="selecionarAbaEmoji(\''+e+'\')">'+e+'</button>';
+    }).join('');
+  }
+
+  // Listeners de prévia
+  ['aba-nome','aba-titulo','aba-subtitulo','aba-badge'].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el && !el._hasPreview){
+      el._hasPreview=true;
+      el.addEventListener('input',atualizarAbaPreview);
+    }
+  });
+
+  if(!window._fbdb){
+    aplicarValoresAba({emoji:'🌸',nome:'Dia das Mães',titulo:'Dia das<br>Mães',subtitulo:'Presentes que tocam o coração',badge:'✦ Edição Especial'});
+    return;
+  }
+  window._fbdb.ref('config/abaComemorativa').once('value',function(snap){
+    var d=snap.val()||{};
+    aplicarValoresAba({
+      emoji:d.emoji||'🌸',
+      nome:d.nome||'Dia das Mães',
+      titulo:d.titulo||'Dia das<br>Mães',
+      subtitulo:d.subtitulo||'Presentes que tocam o coração',
+      badge:d.badge||'✦ Edição Especial'
+    });
+  });
+}
+
+function aplicarValoresAba(v){
+  _abaEmojiSel=v.emoji;
+  document.getElementById('aba-nome').value=v.nome;
+  document.getElementById('aba-titulo').value=v.titulo;
+  document.getElementById('aba-subtitulo').value=v.subtitulo;
+  document.getElementById('aba-badge').value=v.badge;
+  document.querySelectorAll('#aba-emoji-picker .emo-btn').forEach(function(b){
+    b.classList.toggle('selected',b.getAttribute('data-emo')===v.emoji);
+  });
+  atualizarAbaPreview();
+}
+
+function selecionarAbaEmoji(e){
+  _abaEmojiSel=e;
+  document.querySelectorAll('#aba-emoji-picker .emo-btn').forEach(function(b){
+    b.classList.toggle('selected',b.getAttribute('data-emo')===e);
+  });
+  atualizarAbaPreview();
+}
+
+function atualizarAbaPreview(){
+  var nome=(document.getElementById('aba-nome')||{}).value||'Dia das Mães';
+  var prev=document.getElementById('aba-preview-nav');
+  if(prev)prev.textContent=_abaEmojiSel+' '+nome;
+}
+
+function salvarAbaComemorativa(){
+  if(!window._fbdb){toastMsg('⚠ Firebase não conectado',true);return;}
+  var nome=(document.getElementById('aba-nome').value||'').trim();
+  var titulo=(document.getElementById('aba-titulo').value||'').trim();
+  var subtitulo=(document.getElementById('aba-subtitulo').value||'').trim();
+  var badge=(document.getElementById('aba-badge').value||'').trim();
+
+  if(!nome){toastMsg('⚠ Nome da aba é obrigatório',true);return;}
+  if(!titulo)titulo=nome;
+
+  var payload={
+    emoji:_abaEmojiSel,
+    nome:nome,
+    titulo:titulo,
+    subtitulo:subtitulo,
+    badge:badge,
+    atualizadoEm:new Date().toISOString()
+  };
+
+  window._fbdb.ref('config/abaComemorativa').set(payload,function(err){
+    var st=document.getElementById('cfg-aba-status');
+    if(err){
+      if(st)st.textContent='✗ Erro: '+err.message;
+      toastMsg('✗ Erro ao salvar',true);
+    } else {
+      var agora=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+      if(st)st.textContent='✓ Aba atualizada no catálogo — '+agora;
+      toastMsg('✓ Aba "'+nome+'" salva!');
+    }
+  });
+}
+
 function renderConfig(){
   // preços toggle
   renderConfigPrecos();
   // chave gemini
   carregarChaveGeminiNaUI();
+  // carrossel
+  carregarCarrosselDoFB();
+  // aba comemorativa
+  carregarAbaComemorativaDoFB();
   // info
   var nVendas=0;
   Object.values(S.sales||{}).forEach(function(arr){nVendas+=arr.length;});
