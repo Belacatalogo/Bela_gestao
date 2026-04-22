@@ -541,9 +541,8 @@ input,select{font-family:'Montserrat',sans-serif}
 
     <div class="cfg-card">
       <div class="cfg-card-title">🧹 Limpar duplicatas (uso único)</div>
-      <div class="cfg-card-desc">Se os produtos estão aparecendo <strong style="color:#e8c97a;">duplicados</strong>, use este assistente em 2 passos. <strong style="color:#e8c97a;">Passo 1:</strong> baixa um JSON de backup e analisa o que é seguro apagar. <strong style="color:#e8c97a;">Passo 2:</strong> apaga só as duplicatas idênticas ao original — produtos que você editou são <strong style="color:#e8c97a;">preservados</strong>. Seus produtos personalizados (IDs ≥ 1000) nunca são afetados.</div>
-      <button class="cfg-btn cfg-btn-gold" onclick="baixarBackupDuplicatas()" style="margin-bottom:8px;">📥 1. Baixar backup e analisar</button>
-      <button class="cfg-btn cfg-btn-red" onclick="limparDuplicatasProdutosFixos()">✕ 2. Apagar duplicatas seguras</button>
+      <div class="cfg-card-desc">Se os produtos estão aparecendo <strong style="color:#e8c97a;">duplicados</strong> no carrossel ou no catálogo, este botão remove as cópias indevidas dos produtos fixos (IDs 1–77) que foram criadas por engano. <strong style="color:#e8c97a;">Seus produtos personalizados (IDs ≥ 1000) não são afetados.</strong></div>
+      <button class="cfg-btn cfg-btn-red" onclick="limparDuplicatasProdutosFixos()">✕ Remover duplicatas dos produtos fixos</button>
       <div class="cfg-last-backup" id="cfg-limpar-dup-status"></div>
     </div>
   </div>
@@ -1753,134 +1752,40 @@ function sincronizarProdutos(){
 }
 
 // ── LIMPAR DUPLICATAS DOS PRODUTOS FIXOS ────────────────────────────────────
-// Fluxo em 2 etapas para segurança:
-//   Etapa 1 (baixarBackupDuplicatas):   baixa JSON de tudo em produtos_custom/{1-77}
-//                                       + mostra relatório de quais estão idênticos
-//                                       ao original (seguros) e quais foram editados
-//                                       (precisam atenção)
-//   Etapa 2 (limparDuplicatasProdutosFixos): só apaga os que são idênticos ao original.
-//                                            Os editados ficam preservados para revisão.
-function baixarBackupDuplicatas(){
-  if(!window._fbdb){ toastMsg('⚠ Firebase não conectado'); return; }
-  var statusEl = document.getElementById('cfg-limpar-dup-status');
-  if(statusEl) statusEl.textContent = 'Gerando backup...';
-
-  window._fbdb.ref('produtos_custom').once('value', function(snap){
-    var data = snap.val() || {};
-    var dupes = {};
-    Object.keys(data).forEach(function(id){
-      var n = Number(id);
-      if(n >= 1 && n <= 77) dupes[n] = data[id];
-    });
-
-    // Compara cada um com o original em PRODUCTS
-    var origMap = {};
-    PRODUCTS.forEach(function(p){ origMap[p.id] = p; });
-
-    var iguais = [];     // podem ser apagados com segurança
-    var editados = [];   // foram modificados pelo gestão → revisar
-
-    Object.keys(dupes).forEach(function(id){
-      var fb = dupes[id];
-      var orig = origMap[Number(id)];
-      if(!orig){ editados.push({id:Number(id), motivo:'id não existe na lista fixa', fb:fb}); return; }
-      var diffs = [];
-      ['name','brand','category','sub','foto','catalogTab'].forEach(function(k){
-        var a = (fb[k]||'');
-        var b = (orig[k]||'');
-        if(String(a).trim() !== String(b).trim()) diffs.push(k+': "'+b+'" → "'+a+'"');
-      });
-      if(diffs.length === 0) iguais.push(Number(id));
-      else editados.push({id:Number(id), diffs:diffs, fb:fb, orig:{name:orig.name,brand:orig.brand,category:orig.category,sub:orig.sub,foto:orig.foto,catalogTab:orig.catalogTab}});
-    });
-
-    // Monta o backup
-    var backup = {
-      geradoEm: new Date().toISOString(),
-      totalDuplicatasEncontradas: Object.keys(dupes).length,
-      idsIguaisAoOriginal: iguais,
-      produtosEditadosQueSeraoPreservados: editados,
-      dadosBrutosCompletos: dupes
-    };
-
-    // Guarda em variável global para a etapa 2 saber o que pode apagar
-    window._limpezaBackup = backup;
-
-    // Força download
-    try{
-      var blob = new Blob([JSON.stringify(backup, null, 2)], {type:'application/json'});
-      var url = URL.createObjectURL(blob);
-      var a = document.createElement('a');
-      a.href = url;
-      a.download = 'backup_duplicatas_'+new Date().toISOString().replace(/[:.]/g,'-')+'.json';
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
-    }catch(e){
-      alert('Erro ao baixar backup: '+e.message);
-      return;
-    }
-
-    // Mostra relatório
-    var msg = 'Backup baixado ✓\n\n';
-    msg += '• ' + Object.keys(dupes).length + ' duplicata(s) encontrada(s) no Firebase\n';
-    msg += '• ' + iguais.length + ' idêntica(s) ao original — seguras para apagar\n';
-    msg += '• ' + editados.length + ' com edições — serão PRESERVADAS\n\n';
-    if(editados.length > 0){
-      msg += 'Produtos com edições que serão mantidos no Firebase:\n';
-      editados.slice(0,10).forEach(function(e){
-        msg += '  - ID '+e.id+' ('+(e.fb.name||'?')+')\n';
-      });
-      if(editados.length > 10) msg += '  ... e mais '+(editados.length-10)+'\n';
-      msg += '\n';
-    }
-    msg += 'Agora toque no botão "✕ Apagar duplicatas seguras" para remover só as idênticas.';
-    alert(msg);
-
-    if(statusEl){
-      statusEl.innerHTML = '✓ Backup baixado · '+iguais.length+' podem ser apagadas · '+editados.length+' serão preservadas';
-    }
-  }, function(err){
-    if(statusEl) statusEl.textContent = '⚠ Erro: '+err.code;
-    toastMsg('⚠ Erro ao ler Firebase: '+err.code, true);
-  });
-}
-
+// Uso único: remove do Firebase e do localStorage as cópias dos produtos fixos
+// (IDs 1-77) que foram criadas por engano quando todos tinham custom:true.
 function limparDuplicatasProdutosFixos(){
-  if(!window._limpezaBackup){
-    alert('Primeiro baixe o backup! Toque em "📥 Baixar backup e analisar" antes.');
-    return;
-  }
-  var iguais = window._limpezaBackup.idsIguaisAoOriginal || [];
-  var editados = window._limpezaBackup.produtosEditadosQueSeraoPreservados || [];
-
-  if(iguais.length === 0){
-    alert('Nenhuma duplicata segura para apagar. Todos os itens do Firebase parecem ter edições — eles serão preservados.');
-    return;
-  }
-
-  var txt = 'Vou apagar ' + iguais.length + ' duplicata(s) idêntica(s) ao original.';
-  if(editados.length > 0) txt += '\n\n' + editados.length + ' produto(s) editado(s) serão PRESERVADOS no Firebase.';
-  txt += '\n\nSeus produtos personalizados (IDs 1000+) NÃO são afetados.\n\nContinuar?';
-  if(!confirm(txt)) return;
+  if(!confirm('Isto vai remover as cópias duplicadas dos produtos fixos (IDs 1 a 77) do Firebase e do armazenamento local. Seus produtos personalizados (IDs 1000+) NÃO serão afetados.\n\nContinuar?')) return;
 
   var statusEl = document.getElementById('cfg-limpar-dup-status');
   var removidosFB = 0;
+  var removidosLocal = 0;
 
-  // Remove do customProducts local tudo que tem id <= 77 (sempre duplicata — o original vem de PRODUCTS)
+  // 1. Remove do customProducts local tudo que tem id <= 77 (são produtos fixos)
   var antes = (S.customProducts||[]).length;
   S.customProducts = (S.customProducts||[]).filter(function(p){ return p.id > 77; });
-  var removidosLocal = antes - S.customProducts.length;
+  removidosLocal = antes - S.customProducts.length;
   save();
 
-  if(window._fbdb && iguais.length > 0){
-    var restantes = iguais.length;
-    iguais.forEach(function(id){
-      window._fbdb.ref('produtos_custom/' + id).remove(function(){
-        removidosFB++;
-        restantes--;
-        if(restantes === 0) finalizar();
+  // 2. Remove do Firebase os IDs 1-77 em produtos_custom/
+  if(window._fbdb){
+    window._fbdb.ref('produtos_custom').once('value', function(snap){
+      var data = snap.val() || {};
+      var ids = Object.keys(data).map(Number).filter(function(n){ return n >= 1 && n <= 77; });
+      if(ids.length === 0){
+        finalizar();
+        return;
+      }
+      var restantes = ids.length;
+      ids.forEach(function(id){
+        window._fbdb.ref('produtos_custom/' + id).remove(function(){
+          removidosFB++;
+          restantes--;
+          if(restantes === 0) finalizar();
+        });
       });
+    }, function(){
+      finalizar();
     });
   } else {
     finalizar();
@@ -1888,12 +1793,9 @@ function limparDuplicatasProdutosFixos(){
 
   function finalizar(){
     var agora = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
-    var msg = '✓ '+removidosFB+' removida(s) do Firebase · '+removidosLocal+' local';
-    if(editados.length > 0) msg += ' · '+editados.length+' preservada(s)';
-    msg += ' — '+agora;
+    var msg = '✓ ' + removidosLocal + ' local · ' + removidosFB + ' Firebase — ' + agora;
     if(statusEl) statusEl.textContent = msg;
-    toastMsg('✓ Limpeza concluída!');
-    window._limpezaBackup = null; // força baixar backup de novo se rodar outra vez
+    toastMsg('✓ Duplicatas removidas! ' + removidosLocal + ' local + ' + removidosFB + ' Firebase');
     renderAll();
     if(typeof renderProdTab === 'function') renderProdTab();
     if(typeof renderCarrosselLista === 'function') renderCarrosselLista();
@@ -3127,7 +3029,7 @@ async function analisarFotoIA(){
             contents: [{
               parts: [
                 imagePart,
-                { text: 'Você é um especialista em cosméticos brasileiros (O Boticário, Eudora, Natura, Avon, etc). Analise esta foto de produto com atenção máxima.\n\nResponda SOMENTE com JSON válido, sem markdown:\n{"nome":"nome completo e exato do produto","marca":"marca exata","descricao":"descrição DETALHADA: liste TODOS os itens do kit OU tipo+volume+linha. Ex para kit: \'Creme Hidratante Acetinado 250g + Body Splash 200ml + Sabonete Líquido 250ml\'. Ex para perfume: \'Deo Parfum Feminino 75ml — Linha Lily\'. Seja específica, nunca use apenas \'perfume\' ou \'kit\'","categorias":["cat1","cat2"],"aba":"todos|colecao|maes|beleza|maquiagens|infantis"}\n\nRegras para categorias (pode ter VÁRIAS):\n- "feminino" = produto para mulher (perfume fem, creme, sabonete fem)\n- "masculino" = produto para homem\n- "kit" = conjunto com 2+ itens\n- "hidratante" = creme, loção, sabonete, óleo corporal, body splash\n- "kids" = infantil/bebê\nEx: kit feminino com hidratante → ["kit","feminino","hidratante"]\n\nRegras para aba:\n- todos=geral, colecao=lançamento/especial, maes=dia das mães, beleza=beleza e kids, maquiagens=maquiagem, infantis=bebê'+dicaTxt }
+                { text: 'Você é um especialista em cosméticos brasileiros (O Boticário, Eudora, Natura, Avon, etc) E também um naming expert de perfumaria — cria nomes POÉTICOS e EVOCATIVOS como os de coleções de perfume de luxo. Analise esta foto de produto com atenção máxima.\n\nPRIMEIRO, identifique se é:\n(A) PRODUTO ÚNICO/KIT DE FÁBRICA — um perfume sozinho, um creme, ou um kit oficial da marca (ex: "Kit Presente Malbec" da marca)\n(B) KIT MONTADO/CESTA PRESENTE — combinação artesanal de 2+ itens embalada com celofane, laço, fita, tag, papel crepom, caneca, flores, etc\n\nResponda SOMENTE com JSON válido, sem markdown:\n{"nome":"ver regra abaixo","marca":"marca do item principal (ou \'Montagem Especial\' se for kit montado sem marca dominante)","descricao":"ver regra abaixo","categorias":["cat1","cat2"],"aba":"todos|colecao|maes|beleza|maquiagens|infantis"}\n\nREGRA DO CAMPO "nome" (CRÍTICA):\n• Se for (A) produto único/kit de fábrica → use o nome oficial e exato do produto. Ex: "Malbec Desodorante Colônia 100ml", "Kit Lily Eau de Parfum"\n• Se for (B) kit montado → CRIE um nome POÉTICO e EVOCATIVO de EXATAMENTE 2 palavras (substantivo + adjetivo, ou dois substantivos). NÃO use palavras genéricas tipo "Mimo", "Presente", "Kit", "Cesta", "Surpresa", "Especial". NÃO inclua emoji. NÃO liste produtos. Use linguagem sensorial, afetiva e refinada — como nome de coleção de perfume de luxo.\n\n• TÉCNICA: identifique os AROMAS, CORES e SENSAÇÕES visíveis nos produtos (nome da linha no rótulo, cor da embalagem, tipo de fragrância) e traduza isso em 2 palavras evocativas.\n\n• EXEMPLOS REAIS (siga este estilo):\n  - Kit com Body Splash "Boa Noite" + hidratante violeta escuro → "Noite Encantada"\n  - Kit com Body Splash Maracujá + hidratante Baunilha (tons amarelos, frutais) → "Frescor Tropical"\n  - Kit floral rosa com rosas/peônias → "Jardim Secreto" ou "Flor Desperta"\n  - Kit com Lily ou branco/dourado → "Brilho Eterno" ou "Luz Suave"\n  - Kit com Cuide-se Bem amêndoas/vanilla → "Doce Abraço" ou "Aconchego Quente"\n  - Kit vermelho romântico com corações → "Paixão Intensa" ou "Encanto Ardente"\n  - Kit masculino tons escuros/amadeirados → "Força Serena" ou "Elegância Noturna"\n  - Kit com frutas vermelhas (cranberry, framboesa) → "Beijo Rubi" ou "Sedução Doce"\n  - Kit cítrico (limão, laranja) → "Manhã Radiante" ou "Energia Viva"\n  - Kit flor de cerejeira / oriental → "Pétala Delicada" ou "Sonho Oriental"\n  - Kit lavanda/relaxante → "Calmaria Suave" ou "Paz Profunda"\n  - Kit Natal → "Estrela Dourada" ou "Magia Natalina"\n  - Kit infantil → "Doce Infância" ou "Sonho Travesso"\n  - Kit sem tema claro → invente algo atmosférico: "Véu Dourado", "Brisa Suave", "Instante Raro"\n\n• REGRAS RÍGIDAS:\n  - SEMPRE 2 palavras (nem 1, nem 3, nem 4)\n  - Primeira letra de cada palavra MAIÚSCULA\n  - Use português brasileiro poético\n  - Evite clichês batidos ("Amor de Mãe", "Carinho Eterno")\n  - Seja ORIGINAL — cada kit merece um nome único baseado no que você VÊ na foto\n\nREGRA DO CAMPO "descricao":\n• Sempre detalhada, listando os itens identificados. Ex: "Boa Noite Body Splash + Hidratante Ameixa e Praliné", "Maracujá Body Splash + Hidratante Baunilha", "Body Spray Magnific 100ml + Caneca \'Melhor Mãe do Mundo\'". Seja específica com nomes de linha/fragrância quando visíveis no rótulo.\n\nRegras para categorias (pode ter VÁRIAS):\n- "feminino" = produto para mulher (perfume fem, creme, sabonete fem)\n- "masculino" = produto para homem\n- "kit" = conjunto com 2+ itens (inclui kits montados)\n- "hidratante" = creme, loção, sabonete, óleo corporal, body splash\n- "kids" = infantil/bebê\nEx: kit montado feminino com body splash e hidratante → ["kit","feminino","hidratante"]\n\nRegras para aba (escolha UMA):\n- todos=geral, colecao=lançamento/especial, maes=dia das mães, beleza=beleza e kids, maquiagens=maquiagem, infantis=bebê'+dicaTxt }
               ]
             }],
             generationConfig: { temperature: 0.1, maxOutputTokens: 2048 }
