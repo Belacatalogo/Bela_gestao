@@ -541,8 +541,9 @@ input,select{font-family:'Montserrat',sans-serif}
 
     <div class="cfg-card">
       <div class="cfg-card-title">🧹 Limpar duplicatas (uso único)</div>
-      <div class="cfg-card-desc">Se os produtos estão aparecendo <strong style="color:#e8c97a;">duplicados</strong> no carrossel ou no catálogo, este botão remove as cópias indevidas dos produtos fixos (IDs 1–77) que foram criadas por engano. <strong style="color:#e8c97a;">Seus produtos personalizados (IDs ≥ 1000) não são afetados.</strong></div>
-      <button class="cfg-btn cfg-btn-red" onclick="limparDuplicatasProdutosFixos()">✕ Remover duplicatas dos produtos fixos</button>
+      <div class="cfg-card-desc">Se os produtos estão aparecendo <strong style="color:#e8c97a;">duplicados</strong>, use este assistente em 2 passos. <strong style="color:#e8c97a;">Passo 1:</strong> baixa um JSON de backup e analisa o que é seguro apagar. <strong style="color:#e8c97a;">Passo 2:</strong> apaga só as duplicatas idênticas ao original — produtos que você editou são <strong style="color:#e8c97a;">preservados</strong>. Seus produtos personalizados (IDs ≥ 1000) nunca são afetados.</div>
+      <button class="cfg-btn cfg-btn-gold" onclick="baixarBackupDuplicatas()" style="margin-bottom:8px;">📥 1. Baixar backup e analisar</button>
+      <button class="cfg-btn cfg-btn-red" onclick="limparDuplicatasProdutosFixos()">✕ 2. Apagar duplicatas seguras</button>
       <div class="cfg-last-backup" id="cfg-limpar-dup-status"></div>
     </div>
   </div>
@@ -1752,40 +1753,134 @@ function sincronizarProdutos(){
 }
 
 // ── LIMPAR DUPLICATAS DOS PRODUTOS FIXOS ────────────────────────────────────
-// Uso único: remove do Firebase e do localStorage as cópias dos produtos fixos
-// (IDs 1-77) que foram criadas por engano quando todos tinham custom:true.
+// Fluxo em 2 etapas para segurança:
+//   Etapa 1 (baixarBackupDuplicatas):   baixa JSON de tudo em produtos_custom/{1-77}
+//                                       + mostra relatório de quais estão idênticos
+//                                       ao original (seguros) e quais foram editados
+//                                       (precisam atenção)
+//   Etapa 2 (limparDuplicatasProdutosFixos): só apaga os que são idênticos ao original.
+//                                            Os editados ficam preservados para revisão.
+function baixarBackupDuplicatas(){
+  if(!window._fbdb){ toastMsg('⚠ Firebase não conectado'); return; }
+  var statusEl = document.getElementById('cfg-limpar-dup-status');
+  if(statusEl) statusEl.textContent = 'Gerando backup...';
+
+  window._fbdb.ref('produtos_custom').once('value', function(snap){
+    var data = snap.val() || {};
+    var dupes = {};
+    Object.keys(data).forEach(function(id){
+      var n = Number(id);
+      if(n >= 1 && n <= 77) dupes[n] = data[id];
+    });
+
+    // Compara cada um com o original em PRODUCTS
+    var origMap = {};
+    PRODUCTS.forEach(function(p){ origMap[p.id] = p; });
+
+    var iguais = [];     // podem ser apagados com segurança
+    var editados = [];   // foram modificados pelo gestão → revisar
+
+    Object.keys(dupes).forEach(function(id){
+      var fb = dupes[id];
+      var orig = origMap[Number(id)];
+      if(!orig){ editados.push({id:Number(id), motivo:'id não existe na lista fixa', fb:fb}); return; }
+      var diffs = [];
+      ['name','brand','category','sub','foto','catalogTab'].forEach(function(k){
+        var a = (fb[k]||'');
+        var b = (orig[k]||'');
+        if(String(a).trim() !== String(b).trim()) diffs.push(k+': "'+b+'" → "'+a+'"');
+      });
+      if(diffs.length === 0) iguais.push(Number(id));
+      else editados.push({id:Number(id), diffs:diffs, fb:fb, orig:{name:orig.name,brand:orig.brand,category:orig.category,sub:orig.sub,foto:orig.foto,catalogTab:orig.catalogTab}});
+    });
+
+    // Monta o backup
+    var backup = {
+      geradoEm: new Date().toISOString(),
+      totalDuplicatasEncontradas: Object.keys(dupes).length,
+      idsIguaisAoOriginal: iguais,
+      produtosEditadosQueSeraoPreservados: editados,
+      dadosBrutosCompletos: dupes
+    };
+
+    // Guarda em variável global para a etapa 2 saber o que pode apagar
+    window._limpezaBackup = backup;
+
+    // Força download
+    try{
+      var blob = new Blob([JSON.stringify(backup, null, 2)], {type:'application/json'});
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'backup_duplicatas_'+new Date().toISOString().replace(/[:.]/g,'-')+'.json';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+    }catch(e){
+      alert('Erro ao baixar backup: '+e.message);
+      return;
+    }
+
+    // Mostra relatório
+    var msg = 'Backup baixado ✓\n\n';
+    msg += '• ' + Object.keys(dupes).length + ' duplicata(s) encontrada(s) no Firebase\n';
+    msg += '• ' + iguais.length + ' idêntica(s) ao original — seguras para apagar\n';
+    msg += '• ' + editados.length + ' com edições — serão PRESERVADAS\n\n';
+    if(editados.length > 0){
+      msg += 'Produtos com edições que serão mantidos no Firebase:\n';
+      editados.slice(0,10).forEach(function(e){
+        msg += '  - ID '+e.id+' ('+(e.fb.name||'?')+')\n';
+      });
+      if(editados.length > 10) msg += '  ... e mais '+(editados.length-10)+'\n';
+      msg += '\n';
+    }
+    msg += 'Agora toque no botão "✕ Apagar duplicatas seguras" para remover só as idênticas.';
+    alert(msg);
+
+    if(statusEl){
+      statusEl.innerHTML = '✓ Backup baixado · '+iguais.length+' podem ser apagadas · '+editados.length+' serão preservadas';
+    }
+  }, function(err){
+    if(statusEl) statusEl.textContent = '⚠ Erro: '+err.code;
+    toastMsg('⚠ Erro ao ler Firebase: '+err.code, true);
+  });
+}
+
 function limparDuplicatasProdutosFixos(){
-  if(!confirm('Isto vai remover as cópias duplicadas dos produtos fixos (IDs 1 a 77) do Firebase e do armazenamento local. Seus produtos personalizados (IDs 1000+) NÃO serão afetados.\n\nContinuar?')) return;
+  if(!window._limpezaBackup){
+    alert('Primeiro baixe o backup! Toque em "📥 Baixar backup e analisar" antes.');
+    return;
+  }
+  var iguais = window._limpezaBackup.idsIguaisAoOriginal || [];
+  var editados = window._limpezaBackup.produtosEditadosQueSeraoPreservados || [];
+
+  if(iguais.length === 0){
+    alert('Nenhuma duplicata segura para apagar. Todos os itens do Firebase parecem ter edições — eles serão preservados.');
+    return;
+  }
+
+  var txt = 'Vou apagar ' + iguais.length + ' duplicata(s) idêntica(s) ao original.';
+  if(editados.length > 0) txt += '\n\n' + editados.length + ' produto(s) editado(s) serão PRESERVADOS no Firebase.';
+  txt += '\n\nSeus produtos personalizados (IDs 1000+) NÃO são afetados.\n\nContinuar?';
+  if(!confirm(txt)) return;
 
   var statusEl = document.getElementById('cfg-limpar-dup-status');
   var removidosFB = 0;
-  var removidosLocal = 0;
 
-  // 1. Remove do customProducts local tudo que tem id <= 77 (são produtos fixos)
+  // Remove do customProducts local tudo que tem id <= 77 (sempre duplicata — o original vem de PRODUCTS)
   var antes = (S.customProducts||[]).length;
   S.customProducts = (S.customProducts||[]).filter(function(p){ return p.id > 77; });
-  removidosLocal = antes - S.customProducts.length;
+  var removidosLocal = antes - S.customProducts.length;
   save();
 
-  // 2. Remove do Firebase os IDs 1-77 em produtos_custom/
-  if(window._fbdb){
-    window._fbdb.ref('produtos_custom').once('value', function(snap){
-      var data = snap.val() || {};
-      var ids = Object.keys(data).map(Number).filter(function(n){ return n >= 1 && n <= 77; });
-      if(ids.length === 0){
-        finalizar();
-        return;
-      }
-      var restantes = ids.length;
-      ids.forEach(function(id){
-        window._fbdb.ref('produtos_custom/' + id).remove(function(){
-          removidosFB++;
-          restantes--;
-          if(restantes === 0) finalizar();
-        });
+  if(window._fbdb && iguais.length > 0){
+    var restantes = iguais.length;
+    iguais.forEach(function(id){
+      window._fbdb.ref('produtos_custom/' + id).remove(function(){
+        removidosFB++;
+        restantes--;
+        if(restantes === 0) finalizar();
       });
-    }, function(){
-      finalizar();
     });
   } else {
     finalizar();
@@ -1793,9 +1888,12 @@ function limparDuplicatasProdutosFixos(){
 
   function finalizar(){
     var agora = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
-    var msg = '✓ ' + removidosLocal + ' local · ' + removidosFB + ' Firebase — ' + agora;
+    var msg = '✓ '+removidosFB+' removida(s) do Firebase · '+removidosLocal+' local';
+    if(editados.length > 0) msg += ' · '+editados.length+' preservada(s)';
+    msg += ' — '+agora;
     if(statusEl) statusEl.textContent = msg;
-    toastMsg('✓ Duplicatas removidas! ' + removidosLocal + ' local + ' + removidosFB + ' Firebase');
+    toastMsg('✓ Limpeza concluída!');
+    window._limpezaBackup = null; // força baixar backup de novo se rodar outra vez
     renderAll();
     if(typeof renderProdTab === 'function') renderProdTab();
     if(typeof renderCarrosselLista === 'function') renderCarrosselLista();
