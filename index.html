@@ -714,25 +714,29 @@ input,select{font-family:'Montserrat',sans-serif}
   </div>
 
   <div class="cfg-section">
-    <div class="cfg-section-title">📷 Upload de Fotos — ImgBB</div>
+    <div class="cfg-section-title">📷 Upload de Fotos — Cloudinary</div>
     <div class="cfg-card">
-      <div class="cfg-card-title">🔑 Chave da API ImgBB</div>
+      <div class="cfg-card-title">☁️ Configurar Upload Automático</div>
       <div class="cfg-card-desc">
-        Com a chave configurada, você escolhe qualquer foto do celular e o app envia automaticamente para o ImgBB — sem precisar sair do app. Funciona em <strong style="color:#e8c97a;">fotos de clientes</strong> e <strong style="color:#e8c97a;">fotos de produtos</strong>.<br><br>
-        Para obter gratuitamente: acesse <strong style="color:#e8c97a;">imgbb.com</strong> → faça login → clique no seu usuário → <strong style="color:#e8c97a;">API</strong> → copie a chave.
+        Com isso configurado, você escolhe qualquer foto do celular e o app envia direto para a nuvem — sem precisar sair do app. Funciona em <strong style="color:#e8c97a;">fotos de clientes</strong> e <strong style="color:#e8c97a;">fotos de produtos</strong>. As fotos já existentes não são afetadas.<br><br>
+        <strong style="color:#e8c97a;">Como configurar (gratuito):</strong><br>
+        1. Acesse <strong style="color:#e8c97a;">cloudinary.com</strong> → Sign Up Free<br>
+        2. No Dashboard copie o <strong style="color:#e8c97a;">Cloud Name</strong><br>
+        3. Vá em Settings → Upload → <strong style="color:#e8c97a;">Add upload preset</strong> → modo <strong style="color:#e8c97a;">Unsigned</strong> → salve e copie o nome
       </div>
-      <div style="position:relative;margin-bottom:8px;">
-        <input id="cfg-imgbb-key-input" class="modal-input" type="password"
-          placeholder="Cole sua chave aqui..."
-          style="padding-right:44px;font-size:0.7rem;">
-        <button onclick="toggleImgbbKeyVisibility()" id="cfg-imgbb-eye"
-          style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:rgba(240,232,220,0.3);font-size:1rem;cursor:pointer;padding:4px;">👁</button>
+      <div class="modal-field" style="margin-bottom:10px;">
+        <div class="modal-field-lbl">Cloud Name</div>
+        <input id="cfg-cld-cloud" class="modal-input" type="text" placeholder="Ex: dxy1abc23">
       </div>
-      <div id="cfg-imgbb-status" style="font-size:0.48rem;letter-spacing:0.14em;color:rgba(240,232,220,0.3);margin-bottom:8px;min-height:14px;"></div>
+      <div class="modal-field" style="margin-bottom:10px;">
+        <div class="modal-field-lbl">Upload Preset (Unsigned)</div>
+        <input id="cfg-cld-preset" class="modal-input" type="text" placeholder="Ex: bela_upload">
+      </div>
+      <div id="cfg-cld-status" style="font-size:0.48rem;letter-spacing:0.14em;color:rgba(240,232,220,0.3);margin-bottom:8px;min-height:14px;"></div>
       <div style="display:flex;gap:8px;">
-        <button class="cfg-btn cfg-btn-gold" style="flex:1;margin:0;" onclick="salvarChaveImgbb()">💾 Salvar chave</button>
-        <button class="cfg-btn cfg-btn-green" style="width:auto;padding:10px 14px;margin:0;" onclick="testarChaveImgbb()">🔍 Testar</button>
-        <button class="cfg-btn cfg-btn-red" style="width:auto;padding:10px 14px;margin:0;" onclick="apagarChaveImgbb()">✕</button>
+        <button class="cfg-btn cfg-btn-gold" style="flex:1;margin:0;" onclick="salvarCldConfig()">💾 Salvar</button>
+        <button class="cfg-btn cfg-btn-green" style="width:auto;padding:10px 14px;margin:0;" onclick="testarCldConfig()">🔍 Testar</button>
+        <button class="cfg-btn cfg-btn-red" style="width:auto;padding:10px 14px;margin:0;" onclick="apagarCldConfig()">✕</button>
       </div>
     </div>
   </div>
@@ -2467,15 +2471,17 @@ function renderConfig(){
       if(card)card.style.borderColor='rgba(220,80,40,0.25)';
     }
   }
-  // ImgBB key
-  var imgbbInp=document.getElementById('cfg-imgbb-key-input');
-  var imgbbSt=document.getElementById('cfg-imgbb-status');
-  if(imgbbInp){
-    var k=getImgbbKey();
-    imgbbInp.value=k?k:'';
-    if(imgbbSt){
-      if(k){imgbbSt.textContent='✓ Chave configurada — upload automático ativo';imgbbSt.style.color='rgba(125,216,125,0.7)';}
-      else{imgbbSt.textContent='Sem chave — fotos ficam salvas localmente';imgbbSt.style.color='rgba(240,232,220,0.25)';}
+  // Cloudinary config
+  var cldCloud=document.getElementById('cfg-cld-cloud');
+  var cldPreset=document.getElementById('cfg-cld-preset');
+  var cldSt=document.getElementById('cfg-cld-status');
+  if(cldCloud&&cldPreset){
+    var cfg=getCldConfig();
+    cldCloud.value=cfg.cloud||'';
+    cldPreset.value=cfg.preset||'';
+    if(cldSt){
+      if(cfg.cloud&&cfg.preset){cldSt.textContent='✓ Configurado — upload automático ativo';cldSt.style.color='rgba(125,216,125,0.7)';}
+      else{cldSt.textContent='Não configurado — fotos ficam salvas localmente';cldSt.style.color='rgba(240,232,220,0.25)';}
     }
   }
   // preços toggle
@@ -3385,43 +3391,54 @@ function setCliConheceu(v){
   document.querySelectorAll('#cli-conheceu-sel .cli-conheceu-btn').forEach(function(b){b.classList.toggle('active',b.textContent===v);});
 }
 // ══════════════════════════════════════════════════════════════
-//  IMGBB — Motor de upload centralizado
+//  CLOUDINARY — Motor de upload centralizado
+//  Substitui ImgBB (sem restrição de CORS/domínio)
 // ══════════════════════════════════════════════════════════════
-function getImgbbKey(){try{return localStorage.getItem('bela-imgbb-key')||'';}catch(e){return'';}}
-
-function toggleImgbbKeyVisibility(){
-  var inp=document.getElementById('cfg-imgbb-key-input'),eye=document.getElementById('cfg-imgbb-eye');
-  if(!inp)return;
-  inp.type=inp.type==='password'?'text':'password';
-  if(eye)eye.textContent=inp.type==='password'?'👁':'🙈';
+function getCldConfig(){
+  try{
+    return{
+      cloud: localStorage.getItem('bela-cld-cloud')||'',
+      preset: localStorage.getItem('bela-cld-preset')||''
+    };
+  }catch(e){return{cloud:'',preset:''};}
 }
-function salvarChaveImgbb(){
-  var key=(document.getElementById('cfg-imgbb-key-input').value||'').trim();
-  if(!key){toastMsg('⚠ Cole a chave primeiro');return;}
-  try{localStorage.setItem('bela-imgbb-key',key);}catch(e){}
-  var st=document.getElementById('cfg-imgbb-status');
-  if(st){st.textContent='✓ Chave salva!';st.style.color='rgba(125,216,125,0.7)';}
-  toastMsg('✓ Chave ImgBB salva!');
+function salvarCldConfig(){
+  var cloud=(document.getElementById('cfg-cld-cloud').value||'').trim();
+  var preset=(document.getElementById('cfg-cld-preset').value||'').trim();
+  if(!cloud||!preset){toastMsg('⚠ Preencha Cloud Name e Upload Preset');return;}
+  try{localStorage.setItem('bela-cld-cloud',cloud);localStorage.setItem('bela-cld-preset',preset);}catch(e){}
+  var st=document.getElementById('cfg-cld-status');
+  if(st){st.textContent='✓ Configuração salva! Upload automático ativo.';st.style.color='rgba(125,216,125,0.7)';}
+  toastMsg('✓ Cloudinary configurado!');
 }
-function apagarChaveImgbb(){
-  try{localStorage.removeItem('bela-imgbb-key');}catch(e){}
-  var inp=document.getElementById('cfg-imgbb-key-input');if(inp)inp.value='';
-  var st=document.getElementById('cfg-imgbb-status');
-  if(st){st.textContent='Chave removida.';st.style.color='rgba(240,232,220,0.3)';}
+function apagarCldConfig(){
+  try{localStorage.removeItem('bela-cld-cloud');localStorage.removeItem('bela-cld-preset');}catch(e){}
+  var ci=document.getElementById('cfg-cld-cloud'),pi=document.getElementById('cfg-cld-preset');
+  if(ci)ci.value='';if(pi)pi.value='';
+  var st=document.getElementById('cfg-cld-status');
+  if(st){st.textContent='Configuração removida.';st.style.color='rgba(240,232,220,0.3)';}
 }
-async function testarChaveImgbb(){
-  var key=getImgbbKey()||(document.getElementById('cfg-imgbb-key-input').value||'').trim();
-  var st=document.getElementById('cfg-imgbb-status');
-  if(!key){if(st){st.textContent='⚠ Cole a chave antes de testar.';st.style.color='rgba(220,100,100,0.7)';}return;}
+async function testarCldConfig(){
+  var cfg=getCldConfig();
+  var cloud=(document.getElementById('cfg-cld-cloud').value||'').trim()||cfg.cloud;
+  var preset=(document.getElementById('cfg-cld-preset').value||'').trim()||cfg.preset;
+  var st=document.getElementById('cfg-cld-status');
+  if(!cloud||!preset){if(st){st.textContent='⚠ Preencha Cloud Name e Preset antes de testar.';st.style.color='rgba(220,100,100,0.7)';}return;}
   if(st){st.textContent='Testando...';st.style.color='rgba(201,168,76,0.5)';}
   try{
+    // Testa com imagem 1x1 pixel
     var fd=new FormData();
-    fd.append('image','iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==');
-    fd.append('name','test');
-    var r=await fetch('https://api.imgbb.com/1/upload?key='+key,{method:'POST',body:fd});
+    fd.append('file','data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==');
+    fd.append('upload_preset',preset);
+    fd.append('folder','bela_test');
+    var r=await fetch('https://api.cloudinary.com/v1_1/'+cloud+'/image/upload',{method:'POST',body:fd});
     var d=await r.json();
-    if(d.success){if(st){st.textContent='✓ Chave válida! Upload funcionando.';st.style.color='rgba(125,216,125,0.7)';}}
-    else{if(st){st.textContent='✗ '+(d.error&&d.error.message||'Chave inválida');st.style.color='rgba(220,100,100,0.7)';}}
+    if(d.secure_url){
+      if(st){st.textContent='✓ Funcionando! Upload ativo.';st.style.color='rgba(125,216,125,0.7)';}
+    } else {
+      var msg=d.error&&d.error.message||'Erro desconhecido';
+      if(st){st.textContent='✗ '+msg;st.style.color='rgba(220,100,100,0.7)';}
+    }
   }catch(e){
     if(st){st.textContent='✗ Erro: '+e.message;st.style.color='rgba(220,100,100,0.7)';}
   }
@@ -3446,36 +3463,37 @@ function _resizeFile(file,maxPx,quality){
   });
 }
 
-// Upload para ImgBB → Promise<url>
-function imgbbUpload(file,onProgress){
-  return _resizeFile(file,1400,0.85).then(function(b64){
+// Upload para Cloudinary → Promise<url>
+function cloudinaryUpload(file, onProgress){
+  var cfg=getCldConfig();
+  if(!cfg.cloud||!cfg.preset) return Promise.reject(new Error('SEM_CONFIG'));
+  return _resizeFile(file,1600,0.88).then(function(b64){
     return new Promise(function(resolve,reject){
-      var key=getImgbbKey();
-      if(!key){reject(new Error('SEM_CHAVE'));return;}
       var fd=new FormData();
-      fd.append('image',b64.replace(/^data:[^;]+;base64,/,''));
-      fd.append('name',('bela_'+(file.name||'foto').replace(/\.[^.]+$/,'')+'_'+Date.now()));
-      if(onProgress)onProgress(30);
-      fetch('https://api.imgbb.com/1/upload?key='+key,{method:'POST',body:fd})
+      fd.append('file',b64);
+      fd.append('upload_preset',cfg.preset);
+      fd.append('folder','bela_fotos');
+      if(onProgress)onProgress(20);
+      fetch('https://api.cloudinary.com/v1_1/'+cfg.cloud+'/image/upload',{method:'POST',body:fd})
         .then(function(r){return r.json();})
         .then(function(d){
           if(onProgress)onProgress(100);
-          if(d.success&&d.data&&d.data.url)resolve(d.data.url);
-          else reject(new Error(d.error&&d.error.message||'Erro ImgBB'));
+          if(d.secure_url)resolve(d.secure_url);
+          else reject(new Error(d.error&&d.error.message||'Erro Cloudinary'));
         })
-        .catch(function(e){reject(e);});
+        .catch(reject);
     });
   });
 }
 
 // Upload genérico com fallback base64
-function _uploadFoto(file, onProgress, onSuccess, onError){
-  var key=getImgbbKey();
-  if(!key||DEV_MODE){
+function _uploadFoto(file,onProgress,onSuccess,onError){
+  var cfg=getCldConfig();
+  if(!cfg.cloud||!cfg.preset||DEV_MODE){
     _resizeFile(file,1200,0.85).then(function(b64){onSuccess(b64,true);}).catch(onError||function(){});
     return;
   }
-  imgbbUpload(file,onProgress).then(function(url){
+  cloudinaryUpload(file,onProgress).then(function(url){
     onSuccess(url,false);
   }).catch(function(){
     _resizeFile(file,1200,0.85).then(function(b64){onSuccess(b64,true);}).catch(onError||function(){});
@@ -3500,20 +3518,20 @@ function handleCliFotoUpload(input){
   if(!input.files||!input.files[0])return;
   var file=input.files[0];
   var st=document.getElementById('cli-foto-upload-status');
-  var key=getImgbbKey();
+  var cfg=getCldConfig();
 
-  if(!key||DEV_MODE){
+  if(!cfg.cloud||!cfg.preset||DEV_MODE){
     if(st)st.innerHTML='<span style="color:rgba(201,168,76,0.6);">⬆ Processando foto...</span>';
     _resizeFile(file,400,0.82).then(function(b64){
       document.getElementById('cli-foto-url').value=b64;
       _updateAvatarPreview(b64);
-      if(st)st.innerHTML='<span style="color:rgba(232,160,80,0.9);">⚠ Foto local — configure a chave ImgBB para salvar na nuvem</span>';
+      if(st)st.innerHTML='<span style="color:rgba(232,160,80,0.9);">⚠ Foto local — configure o Cloudinary em ⚙ Backup para salvar na nuvem</span>';
     });
     return;
   }
 
-  if(st)st.innerHTML='<span style="color:rgba(201,168,76,0.6);">⬆ Enviando para ImgBB 0%...</span>';
-  imgbbUpload(file,function(pct){
+  if(st)st.innerHTML='<span style="color:rgba(201,168,76,0.6);">⬆ Enviando para nuvem...</span>';
+  cloudinaryUpload(file,function(pct){
     if(st)st.innerHTML='<span style="color:rgba(201,168,76,0.6);">⬆ Enviando... '+pct+'%</span>';
   }).then(function(url){
     document.getElementById('cli-foto-url').value=url;
@@ -3540,9 +3558,8 @@ function handleApFotoUpload(input){
   var file=input.files[0];if(!file)return;
   var prev=document.getElementById('ap-foto-preview');
   var img=document.getElementById('ap-foto-img');
-  var key=getImgbbKey();
+  var cfg=getCldConfig();
 
-  // Mostra preview imediato enquanto faz upload
   _resizeFile(file,800,0.85).then(function(b64){
     if(img)img.src=b64;
     if(prev)prev.style.display='flex';
@@ -3551,16 +3568,14 @@ function handleApFotoUpload(input){
     _apFotoBase64=b64;
     _apFotoUploading=true;
 
-    if(!key||DEV_MODE){
+    if(!cfg.cloud||!cfg.preset||DEV_MODE){
       _apFotoUploading=false;
-      // base64 já está pronto
       return;
     }
 
-    // Upload em background
     var aiStatus=document.getElementById('ap-ai-status');
-    if(aiStatus){aiStatus.style.display='block';aiStatus.style.color='rgba(201,168,76,0.5)';aiStatus.textContent='⬆ Enviando para ImgBB...';}
-    imgbbUpload(file,function(pct){
+    if(aiStatus){aiStatus.style.display='block';aiStatus.style.color='rgba(201,168,76,0.5)';aiStatus.textContent='⬆ Enviando para nuvem...';}
+    cloudinaryUpload(file,function(pct){
       if(aiStatus)aiStatus.textContent='⬆ Enviando... '+pct+'%';
     }).then(function(url){
       _apFotoBase64=null;
@@ -3579,7 +3594,7 @@ function handleEpFotoUpload(input){
   var file=input.files[0];if(!file)return;
   var prev=document.getElementById('ep-foto-preview');
   var img=document.getElementById('ep-foto-img');
-  var key=getImgbbKey();
+  var cfg=getCldConfig();
 
   _resizeFile(file,800,0.85).then(function(b64){
     if(img)img.src=b64;
@@ -3588,11 +3603,11 @@ function handleEpFotoUpload(input){
     document.getElementById('ep-foto').placeholder='(foto carregada do celular)';
     _epFotoBase64=b64;
 
-    if(!key||DEV_MODE)return;
+    if(!cfg.cloud||!cfg.preset||DEV_MODE)return;
 
     var statusEl=document.getElementById('ep-foto-upload-status');
-    if(statusEl){statusEl.style.display='block';statusEl.style.color='rgba(201,168,76,0.5)';statusEl.textContent='⬆ Enviando para ImgBB...';}
-    imgbbUpload(file,function(pct){
+    if(statusEl){statusEl.style.display='block';statusEl.style.color='rgba(201,168,76,0.5)';statusEl.textContent='⬆ Enviando para nuvem...';}
+    cloudinaryUpload(file,function(pct){
       if(statusEl)statusEl.textContent='⬆ Enviando... '+pct+'%';
     }).then(function(url){
       _epFotoBase64=null;
