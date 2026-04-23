@@ -1031,7 +1031,7 @@ input,select{font-family:'Montserrat',sans-serif}
       <!-- Área para adicionar nova foto -->
       <div id="ap-add-foto-area" style="margin-top:10px;background:rgba(255,255,255,0.02);border:1px solid rgba(201,168,76,0.15);border-radius:8px;padding:10px;">
         <div style="font-size:0.42rem;letter-spacing:0.22em;text-transform:uppercase;color:rgba(201,168,76,0.45);margin-bottom:7px;">Adicionar foto</div>
-        <input id="ap-foto" class="modal-input" type="url" placeholder="https://i.ibb.co/..." style="margin-bottom:7px;">
+        <input id="ap-foto" class="modal-input" type="url" placeholder="Cole uma URL ou use 'Do celular'" style="margin-bottom:7px;">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
           <input type="file" id="ap-foto-file" accept="image/*" style="display:none" onchange="handleApFotoUpload(this)">
           <button type="button" onclick="document.getElementById('ap-foto-file').click()" style="padding:7px 12px;background:rgba(255,255,255,0.04);border:1px dashed rgba(201,168,76,0.2);border-radius:6px;color:rgba(240,232,220,0.35);font-size:0.5rem;letter-spacing:0.14em;text-transform:uppercase;cursor:pointer;white-space:nowrap;flex-shrink:0;">📷 Do celular</button>
@@ -1121,7 +1121,7 @@ input,select{font-family:'Montserrat',sans-serif}
       <!-- Área para adicionar nova foto -->
       <div id="ep-add-foto-area" style="margin-top:10px;background:rgba(255,255,255,0.02);border:1px solid rgba(201,168,76,0.15);border-radius:8px;padding:10px;">
         <div style="font-size:0.42rem;letter-spacing:0.22em;text-transform:uppercase;color:rgba(201,168,76,0.45);margin-bottom:7px;">Adicionar foto</div>
-        <input id="ep-foto" class="modal-input" type="url" placeholder="https://i.ibb.co/..." style="margin-bottom:7px;">
+        <input id="ep-foto" class="modal-input" type="url" placeholder="Cole uma URL ou use 'Do celular'" style="margin-bottom:7px;">
         <div style="display:flex;align-items:center;gap:8px;">
           <input type="file" id="ep-foto-file" accept="image/*" style="display:none" onchange="handleEpFotoUpload(this)">
           <button type="button" onclick="document.getElementById('ep-foto-file').click()" style="padding:7px 12px;background:rgba(255,255,255,0.04);border:1px dashed rgba(201,168,76,0.2);border-radius:6px;color:rgba(240,232,220,0.35);font-size:0.5rem;letter-spacing:0.14em;text-transform:uppercase;cursor:pointer;white-space:nowrap;flex-shrink:0;">📷 Do celular</button>
@@ -3560,37 +3560,44 @@ function handleApFotoUpload(input){
   var img=document.getElementById('ap-foto-img');
   var cfg=getCldConfig();
   var aiStatus=document.getElementById('ap-ai-status');
-
-  // Preview imediato
-  _resizeFile(file,800,0.85).then(function(b64){
+  // Gera base64 UMA vez — reutiliza para preview E upload
+  _resizeFile(file,1600,0.88).then(function(b64){
     if(img)img.src=b64;
     if(prev)prev.style.display='flex';
     document.getElementById('ap-foto').value='';
-    document.getElementById('ap-foto').placeholder='(foto carregada do celular)';
+    document.getElementById('ap-foto').placeholder='(aguardando upload...)';
     _apFotoBase64=b64;
     _apFotoUploading=false;
-
     if(!cfg.cloud||!cfg.preset||DEV_MODE){
-      // Sem Cloudinary — usa base64, já está pronto para adicionar
-      if(aiStatus){aiStatus.style.display='block';aiStatus.style.color='rgba(232,160,80,0.8)';aiStatus.textContent='⚠ Foto local (configure Cloudinary para salvar na nuvem). Clique + Adicionar.';}
+      if(aiStatus){aiStatus.style.display='block';aiStatus.style.color='rgba(232,160,80,0.8)';aiStatus.textContent='⚠ Foto local (configure Cloudinary). Clique + Adicionar.';}
       return;
     }
-
-    // Upload Cloudinary em background
     _apFotoUploading=true;
     if(aiStatus){aiStatus.style.display='block';aiStatus.style.color='rgba(201,168,76,0.5)';aiStatus.textContent='⬆ Enviando para nuvem...';}
-    cloudinaryUpload(file,function(pct){
-      if(aiStatus)aiStatus.textContent='⬆ Enviando... '+pct+'%';
-    }).then(function(url){
-      _apFotoBase64=null;
-      _apFotoUploading=false;
-      document.getElementById('ap-foto').value=url;
-      if(img)img.src=url;
-      if(aiStatus){aiStatus.textContent='✓ Foto na nuvem! Clique + Adicionar ou analise com IA.';aiStatus.style.color='rgba(125,216,125,0.7)';}
-    }).catch(function(){
-      _apFotoUploading=false;
-      if(aiStatus){aiStatus.textContent='⚠ Upload falhou — foto local pronta. Clique + Adicionar.';aiStatus.style.color='rgba(232,160,80,0.8)';}
-    });
+    var fd=new FormData();
+    fd.append('file',b64);
+    fd.append('upload_preset',cfg.preset);
+    fd.append('folder','bela_fotos');
+    fetch('https://api.cloudinary.com/v1_1/'+cfg.cloud+'/image/upload',{method:'POST',body:fd})
+      .then(function(r){return r.json();})
+      .then(function(d){
+        if(d.secure_url){
+          _apFotoBase64=null;
+          _apFotoUploading=false;
+          document.getElementById('ap-foto').value=d.secure_url;
+          document.getElementById('ap-foto').placeholder='(foto na nuvem)';
+          if(img)img.src=d.secure_url;
+          if(aiStatus){aiStatus.textContent='✓ Foto na nuvem! Clique + Adicionar ou analise com IA.';aiStatus.style.color='rgba(125,216,125,0.7)';}
+        } else {
+          _apFotoUploading=false;
+          var msg=d.error&&d.error.message||'Erro desconhecido';
+          if(aiStatus){aiStatus.textContent='✗ Erro: '+msg;aiStatus.style.color='rgba(220,100,100,0.7)';}
+        }
+      })
+      .catch(function(){
+        _apFotoUploading=false;
+        if(aiStatus){aiStatus.textContent='⚠ Upload falhou — foto local pronta. Clique + Adicionar.';aiStatus.style.color='rgba(232,160,80,0.8)';}
+      });
   });
 }
 
@@ -3601,30 +3608,39 @@ function handleEpFotoUpload(input){
   var img=document.getElementById('ep-foto-img');
   var cfg=getCldConfig();
   var statusEl=document.getElementById('ep-foto-upload-status');
-
-  _resizeFile(file,800,0.85).then(function(b64){
+  _resizeFile(file,1600,0.88).then(function(b64){
     if(img)img.src=b64;
     if(prev)prev.style.display='block';
     document.getElementById('ep-foto').value='';
-    document.getElementById('ep-foto').placeholder='(foto carregada do celular)';
+    document.getElementById('ep-foto').placeholder='(aguardando upload...)';
     _epFotoBase64=b64;
-
     if(!cfg.cloud||!cfg.preset||DEV_MODE){
+      document.getElementById('ep-foto').placeholder='(foto local)';
       if(statusEl){statusEl.style.display='block';statusEl.style.color='rgba(232,160,80,0.8)';statusEl.textContent='⚠ Foto local (configure Cloudinary). Clique + Adicionar.';}
       return;
     }
-
     if(statusEl){statusEl.style.display='block';statusEl.style.color='rgba(201,168,76,0.5)';statusEl.textContent='⬆ Enviando para nuvem...';}
-    cloudinaryUpload(file,function(pct){
-      if(statusEl)statusEl.textContent='⬆ Enviando... '+pct+'%';
-    }).then(function(url){
-      _epFotoBase64=null;
-      document.getElementById('ep-foto').value=url;
-      if(img)img.src=url;
-      if(statusEl){statusEl.textContent='✓ Foto na nuvem! Clique + Adicionar.';statusEl.style.color='rgba(125,216,125,0.7)';}
-    }).catch(function(){
-      if(statusEl){statusEl.textContent='⚠ Upload falhou — foto local pronta. Clique + Adicionar.';statusEl.style.color='rgba(232,160,80,0.8)';}
-    });
+    var fd=new FormData();
+    fd.append('file',b64);
+    fd.append('upload_preset',cfg.preset);
+    fd.append('folder','bela_fotos');
+    fetch('https://api.cloudinary.com/v1_1/'+cfg.cloud+'/image/upload',{method:'POST',body:fd})
+      .then(function(r){return r.json();})
+      .then(function(d){
+        if(d.secure_url){
+          _epFotoBase64=null;
+          document.getElementById('ep-foto').value=d.secure_url;
+          document.getElementById('ep-foto').placeholder='(foto na nuvem)';
+          if(img)img.src=d.secure_url;
+          if(statusEl){statusEl.style.display='block';statusEl.textContent='✓ Foto na nuvem! Clique + Adicionar.';statusEl.style.color='rgba(125,216,125,0.7)';}
+        } else {
+          var msg=d.error&&d.error.message||'Erro desconhecido';
+          if(statusEl){statusEl.style.display='block';statusEl.textContent='✗ Erro: '+msg;statusEl.style.color='rgba(220,100,100,0.7)';}
+        }
+      })
+      .catch(function(){
+        if(statusEl){statusEl.style.display='block';statusEl.textContent='⚠ Upload falhou — foto local pronta. Clique + Adicionar.';statusEl.style.color='rgba(232,160,80,0.8)';}
+      });
   });
 }
 function toggleCliTag(tagId){
