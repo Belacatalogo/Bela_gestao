@@ -3422,7 +3422,9 @@ async function testarChaveImgbb(){
     var d=await r.json();
     if(d.success){if(st){st.textContent='✓ Chave válida! Upload funcionando.';st.style.color='rgba(125,216,125,0.7)';}}
     else{if(st){st.textContent='✗ '+(d.error&&d.error.message||'Chave inválida');st.style.color='rgba(220,100,100,0.7)';}}
-  }catch(e){if(st){st.textContent='✗ Erro de conexão.';st.style.color='rgba(220,100,100,0.7)';}}
+  }catch(e){
+    if(st){st.textContent='✗ Erro: '+e.message;st.style.color='rgba(220,100,100,0.7)';}
+  }
 }
 
 // Redimensiona imagem preservando proporção → base64
@@ -3453,15 +3455,15 @@ function imgbbUpload(file,onProgress){
       var fd=new FormData();
       fd.append('image',b64.replace(/^data:[^;]+;base64,/,''));
       fd.append('name',('bela_'+(file.name||'foto').replace(/\.[^.]+$/,'')+'_'+Date.now()));
-      var xhr=new XMLHttpRequest();
-      xhr.upload.onprogress=function(e){if(e.lengthComputable&&onProgress)onProgress(Math.round(e.loaded/e.total*100));};
-      xhr.onload=function(){
-        try{var d=JSON.parse(xhr.responseText);if(d.success&&d.data&&d.data.url)resolve(d.data.url);else reject(new Error(d.error&&d.error.message||'Erro ImgBB'));}
-        catch(e){reject(e);}
-      };
-      xhr.onerror=function(){reject(new Error('Sem conexão'));};
-      xhr.open('POST','https://api.imgbb.com/1/upload?key='+key);
-      xhr.send(fd);
+      if(onProgress)onProgress(30);
+      fetch('https://api.imgbb.com/1/upload?key='+key,{method:'POST',body:fd})
+        .then(function(r){return r.json();})
+        .then(function(d){
+          if(onProgress)onProgress(100);
+          if(d.success&&d.data&&d.data.url)resolve(d.data.url);
+          else reject(new Error(d.error&&d.error.message||'Erro ImgBB'));
+        })
+        .catch(function(e){reject(e);});
     });
   });
 }
