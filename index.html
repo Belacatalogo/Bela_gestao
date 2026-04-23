@@ -3559,32 +3559,37 @@ function handleApFotoUpload(input){
   var prev=document.getElementById('ap-foto-preview');
   var img=document.getElementById('ap-foto-img');
   var cfg=getCldConfig();
+  var aiStatus=document.getElementById('ap-ai-status');
 
+  // Preview imediato
   _resizeFile(file,800,0.85).then(function(b64){
     if(img)img.src=b64;
     if(prev)prev.style.display='flex';
     document.getElementById('ap-foto').value='';
     document.getElementById('ap-foto').placeholder='(foto carregada do celular)';
     _apFotoBase64=b64;
-    _apFotoUploading=true;
+    _apFotoUploading=false;
 
     if(!cfg.cloud||!cfg.preset||DEV_MODE){
-      _apFotoUploading=false;
+      // Sem Cloudinary — usa base64, já está pronto para adicionar
+      if(aiStatus){aiStatus.style.display='block';aiStatus.style.color='rgba(232,160,80,0.8)';aiStatus.textContent='⚠ Foto local (configure Cloudinary para salvar na nuvem). Clique + Adicionar.';}
       return;
     }
 
-    var aiStatus=document.getElementById('ap-ai-status');
+    // Upload Cloudinary em background
+    _apFotoUploading=true;
     if(aiStatus){aiStatus.style.display='block';aiStatus.style.color='rgba(201,168,76,0.5)';aiStatus.textContent='⬆ Enviando para nuvem...';}
     cloudinaryUpload(file,function(pct){
       if(aiStatus)aiStatus.textContent='⬆ Enviando... '+pct+'%';
     }).then(function(url){
       _apFotoBase64=null;
-      document.getElementById('ap-foto').value=url;
-      if(aiStatus){aiStatus.textContent='✓ Foto na nuvem! Pode analisar com IA.';aiStatus.style.color='rgba(125,216,125,0.7)';}
       _apFotoUploading=false;
+      document.getElementById('ap-foto').value=url;
+      if(img)img.src=url;
+      if(aiStatus){aiStatus.textContent='✓ Foto na nuvem! Clique + Adicionar ou analise com IA.';aiStatus.style.color='rgba(125,216,125,0.7)';}
     }).catch(function(){
       _apFotoUploading=false;
-      if(aiStatus){aiStatus.textContent='⚠ Upload falhou — usando foto local';aiStatus.style.color='rgba(232,160,80,0.8)';}
+      if(aiStatus){aiStatus.textContent='⚠ Upload falhou — foto local pronta. Clique + Adicionar.';aiStatus.style.color='rgba(232,160,80,0.8)';}
     });
   });
 }
@@ -3595,6 +3600,7 @@ function handleEpFotoUpload(input){
   var prev=document.getElementById('ep-foto-preview');
   var img=document.getElementById('ep-foto-img');
   var cfg=getCldConfig();
+  var statusEl=document.getElementById('ep-foto-upload-status');
 
   _resizeFile(file,800,0.85).then(function(b64){
     if(img)img.src=b64;
@@ -3603,18 +3609,21 @@ function handleEpFotoUpload(input){
     document.getElementById('ep-foto').placeholder='(foto carregada do celular)';
     _epFotoBase64=b64;
 
-    if(!cfg.cloud||!cfg.preset||DEV_MODE)return;
+    if(!cfg.cloud||!cfg.preset||DEV_MODE){
+      if(statusEl){statusEl.style.display='block';statusEl.style.color='rgba(232,160,80,0.8)';statusEl.textContent='⚠ Foto local (configure Cloudinary). Clique + Adicionar.';}
+      return;
+    }
 
-    var statusEl=document.getElementById('ep-foto-upload-status');
     if(statusEl){statusEl.style.display='block';statusEl.style.color='rgba(201,168,76,0.5)';statusEl.textContent='⬆ Enviando para nuvem...';}
     cloudinaryUpload(file,function(pct){
       if(statusEl)statusEl.textContent='⬆ Enviando... '+pct+'%';
     }).then(function(url){
       _epFotoBase64=null;
       document.getElementById('ep-foto').value=url;
-      if(statusEl){statusEl.textContent='✓ Foto na nuvem!';statusEl.style.color='rgba(125,216,125,0.7)';}
+      if(img)img.src=url;
+      if(statusEl){statusEl.textContent='✓ Foto na nuvem! Clique + Adicionar.';statusEl.style.color='rgba(125,216,125,0.7)';}
     }).catch(function(){
-      if(statusEl){statusEl.textContent='⚠ Upload falhou — usando foto local';statusEl.style.color='rgba(232,160,80,0.8)';}
+      if(statusEl){statusEl.textContent='⚠ Upload falhou — foto local pronta. Clique + Adicionar.';statusEl.style.color='rgba(232,160,80,0.8)';}
     });
   });
 }
@@ -4003,25 +4012,23 @@ function renderApFotosGrid(){
 
 function apAdicionarFoto(){
   var url = (document.getElementById('ap-foto').value||'').trim();
-  if(!url && !_apFotoBase64){ toastMsg('⚠ Cole uma URL ou escolha uma foto do celular',true); return; }
-  var entry;
-  if(_apFotoBase64){
-    entry = {url: _apFotoBase64, base64only: true};
-  } else {
-    entry = {url: url, base64only: false};
-  }
+  // Se ainda está fazendo upload, espera
+  if(_apFotoUploading){ toastMsg('⏳ Aguarde o upload terminar...'); return; }
+  if(!url && !_apFotoBase64){ toastMsg('⚠ Cole uma URL ou escolha uma foto do celular'); return; }
+  var entry = url ? {url: url, base64only: false} : {url: _apFotoBase64, base64only: true};
   _apFotos.push(entry);
-  // limpa input
+  // limpa tudo
   document.getElementById('ap-foto').value='';
+  document.getElementById('ap-foto').placeholder='https://i.ibb.co/...';
   document.getElementById('ap-foto-preview').style.display='none';
   _apFotoBase64=null;
+  _apFotoUploading=false;
   var fi=document.getElementById('ap-foto-file');if(fi)fi.value='';
-  // reset IA btn
   var aiBtn=document.getElementById('ap-ai-btn');
   if(aiBtn){aiBtn.style.background='';aiBtn.style.borderColor='';aiBtn.style.color='#e8c97a';}
   var aiIcon=document.getElementById('ap-ai-icon');if(aiIcon)aiIcon.textContent='✦';
   var aiTxt=document.getElementById('ap-ai-txt');if(aiTxt)aiTxt.textContent='Analisar com IA';
-  var aiStatus=document.getElementById('ap-ai-status');if(aiStatus)aiStatus.style.display='none';
+  var aiStatus=document.getElementById('ap-ai-status');if(aiStatus){aiStatus.style.display='none';aiStatus.textContent='';}
   renderApFotosGrid();
 }
 
