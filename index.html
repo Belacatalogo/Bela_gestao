@@ -4059,7 +4059,7 @@ function renderEpFotosGrid(){
 function epAdicionarFoto(){
   var url = (document.getElementById('ep-foto').value||'').trim();
   if(!url && !_epFotoBase64){ toastMsg('⚠ Cole uma URL ou escolha uma foto do celular',true); return; }
-  var entry = _epFotoBase64 ? {url: _epFotoBase64, base64only: true} : {url: url, base64only: false};
+  var entry = url ? {url: url, base64only: false} : {url: _epFotoBase64, base64only: true};
   _epFotos.push(entry);
   document.getElementById('ep-foto').value='';
   document.getElementById('ep-foto-preview').style.display='none';
