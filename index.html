@@ -1282,7 +1282,8 @@ var CAT={
   kit:       {label:'Kit',         color:'#C9A84C'},
   hidratante:{label:'Hidratante',  color:'#7dcfbe'},
   maes:      {label:'Dia das Mães',color:'#f2b8c6'},
-  kids:      {label:'Kids',        color:'#c0b0f0'}
+  kids:      {label:'Kids',        color:'#c0b0f0'},
+  maquiagem: {label:'Maquiagem',   color:'#e8a0d0'}
 };
 
 var FILTERS=[
@@ -1296,7 +1297,8 @@ var FILTERS=[
   {id:'kit',      label:'🎁 Kits'},
   {id:'hidratante',label:'💧 Hidratantes'},
   {id:'maes',     label:'🌷 Dia das Mães'},
-  {id:'kids',     label:'✨ Kids'}
+  {id:'kids',      label:'✨ Kids'},
+  {id:'maquiagem', label:'💄 Maquiagem'}
 ];
 
 var PRODUCTS=[
@@ -1542,7 +1544,7 @@ function filtered(){
     var hasParc=sales.some(function(s){return s.count>1;});
     var esg=!!S.sold[p.id];
     // Each active filter must pass (AND logic for categories, OR for status)
-    var catFilters=activeFilters.filter(function(f){return['feminino','masculino','kit','hidratante','maes','kids'].indexOf(f)>=0;});
+    var catFilters=activeFilters.filter(function(f){return['feminino','masculino','kit','hidratante','maes','kids','maquiagem'].indexOf(f)>=0;});
     var statusFilters=activeFilters.filter(function(f){return['comVenda','semVenda','parcelas','esgotado'].indexOf(f)>=0;});
     var isTodos=activeFilters.indexOf('todos')>=0||activeFilters.length===0;
     // Category match — suporta p.categories (array) e p.category (legado)
@@ -3834,8 +3836,6 @@ var ABAS_CATALOGO=[
   {id:'colecao',    label:'Coleção'},
   {id:'maes',       label:'Dia das Mães'},
   {id:'beleza',     label:'Beleza & Kids'},
-  {id:'maquiagens', label:'Maquiagens'},
-  {id:'infantis',   label:'Infantis'},
 ];
 
 function renderProdTab(){
@@ -3923,7 +3923,7 @@ function openAddProdModal(){
 }
 
 function renderApCats(){
-  var cats=['feminino','masculino','kit','hidratante','maes','kids'];
+  var cats=['feminino','masculino','kit','hidratante','maes','kids','maquiagem'];
   document.getElementById('ap-cat-sel').innerHTML=cats.map(function(c){
     var info=CAT[c]||{label:c};
     var a=_apCats.indexOf(c)>=0;
@@ -4163,7 +4163,7 @@ async function analisarFotoIA(){
             contents: [{
               parts: [
                 imagePart,
-                { text: 'Você é um especialista em cosméticos brasileiros (O Boticário, Eudora, Natura, Avon, etc) E também um naming expert de perfumaria — cria nomes POÉTICOS e EVOCATIVOS como os de coleções de perfume de luxo. Analise esta foto de produto com atenção máxima.\n\nPRIMEIRO, identifique se é:\n(A) PRODUTO ÚNICO/KIT DE FÁBRICA — um perfume sozinho, um creme, ou um kit oficial da marca (ex: "Kit Presente Malbec" da marca)\n(B) KIT MONTADO/CESTA PRESENTE — combinação artesanal de 2+ itens embalada com celofane, laço, fita, tag, papel crepom, caneca, flores, etc\n\nResponda SOMENTE com JSON válido, sem markdown:\n{"nome":"ver regra abaixo","marca":"marca do item principal (ou \'Montagem Especial\' se for kit montado sem marca dominante)","descricao":"ver regra abaixo","categorias":["cat1","cat2"],"aba":"todos|colecao|maes|beleza|maquiagens|infantis"}\n\nREGRA DO CAMPO "nome" (CRÍTICA):\n• Se for (A) produto único/kit de fábrica → use APENAS o nome comercial do produto, SEM tipo, SEM volume, SEM "Deo Parfum", SEM "ml". Ex: "Malbec", "Glamour Secret Black", "Kit Lily", "Egeo Choc"\n• Se for (B) kit montado → CRIE um nome POÉTICO e EVOCATIVO de 2 a 3 palavras (substantivo + adjetivo, ou combinações evocativas). NÃO use palavras genéricas tipo "Mimo", "Presente", "Kit", "Cesta", "Surpresa", "Especial". NÃO inclua emoji. NÃO liste produtos. Use linguagem sensorial, afetiva e refinada — como nome de coleção de perfume de luxo.\n\n• TÉCNICA para kits montados: identifique os AROMAS, CORES e SENSAÇÕES visíveis nos produtos (nome da linha no rótulo, cor da embalagem, tipo de fragrância) e traduza isso em 2 ou 3 palavras evocativas.\n\n• EXEMPLOS REAIS para kits montados (siga este estilo):\n  - Kit com Body Splash "Boa Noite" + hidratante violeta escuro → "Noite Encantada"\n  - Kit com Body Splash Maracujá + hidratante Baunilha (tons amarelos, frutais) → "Frescor Tropical"\n  - Kit floral rosa com rosas/peônias → "Jardim Secreto" ou "Flor Desperta"\n  - Kit com Lily ou branco/dourado → "Brilho Eterno" ou "Luz Suave"\n  - Kit com Cuide-se Bem amêndoas/vanilla → "Doce Abraço" ou "Aconchego Quente"\n  - Kit vermelho romântico com corações → "Paixão Intensa" ou "Encanto Ardente"\n  - Kit masculino tons escuros/amadeirados → "Força Serena" ou "Elegância Noturna"\n  - Kit com frutas vermelhas (cranberry, framboesa) → "Beijo Rubi" ou "Sedução Doce"\n  - Kit cítrico (limão, laranja) → "Manhã Radiante" ou "Energia Viva"\n  - Kit flor de cerejeira / oriental → "Pétala Delicada" ou "Sonho Oriental"\n  - Kit lavanda/relaxante → "Calmaria Suave" ou "Paz Profunda"\n  - Kit Natal → "Estrela Dourada" ou "Magia Natalina"\n  - Kit infantil → "Doce Infância" ou "Sonho Travesso"\n  - Kit sem tema claro → invente algo atmosférico: "Véu Dourado", "Brisa Suave", "Instante Raro"\n\n• REGRAS RÍGIDAS para kits montados:\n  - Entre 2 e 3 palavras (nunca 1, nunca 4 ou mais)\n  - Primeira letra de cada palavra MAIÚSCULA\n  - Use português brasileiro poético\n  - Evite clichês batidos ("Amor de Mãe", "Carinho Eterno")\n  - Seja ORIGINAL — cada kit merece um nome único baseado no que você VÊ na foto\n\nREGRA DO CAMPO "descricao":\n• Para produto único/kit de fábrica: coloque o tipo e volume aqui. Ex: "Deo Parfum 90ml", "Eau de Parfum 50ml", "Loção Hidratante Perfumada 200ml"\n• Para kit montado: liste os itens identificados. Ex: "Boa Noite Body Splash + Hidratante Ameixa e Praliné", "Maracujá Body Splash + Hidratante Baunilha", "Body Spray Magnific 100ml + Caneca \'Melhor Mãe do Mundo\'". Seja específica com nomes de linha/fragrância quando visíveis no rótulo.\n\nRegras para categorias (pode ter VÁRIAS):\n- "feminino" = produto para mulher (perfume fem, creme, sabonete fem)\n- "masculino" = produto para homem\n- "kit" = conjunto com 2+ itens (inclui kits montados)\n- "hidratante" = creme, loção, sabonete, óleo corporal, body splash\n- "kids" = infantil/bebê\nEx: kit montado feminino com body splash e hidratante → ["kit","feminino","hidratante"]\n\nRegras para aba (escolha UMA):\n- todos=geral, colecao=lançamento/especial, maes=dia das mães, beleza=beleza e kids, maquiagens=maquiagem, infantis=bebê'+dicaTxt }
+                { text: 'Você é um especialista em cosméticos brasileiros (O Boticário, Eudora, Natura, Avon, etc) E também um naming expert de perfumaria — cria nomes POÉTICOS e EVOCATIVOS como os de coleções de perfume de luxo. Analise esta foto de produto com atenção máxima.\n\nPRIMEIRO, identifique se é:\n(A) PRODUTO ÚNICO/KIT DE FÁBRICA — um perfume sozinho, um creme, ou um kit oficial da marca (ex: "Kit Presente Malbec" da marca)\n(B) KIT MONTADO/CESTA PRESENTE — combinação artesanal de 2+ itens embalada com celofane, laço, fita, tag, papel crepom, caneca, flores, etc\n\nResponda SOMENTE com JSON válido, sem markdown:\n{"nome":"ver regra abaixo","marca":"marca do item principal (ou \'Montagem Especial\' se for kit montado sem marca dominante)","descricao":"ver regra abaixo","categorias":["cat1","cat2"],"aba":"todos|colecao|maes|beleza|"}\n\nREGRA DO CAMPO "nome" (CRÍTICA):\n• Se for (A) produto único/kit de fábrica → use APENAS o nome comercial do produto, SEM tipo, SEM volume, SEM "Deo Parfum", SEM "ml". Ex: "Malbec", "Glamour Secret Black", "Kit Lily", "Egeo Choc"\n• Se for (B) kit montado → CRIE um nome POÉTICO e EVOCATIVO de 2 a 3 palavras (substantivo + adjetivo, ou combinações evocativas). NÃO use palavras genéricas tipo "Mimo", "Presente", "Kit", "Cesta", "Surpresa", "Especial". NÃO inclua emoji. NÃO liste produtos. Use linguagem sensorial, afetiva e refinada — como nome de coleção de perfume de luxo.\n\n• TÉCNICA para kits montados: identifique os AROMAS, CORES e SENSAÇÕES visíveis nos produtos (nome da linha no rótulo, cor da embalagem, tipo de fragrância) e traduza isso em 2 ou 3 palavras evocativas.\n\n• EXEMPLOS REAIS para kits montados (siga este estilo):\n  - Kit com Body Splash "Boa Noite" + hidratante violeta escuro → "Noite Encantada"\n  - Kit com Body Splash Maracujá + hidratante Baunilha (tons amarelos, frutais) → "Frescor Tropical"\n  - Kit floral rosa com rosas/peônias → "Jardim Secreto" ou "Flor Desperta"\n  - Kit com Lily ou branco/dourado → "Brilho Eterno" ou "Luz Suave"\n  - Kit com Cuide-se Bem amêndoas/vanilla → "Doce Abraço" ou "Aconchego Quente"\n  - Kit vermelho romântico com corações → "Paixão Intensa" ou "Encanto Ardente"\n  - Kit masculino tons escuros/amadeirados → "Força Serena" ou "Elegância Noturna"\n  - Kit com frutas vermelhas (cranberry, framboesa) → "Beijo Rubi" ou "Sedução Doce"\n  - Kit cítrico (limão, laranja) → "Manhã Radiante" ou "Energia Viva"\n  - Kit flor de cerejeira / oriental → "Pétala Delicada" ou "Sonho Oriental"\n  - Kit lavanda/relaxante → "Calmaria Suave" ou "Paz Profunda"\n  - Kit Natal → "Estrela Dourada" ou "Magia Natalina"\n  - Kit infantil → "Doce Infância" ou "Sonho Travesso"\n  - Kit sem tema claro → invente algo atmosférico: "Véu Dourado", "Brisa Suave", "Instante Raro"\n\n• REGRAS RÍGIDAS para kits montados:\n  - Entre 2 e 3 palavras (nunca 1, nunca 4 ou mais)\n  - Primeira letra de cada palavra MAIÚSCULA\n  - Use português brasileiro poético\n  - Evite clichês batidos ("Amor de Mãe", "Carinho Eterno")\n  - Seja ORIGINAL — cada kit merece um nome único baseado no que você VÊ na foto\n\nREGRA DO CAMPO "descricao":\n• Para produto único/kit de fábrica: coloque o tipo e volume aqui. Ex: "Deo Parfum 90ml", "Eau de Parfum 50ml", "Loção Hidratante Perfumada 200ml"\n• Para kit montado: liste os itens identificados. Ex: "Boa Noite Body Splash + Hidratante Ameixa e Praliné", "Maracujá Body Splash + Hidratante Baunilha", "Body Spray Magnific 100ml + Caneca \'Melhor Mãe do Mundo\'". Seja específica com nomes de linha/fragrância quando visíveis no rótulo.\n\nRegras para categorias (pode ter VÁRIAS):\n- "feminino" = produto para mulher (perfume fem, creme, sabonete fem)\n- "masculino" = produto para homem\n- "kit" = conjunto com 2+ itens (inclui kits montados)\n- "hidratante" = creme, loção, sabonete, óleo corporal, body splash\n- "kids" = infantil/bebê\n- "maquiagem" = base, batom, sombra, rímel, blush, iluminador, pó compacto, etc\nEx: kit montado feminino com body splash e hidratante → ["kit","feminino","hidratante"]\n\nRegras para aba (escolha UMA):\n- todos=geral, colecao=lançamento/especial, maes=dia das mães, beleza=beleza e kids (incluindo infantil)'+dicaTxt }
               ]
             }],
             generationConfig: { temperature: 0.1, maxOutputTokens: 2048 }
@@ -4225,10 +4225,10 @@ async function analisarFotoIA(){
     if(parsed.descricao) document.getElementById('ap-sub').value   = parsed.descricao;
     // Suporta tanto "categorias" (array novo) quanto "categoria" (string legado)
     var cats = parsed.categorias || (parsed.categoria ? [parsed.categoria] : []);
-    var validCats = ['feminino','masculino','kit','hidratante','kids'];
+    var validCats = ['feminino','masculino','kit','hidratante','kids','maquiagem'];
     cats = cats.filter(function(c){ return validCats.indexOf(c) >= 0; });
     if(cats.length > 0){ _apCats = cats; renderApCats(); }
-    if(parsed.aba && ['todos','colecao','maes','beleza','maquiagens','infantis'].indexOf(parsed.aba)>=0){
+    if(parsed.aba && ['todos','colecao','maes','beleza'].indexOf(parsed.aba)>=0){
       _apAbas = [parsed.aba]; renderApAbas();
     }
 
@@ -4470,7 +4470,7 @@ function closeEditProdModal(e){
 }
 
 function renderEpCats(){
-  var cats=['feminino','masculino','kit','hidratante','maes','kids'];
+  var cats=['feminino','masculino','kit','hidratante','maes','kids','maquiagem'];
   document.getElementById('ep-cat-sel').innerHTML=cats.map(function(c){
     var info=CAT[c]||{label:c};
     var a=_epCats.indexOf(c)>=0;
