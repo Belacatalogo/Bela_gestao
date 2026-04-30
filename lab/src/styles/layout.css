@@ -1,0 +1,136 @@
+.app-shell {
+  width: 100%;
+  min-height: 100vh;
+}
+
+.lab-page {
+  width: min(100%, 760px);
+  margin: 0 auto;
+  padding: max(22px, env(safe-area-inset-top)) 16px calc(32px + env(safe-area-inset-bottom));
+}
+
+.hero-card,
+.panel-card {
+  border: 1px solid rgba(201, 168, 76, 0.18);
+  border-radius: 22px;
+  background: linear-gradient(145deg, rgba(17, 17, 17, 0.96), rgba(13, 10, 6, 0.96));
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.26);
+}
+
+.hero-card {
+  padding: 28px 20px;
+  margin-bottom: 14px;
+  text-align: center;
+}
+
+.eyebrow {
+  display: inline-flex;
+  border: 1px solid rgba(201, 168, 76, 0.32);
+  border-radius: 999px;
+  color: var(--gold);
+  font-size: 0.62rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  padding: 7px 12px;
+  margin-bottom: 18px;
+}
+
+h1,
+h2,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: clamp(2.6rem, 14vw, 5rem);
+  font-weight: 300;
+  letter-spacing: 0.08em;
+  line-height: 0.95;
+  margin-bottom: 14px;
+}
+
+h1 span {
+  color: var(--gold);
+  font-style: italic;
+}
+
+h2 {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 1.45rem;
+  font-weight: 300;
+  margin-bottom: 8px;
+}
+
+.hero-text,
+.panel-card p {
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.6;
+}
+
+.status-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin-top: 22px;
+}
+
+.status-card {
+  border: 1px solid rgba(201, 168, 76, 0.12);
+  border-radius: 14px;
+  background: rgba(201, 168, 76, 0.055);
+  padding: 12px;
+}
+
+.status-card strong,
+.status-card small {
+  display: block;
+}
+
+.status-card strong {
+  color: var(--gold);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  overflow-wrap: anywhere;
+}
+
+.status-card small {
+  color: var(--muted-weak);
+  font-size: 0.54rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  margin-top: 4px;
+}
+
+.panel-card {
+  padding: 20px;
+  margin-bottom: 14px;
+}
+
+.feature-list {
+  display: grid;
+  gap: 8px;
+  list-style: none;
+  padding: 0;
+  margin: 16px 0 0;
+}
+
+.feature-list li {
+  border: 1px solid rgba(201, 168, 76, 0.12);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.035);
+  padding: 10px 12px;
+  color: rgba(240, 232, 220, 0.78);
+  font-size: 0.78rem;
+}
+
+.warning-card {
+  background: linear-gradient(145deg, rgba(45, 28, 12, 0.92), rgba(20, 12, 6, 0.94));
+}
+
+@media (min-width: 620px) {
+  .status-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
