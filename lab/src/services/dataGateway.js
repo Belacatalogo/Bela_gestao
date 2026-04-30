@@ -1,9 +1,11 @@
 import { DATA_MODES, getEnvironmentStatus } from './environmentService.js';
 import {
   getLabProducts,
+  getLabProductById,
   getLabStorageInfo,
   resetLabProducts,
   updateLabProductVisibility,
+  upsertLabProduct,
 } from './labDataService.js';
 
 function blockedRealWriteResult(action) {
@@ -43,6 +45,23 @@ export function listProducts() {
     products: getLabProducts(),
     warning: null,
   };
+}
+
+export function getProduct(productId) {
+  const status = getEnvironmentStatus();
+
+  if (status.mode === DATA_MODES.REAL_READONLY) return null;
+  return getLabProductById(productId);
+}
+
+export function saveProduct(draft) {
+  const status = getEnvironmentStatus();
+
+  if (status.mode === DATA_MODES.REAL_READONLY) {
+    return blockedRealWriteResult('saveProduct');
+  }
+
+  return upsertLabProduct(draft);
 }
 
 export function toggleProductVisibility(productId) {
