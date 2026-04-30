@@ -140,9 +140,57 @@ Cada bloco deve:
 
 ## Bloco atual
 
+### BLOCO 1 — Base modular limpa
+
+Status: implementado, aguardando preview/teste no iPhone.
+
+Objetivo:
+- criar uma base modular inicial sem substituir o sistema antigo;
+- manter o `index.html` da raiz intacto;
+- criar a reconstrução inicial em `/lab`;
+- mostrar branch, versão e funções críticas preservadas;
+- preparar o primeiro teste visual no Cloudflare Pages.
+
+Arquivos adicionados neste bloco:
+- `lab/index.html`;
+- `lab/src/main.js`;
+- `lab/src/app.js`;
+- `lab/src/config/appConfig.js`;
+- `lab/src/styles/base.css`;
+- `lab/src/styles/layout.css`.
+
+Comportamento atual:
+- a nova tela lab é carregada por `lab/index.html`;
+- usa JavaScript modular via `type="module"`;
+- CSS separado;
+- não conecta Firebase;
+- não conecta Catálogo;
+- não usa IA ainda;
+- não altera produtos, vendas, pagamentos ou dados reais.
+
+Checklist de teste do BLOCO 1:
+1. configurar Cloudflare Pages para apontar para a branch `rewrite-bela-gestao-lab`;
+2. abrir o link do Cloudflare no Safari do iPhone;
+3. acessar o caminho `/lab/` se o Cloudflare abrir a raiz antiga;
+4. confirmar que aparece `Bela Gestão LAB`;
+5. confirmar que aparece a branch `rewrite-bela-gestao-lab`;
+6. confirmar que aparece versão `0.1.0-lab.1`;
+7. confirmar que a lista de funções críticas aparece, incluindo `Funções de IA`;
+8. confirmar que a tela rola normalmente;
+9. confirmar que não aparece tela branca;
+10. confirmar que o sistema antigo da raiz continua funcionando se abrir `/`.
+
+Critério de aprovação:
+- a tela `/lab/` carrega no iPhone sem tela branca;
+- a branch e a versão aparecem corretamente;
+- a tela deixa claro que não mexeu em Firebase/Catálogo/IA/dados reais;
+- o app antigo da raiz não foi substituído.
+
+## Histórico de blocos
+
 ### BLOCO 0C — Auditoria de IA e funções críticas
 
-Status: iniciado.
+Status: implementado.
 
 Objetivo:
 - registrar IA como função crítica;
@@ -157,30 +205,6 @@ Arquivos adicionados/atualizados neste bloco:
 Nenhuma função do sistema antigo foi removida neste bloco.
 
 ## Próximos blocos previstos
-
-### BLOCO 1 — Base modular limpa
-
-Criar estrutura inicial sem substituir a aplicação antiga de forma destrutiva:
-
-```txt
-src/
-  main.js
-  app.js
-  config/
-  services/
-  data/
-  state/
-  components/
-  screens/
-  styles/
-  utils/
-```
-
-Teste esperado quando houver preview:
-- abrir o preview no iPhone;
-- confirmar que a tela inicial da lab carrega;
-- confirmar que aparece a versão/branch lab;
-- confirmar que a `main` antiga continua intacta.
 
 ### BLOCO 2 — Camada de dados e Firebase
 
@@ -277,4 +301,4 @@ Teste esperado:
 
 ## Como continuar em outro chat
 
-"Continue a reconstrução do Bela Gestão. Leia `BELA_GESTAO_HANDOFF.md` antes de qualquer alteração. A branch de trabalho é `rewrite-bela-gestao-lab`. Não mexa na `main`. O usuário quer testar cada bloco testável no iPhone e não quer usar GitHub Pages nem mexer no Vercel atual, que está fixo no sistema de inglês. O usuário informou que o sistema usa funções de IA; IA é função crítica e não pode ser removida. O objetivo é reconstruir o Bela Gestão modularmente, preservando a ligação com o Bela Catálogo, Firebase, localStorage, vendas, pagamentos, WhatsApp, PWA e IA. Siga por blocos pequenos, sem DOM injection, sem remendos sobrepostos e sem transformar o sistema em outro arquivo gigante."
+"Continue a reconstrução do Bela Gestão. Leia `BELA_GESTAO_HANDOFF.md` antes de qualquer alteração. A branch de trabalho é `rewrite-bela-gestao-lab`. Não mexa na `main`. O BLOCO 1 criou a base modular em `/lab`, sem substituir o app antigo da raiz. O usuário quer testar cada bloco testável no iPhone usando Cloudflare Pages ou outra alternativa que não mexa no Vercel nem use GitHub Pages. O usuário informou que o sistema usa funções de IA; IA é função crítica e não pode ser removida. O objetivo é reconstruir o Bela Gestão modularmente, preservando a ligação com o Bela Catálogo, Firebase, localStorage, vendas, pagamentos, WhatsApp, PWA e IA. Siga por blocos pequenos, sem DOM injection, sem remendos sobrepostos e sem transformar o sistema em outro arquivo gigante."
