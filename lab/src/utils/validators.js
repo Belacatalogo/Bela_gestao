@@ -21,7 +21,6 @@ export function validateProductDraft(draft) {
   if (!normalizeText(draft.brand)) errors.push('Informe a marca.');
   if (!normalizeText(draft.category)) errors.push('Informe a categoria.');
   if (normalizeMoney(draft.price) <= 0) errors.push('Informe um preço maior que zero.');
-  if (!normalizeText(draft.imageUrl)) errors.push('Informe uma URL de imagem.');
 
   return {
     ok: errors.length === 0,
