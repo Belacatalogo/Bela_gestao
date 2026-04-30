@@ -140,9 +140,69 @@ Cada bloco deve:
 
 ## Bloco atual
 
-### BLOCO 1 — Base modular limpa
+### BLOCO 1B — Modo visitante e catálogo fictício LAB
 
 Status: implementado, aguardando preview/teste no iPhone.
+
+Objetivo:
+- permitir teste inicial sem login Google da esposa;
+- criar dados fictícios isolados;
+- criar um catálogo fictício em `/lab/catalogo-preview/`;
+- permitir testar publicar/ocultar produto sem tocar Firebase nem catálogo real;
+- manter tudo separado do sistema antigo.
+
+Arquivos adicionados/alterados neste bloco:
+- `lab/src/services/labDataService.js`;
+- `lab/src/utils/money.js`;
+- `lab/src/app.js`;
+- `lab/src/styles/layout.css`;
+- `lab/catalogo-preview/index.html`;
+- `lab/catalogo-preview/preview.js`;
+- `lab/catalogo-preview/preview.css`;
+- `BELA_GESTAO_HANDOFF.md`.
+
+Comportamento atual:
+- a Gestão LAB mostra modo visitante;
+- produtos fictícios são salvos no navegador com `localStorage` pela chave `belaGestaoLab.products.v1`;
+- botão `Ocultar/Publicar` altera apenas o produto fictício;
+- botão `Restaurar dados teste` volta para os produtos fictícios iniciais;
+- o catálogo fictício lê apenas produtos visíveis;
+- nada escreve no Firebase;
+- nada altera o catálogo real;
+- não usa login Google;
+- não usa IA real ainda.
+
+Checklist de teste do BLOCO 1B:
+1. abrir o preview Cloudflare no iPhone;
+2. entrar em `/lab/`;
+3. confirmar que aparece o painel `Modo visitante`;
+4. confirmar que aparecem 3 produtos de teste;
+5. tocar em `Abrir catálogo fictício`;
+6. confirmar que abre `/lab/catalogo-preview/`;
+7. confirmar que aparecem apenas 2 produtos visíveis;
+8. voltar para a Gestão LAB;
+9. tocar em `Publicar` no produto oculto;
+10. abrir o catálogo fictício de novo;
+11. confirmar que agora aparecem 3 produtos;
+12. voltar e tocar em `Ocultar` em algum produto visível;
+13. confirmar que ele some do catálogo fictício;
+14. tocar em `Restaurar dados teste`;
+15. confirmar que volta para 3 produtos no painel e 2 visíveis no catálogo;
+16. abrir `/` e confirmar que o sistema antigo da raiz continua intacto.
+
+Critério de aprovação:
+- modo visitante funciona no iPhone;
+- catálogo fictício abre;
+- publicar/ocultar altera somente o catálogo fictício;
+- restaurar dados teste funciona;
+- nenhum dado real é alterado;
+- app antigo continua intacto.
+
+## Histórico de blocos
+
+### BLOCO 1 — Base modular limpa
+
+Status: implementado.
 
 Objetivo:
 - criar uma base modular inicial sem substituir o sistema antigo;
@@ -158,35 +218,6 @@ Arquivos adicionados neste bloco:
 - `lab/src/config/appConfig.js`;
 - `lab/src/styles/base.css`;
 - `lab/src/styles/layout.css`.
-
-Comportamento atual:
-- a nova tela lab é carregada por `lab/index.html`;
-- usa JavaScript modular via `type="module"`;
-- CSS separado;
-- não conecta Firebase;
-- não conecta Catálogo;
-- não usa IA ainda;
-- não altera produtos, vendas, pagamentos ou dados reais.
-
-Checklist de teste do BLOCO 1:
-1. configurar Cloudflare Pages para apontar para a branch `rewrite-bela-gestao-lab`;
-2. abrir o link do Cloudflare no Safari do iPhone;
-3. acessar o caminho `/lab/` se o Cloudflare abrir a raiz antiga;
-4. confirmar que aparece `Bela Gestão LAB`;
-5. confirmar que aparece a branch `rewrite-bela-gestao-lab`;
-6. confirmar que aparece versão `0.1.0-lab.1`;
-7. confirmar que a lista de funções críticas aparece, incluindo `Funções de IA`;
-8. confirmar que a tela rola normalmente;
-9. confirmar que não aparece tela branca;
-10. confirmar que o sistema antigo da raiz continua funcionando se abrir `/`.
-
-Critério de aprovação:
-- a tela `/lab/` carrega no iPhone sem tela branca;
-- a branch e a versão aparecem corretamente;
-- a tela deixa claro que não mexeu em Firebase/Catálogo/IA/dados reais;
-- o app antigo da raiz não foi substituído.
-
-## Histórico de blocos
 
 ### BLOCO 0C — Auditoria de IA e funções críticas
 
@@ -301,4 +332,4 @@ Teste esperado:
 
 ## Como continuar em outro chat
 
-"Continue a reconstrução do Bela Gestão. Leia `BELA_GESTAO_HANDOFF.md` antes de qualquer alteração. A branch de trabalho é `rewrite-bela-gestao-lab`. Não mexa na `main`. O BLOCO 1 criou a base modular em `/lab`, sem substituir o app antigo da raiz. O usuário quer testar cada bloco testável no iPhone usando Cloudflare Pages ou outra alternativa que não mexa no Vercel nem use GitHub Pages. O usuário informou que o sistema usa funções de IA; IA é função crítica e não pode ser removida. O objetivo é reconstruir o Bela Gestão modularmente, preservando a ligação com o Bela Catálogo, Firebase, localStorage, vendas, pagamentos, WhatsApp, PWA e IA. Siga por blocos pequenos, sem DOM injection, sem remendos sobrepostos e sem transformar o sistema em outro arquivo gigante."
+"Continue a reconstrução do Bela Gestão. Leia `BELA_GESTAO_HANDOFF.md` antes de qualquer alteração. A branch de trabalho é `rewrite-bela-gestao-lab`. Não mexa na `main`. O BLOCO 1B criou modo visitante com dados fictícios e catálogo fictício em `/lab/catalogo-preview/`, sem Firebase, sem login Google e sem alterar catálogo real. O usuário quer testar cada bloco testável no iPhone usando Cloudflare Pages ou outra alternativa que não mexa no Vercel nem use GitHub Pages. O usuário informou que o sistema usa funções de IA; IA é função crítica e não pode ser removida. O objetivo é reconstruir o Bela Gestão modularmente, preservando a ligação com o Bela Catálogo, Firebase, localStorage, vendas, pagamentos, WhatsApp, PWA e IA. Siga por blocos pequenos, sem DOM injection, sem remendos sobrepostos e sem transformar o sistema em outro arquivo gigante."
