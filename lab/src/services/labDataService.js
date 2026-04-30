@@ -1,0 +1,127 @@
+const LAB_PRODUCTS_KEY = 'belaGestaoLab.products.v1';
+
+const SAMPLE_PRODUCTS = [
+  {
+    id: 'lab-prod-001',
+    name: 'Perfume Floral Lumière',
+    brand: 'Bela LAB',
+    description: 'Fragrância floral sofisticada para demonstração do catálogo fictício.',
+    price: 89.9,
+    cost: 52,
+    imageUrl: 'https://images.unsplash.com/photo-1541643600914-78b084683601?auto=format&fit=crop&w=900&q=80',
+    category: 'perfumes',
+    catalogTabs: ['todos', 'perfumes', 'destaques'],
+    visibleInCatalog: true,
+    badge: 'Destaque',
+    stock: 3,
+    order: 1,
+    createdAt: '2026-04-30T00:00:00.000Z',
+    updatedAt: '2026-04-30T00:00:00.000Z',
+  },
+  {
+    id: 'lab-prod-002',
+    name: 'Kit Cuidados Rosé',
+    brand: 'Bela LAB',
+    description: 'Kit fictício com hidratante, sabonete e creme para testes visuais.',
+    price: 119.9,
+    cost: 74,
+    imageUrl: 'https://images.unsplash.com/photo-1596462502278-27bfdc403348?auto=format&fit=crop&w=900&q=80',
+    category: 'kits',
+    catalogTabs: ['todos', 'kits', 'presentes'],
+    visibleInCatalog: true,
+    badge: 'Presente',
+    stock: 2,
+    order: 2,
+    createdAt: '2026-04-30T00:00:00.000Z',
+    updatedAt: '2026-04-30T00:00:00.000Z',
+  },
+  {
+    id: 'lab-prod-003',
+    name: 'Hidratante Velvet',
+    brand: 'Bela LAB',
+    description: 'Produto oculto usado para testar se itens invisíveis somem do catálogo.',
+    price: 49.9,
+    cost: 28,
+    imageUrl: 'https://images.unsplash.com/photo-1556228578-8c89e6adf883?auto=format&fit=crop&w=900&q=80',
+    category: 'cuidados',
+    catalogTabs: ['todos', 'cuidados'],
+    visibleInCatalog: false,
+    badge: 'Oculto',
+    stock: 1,
+    order: 3,
+    createdAt: '2026-04-30T00:00:00.000Z',
+    updatedAt: '2026-04-30T00:00:00.000Z',
+  },
+];
+
+function safeParse(value) {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+}
+
+function canUseStorage() {
+  try {
+    const testKey = 'belaGestaoLab.storageTest';
+    window.localStorage.setItem(testKey, '1');
+    window.localStorage.removeItem(testKey);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function getLabProducts() {
+  if (!canUseStorage()) return SAMPLE_PRODUCTS;
+
+  const stored = safeParse(window.localStorage.getItem(LAB_PRODUCTS_KEY));
+  if (!Array.isArray(stored) || stored.length === 0) {
+    window.localStorage.setItem(LAB_PRODUCTS_KEY, JSON.stringify(SAMPLE_PRODUCTS));
+    return SAMPLE_PRODUCTS;
+  }
+
+  return stored;
+}
+
+export function saveLabProducts(products) {
+  if (!canUseStorage()) return false;
+  window.localStorage.setItem(LAB_PRODUCTS_KEY, JSON.stringify(products));
+  return true;
+}
+
+export function resetLabProducts() {
+  if (!canUseStorage()) return SAMPLE_PRODUCTS;
+  window.localStorage.setItem(LAB_PRODUCTS_KEY, JSON.stringify(SAMPLE_PRODUCTS));
+  return SAMPLE_PRODUCTS;
+}
+
+export function getVisibleCatalogProducts() {
+  return getLabProducts()
+    .filter((product) => product.visibleInCatalog)
+    .sort((a, b) => Number(a.order || 0) - Number(b.order || 0));
+}
+
+export function updateLabProductVisibility(productId, visibleInCatalog) {
+  const products = getLabProducts().map((product) => {
+    if (product.id !== productId) return product;
+    return {
+      ...product,
+      visibleInCatalog,
+      updatedAt: new Date().toISOString(),
+    };
+  });
+
+  saveLabProducts(products);
+  return products;
+}
+
+export function getLabStorageInfo() {
+  return {
+    key: LAB_PRODUCTS_KEY,
+    mode: 'visitor-localStorage',
+    affectsRealCatalog: false,
+    affectsFirebase: false,
+  };
+}
