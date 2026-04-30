@@ -82,7 +82,7 @@ Opções consideradas:
    - não interfere no Vercel;
    - pode conectar ao GitHub;
    - gera deploy previews/branch deploys;
-   - bom para testar app estático.
+   - bom para app estático.
 
 3. Preview temporário via RawGitHack:
    - útil para validar blocos iniciais;
@@ -139,60 +139,79 @@ Cada bloco deve:
 
 ## Bloco atual
 
-### BLOCO 2 — Camada de dados segura
+### BLOCO 3 — Produtos LAB: cadastro e edição fictícia
 
 Status: implementado, aguardando teste no iPhone.
 
 Objetivo:
-- separar a lógica de ambiente/dados da UI;
-- criar modo `LAB visitante`;
-- criar modo `REAL somente leitura` bloqueado para escrita;
-- impedir escrita em Firebase/catálogo real neste estágio;
-- preparar a futura conexão com Firebase real sem risco.
+- criar cadastro de produto fictício no LAB;
+- permitir edição de produto fictício existente;
+- validar campos obrigatórios antes de salvar;
+- manter escrita real bloqueada;
+- manter catálogo fictício lendo os produtos LAB;
+- não conectar Firebase, login Google, catálogo real ou IA real.
 
 Arquivos adicionados/alterados neste bloco:
-- `lab/src/services/environmentService.js`;
+- `lab/src/utils/ids.js`;
+- `lab/src/utils/validators.js`;
+- `lab/src/services/labDataService.js`;
 - `lab/src/services/dataGateway.js`;
+- `lab/src/components/ProductFormModal.js`;
 - `lab/src/app.js`;
 - `lab/src/styles/layout.css`;
 - `BELA_GESTAO_HANDOFF.md`.
 
 Comportamento atual:
-- a tela mostra painel `Ambiente de dados`;
-- modo padrão é `LAB visitante`;
-- modo `Real somente leitura` existe, mas não lê nem escreve dados reais ainda;
-- toda escrita real está bloqueada;
-- Firebase aparece como não conectado;
-- Login Google aparece como não conectado;
-- Catálogo real aparece como não alterado;
-- produtos fictícios continuam funcionando no modo LAB.
+- botão `Novo produto` abre formulário em modal;
+- botão `Editar` abre o produto selecionado no formulário;
+- campos disponíveis: nome, marca, descrição, preço, custo, imagem URL, categoria, estoque, abas do catálogo, selo, ordem e visibilidade;
+- validação bloqueia salvar sem nome, marca, categoria, preço maior que zero e imagem URL;
+- salvar cria/edita apenas no `localStorage` LAB;
+- catálogo fictício reflete produtos publicados;
+- modo `REAL somente leitura` bloqueia cadastro/edição/restauração.
 
-Checklist de teste do BLOCO 2:
+Checklist de teste do BLOCO 3:
 1. abrir `https://raw.githack.com/Belacatalogo/Bela_gestao/rewrite-bela-gestao-lab/lab/index.html`;
-2. confirmar que aparece o painel `Ambiente de dados`;
-3. confirmar que aparece `LAB visitante`;
-4. confirmar que aparece `Firebase: não conectado neste bloco`;
-5. confirmar que aparece `Login Google: não conectado neste bloco`;
-6. confirmar que aparece `Escrita real: bloqueada`;
-7. confirmar que aparecem 3 produtos no modo LAB;
-8. tocar em `Real somente leitura`;
-9. confirmar que aparece aviso de que o modo real está bloqueado para escrita;
-10. confirmar que os botões de publicar/ocultar/restaurar ficam sem efeito ou desativados;
-11. voltar para `LAB visitante`;
-12. confirmar que os produtos teste voltam a aparecer;
-13. testar `Ocultar/Publicar` no LAB e confirmar que o catálogo fictício muda;
-14. confirmar que nada exige login Google;
-15. confirmar que nada real foi alterado.
+2. confirmar que está em `LAB visitante`;
+3. tocar em `Novo produto`;
+4. confirmar que abre modal/formulário;
+5. tentar salvar vazio e confirmar que aparecem erros;
+6. preencher nome, marca, preço, imagem URL e categoria;
+7. manter `Publicado no catálogo fictício` marcado;
+8. salvar;
+9. confirmar que o novo produto aparece na lista LAB;
+10. abrir `/lab/catalogo-preview/` e confirmar que o novo produto aparece no catálogo fictício;
+11. voltar para `/lab/`;
+12. tocar em `Editar` no produto criado;
+13. alterar nome ou preço;
+14. salvar;
+15. confirmar que a alteração aparece na lista e no catálogo fictício;
+16. editar novamente e desmarcar `Publicado no catálogo fictício`;
+17. confirmar que o produto continua na lista LAB, mas some do catálogo fictício;
+18. trocar para `Real somente leitura`;
+19. confirmar que `Novo produto`, `Editar`, `Ocultar/Publicar` e `Restaurar` ficam bloqueados/desativados;
+20. voltar para `LAB visitante` e confirmar que os dados teste continuam.
 
 Critério de aprovação:
-- painel de ambiente aparece;
-- troca LAB/REAL somente leitura funciona;
-- modo real não permite escrita;
-- modo LAB continua funcionando;
-- catálogo fictício continua lendo dados LAB;
-- nenhuma função real foi conectada ou alterada.
+- cadastro abre e salva no LAB;
+- validação funciona;
+- edição funciona;
+- visibilidade altera o catálogo fictício;
+- modo real continua bloqueado;
+- nada exige login Google;
+- nada real é alterado.
 
 ## Histórico de blocos
+
+### BLOCO 2 — Camada de dados segura
+
+Status: aprovado pelo usuário.
+
+Objetivo:
+- separar a lógica de ambiente/dados da UI;
+- criar modo `LAB visitante`;
+- criar modo `REAL somente leitura` bloqueado para escrita;
+- impedir escrita em Firebase/catálogo real neste estágio.
 
 ### BLOCO 1B — Modo visitante e catálogo fictício LAB
 
@@ -202,8 +221,7 @@ Objetivo:
 - permitir teste inicial sem login Google da esposa;
 - criar dados fictícios isolados;
 - criar um catálogo fictício em `/lab/catalogo-preview/`;
-- permitir testar publicar/ocultar produto sem tocar Firebase nem catálogo real;
-- manter tudo separado do sistema antigo.
+- permitir testar publicar/ocultar produto sem tocar Firebase nem catálogo real.
 
 ### BLOCO 1 — Base modular limpa
 
@@ -212,8 +230,7 @@ Status: implementado.
 Objetivo:
 - criar uma base modular inicial sem substituir o sistema antigo;
 - manter o `index.html` da raiz intacto;
-- criar a reconstrução inicial em `/lab`;
-- mostrar branch, versão e funções críticas preservadas.
+- criar a reconstrução inicial em `/lab`.
 
 ### BLOCO 0C — Auditoria de IA e funções críticas
 
@@ -226,13 +243,9 @@ Objetivo:
 
 ## Próximos blocos previstos
 
-### BLOCO 3 — Produtos LAB: cadastro e edição fictícia
-
-Recriar cadastro/edição de produtos em modo LAB, ainda sem Firebase real.
-
 ### BLOCO 4 — Tela de produtos refinada
 
-Criar UI limpa, responsiva e segura para iPhone.
+Criar busca, filtros, categorias e refinamento visual para iPhone.
 
 ### BLOCO 5 — Sincronização com Catálogo LAB/contrato real
 
@@ -260,4 +273,4 @@ Manifest, service worker, cache seguro, versão visível e comportamento instal�
 
 ## Como continuar em outro chat
 
-"Continue a reconstrução do Bela Gestão. Leia `BELA_GESTAO_HANDOFF.md` antes de qualquer alteração. A branch de trabalho é `rewrite-bela-gestao-lab`. Não mexa na `main`. O BLOCO 2 criou camada de dados segura com `environmentService` e `dataGateway`, modo `LAB visitante` e modo `REAL somente leitura` bloqueado para escrita. O usuário testa pelo RawGitHack porque Cloudflare entrou em loop no iPhone. O usuário informou que o sistema usa funções de IA; IA é função crítica e não pode ser removida. O objetivo é reconstruir o Bela Gestão modularmente, preservando a ligação com o Bela Catálogo, Firebase, localStorage, vendas, pagamentos, WhatsApp, PWA e IA. Siga por blocos pequenos, sem DOM injection, sem remendos sobrepostos e sem transformar o sistema em outro arquivo gigante."
+"Continue a reconstrução do Bela Gestão. Leia `BELA_GESTAO_HANDOFF.md` antes de qualquer alteração. A branch de trabalho é `rewrite-bela-gestao-lab`. Não mexa na `main`. O BLOCO 3 criou cadastro e edição de produtos fictícios em modo LAB, com validação, modal e catálogo fictício refletindo visibilidade. O usuário testa pelo RawGitHack porque Cloudflare entrou em loop no iPhone. O usuário informou que o sistema usa funções de IA; IA é função crítica e não pode ser removida. O objetivo é reconstruir o Bela Gestão modularmente, preservando a ligação com o Bela Catálogo, Firebase, localStorage, vendas, pagamentos, WhatsApp, PWA e IA. Siga por blocos pequenos, sem DOM injection, sem remendos sobrepostos e sem transformar o sistema em outro arquivo gigante."
