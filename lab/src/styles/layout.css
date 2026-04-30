@@ -140,6 +140,37 @@ h3 {
   padding: 7px 9px;
 }
 
+.mode-switch {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin: 16px 0 14px;
+}
+
+.mode-button {
+  min-height: 42px;
+  border-radius: 999px;
+  border: 1px solid rgba(201, 168, 76, 0.2);
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--muted);
+  font-size: 0.62rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.mode-button.active {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: #080808;
+  font-weight: 600;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
 .mini-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -263,6 +294,17 @@ h3 {
   padding: 8px 10px;
 }
 
+.empty-preview {
+  border: 1px dashed rgba(201, 168, 76, 0.25);
+  border-radius: 18px;
+  padding: 22px 14px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.74rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
 .feature-list {
   display: grid;
   gap: 8px;
@@ -289,7 +331,8 @@ h3 {
     grid-template-columns: repeat(3, 1fr);
   }
 
-  .lab-actions {
+  .lab-actions,
+  .mode-switch {
     grid-template-columns: 1fr 1fr;
   }
 }
