@@ -13,10 +13,46 @@ Toda reconstrução do Bela Gestão deve acontecer primeiro na branch:
 Não mexer diretamente na `main`.
 Não quebrar a ligação com o catálogo público.
 Não remover funções existentes sem mapear antes.
+Não remover funções de IA.
 Não transformar o novo sistema em outro `index.html` gigante.
 Não usar DOM injection.
 Não fazer remendos sobrepostos.
-Não misturar HTML, CSS, dados, Firebase e regras de negócio no mesmo arquivo.
+Não misturar HTML, CSS, dados, Firebase, IA e regras de negócio no mesmo arquivo.
+
+## Funções críticas que devem ser preservadas
+
+- produtos;
+- categorias/abas do catálogo;
+- ligação Gestão ↔ Catálogo;
+- Firebase/fonte compartilhada;
+- localStorage/dados antigos;
+- vendas;
+- compradores;
+- pagamentos/parcelas;
+- WhatsApp;
+- PWA/iPhone;
+- backup/configurações;
+- funções de IA.
+
+## Regra específica para IA
+
+O usuário informou que o Bela Gestão usa funções de IA.
+
+Portanto:
+
+- IA é função crítica;
+- não remover IA;
+- não simplificar IA sem autorização;
+- não expor chaves sensíveis;
+- não enviar mensagem automaticamente sem ação do usuário;
+- manter fallback manual se IA falhar;
+- mapear todas as funções de IA antes de reescrever telas que dependem delas.
+
+Auditoria específica criada em:
+
+```txt
+docs/auditoria-ia.md
+```
 
 ## Regra de validação do usuário
 
@@ -62,7 +98,7 @@ Decisão recomendada para o projeto:
 
 Reconstruir o Bela Gestão de forma modular, segura e limpa, preservando as funções importantes atuais e melhorando a manutenção futura.
 
-O Bela Gestão é o painel interno usado para controlar produtos, vendas, pagamentos e dados que alimentam o catálogo público enviado às clientes.
+O Bela Gestão é o painel interno usado para controlar produtos, vendas, pagamentos, IA e dados que alimentam o catálogo público enviado às clientes.
 
 Fluxo esperado:
 
@@ -104,25 +140,21 @@ Cada bloco deve:
 
 ## Bloco atual
 
-### BLOCO 0 — Auditoria e preparação
+### BLOCO 0C — Auditoria de IA e funções críticas
 
 Status: iniciado.
 
 Objetivo:
-- criar branch lab;
-- registrar regras do projeto;
-- documentar funções atuais;
-- documentar contrato inicial entre Gestão e Catálogo;
-- preparar a reconstrução modular;
-- registrar regra de teste por bloco;
-- definir alternativa de preview sem GitHub Pages e sem mexer no Vercel atual.
+- registrar IA como função crítica;
+- criar auditoria separada para IA;
+- garantir que a futura arquitetura tenha `aiService`, `messageService`, `aiConfig` e prompts versionados;
+- continuar mapeando funções reais antes da reescrita de produtos/vendas/pagamentos.
 
-Arquivos adicionados neste bloco:
-- `BELA_GESTAO_HANDOFF.md`;
-- `docs/auditoria-funcoes.md`;
-- `docs/contrato-gestao-catalogo.md`.
+Arquivos adicionados/atualizados neste bloco:
+- `docs/auditoria-ia.md`;
+- `BELA_GESTAO_HANDOFF.md`.
 
-Nenhuma função do sistema antigo deve ser removida neste bloco.
+Nenhuma função do sistema antigo foi removida neste bloco.
 
 ## Próximos blocos previstos
 
@@ -222,14 +254,15 @@ Teste esperado:
 - confirmar que não há números falsos;
 - confirmar atualização após venda/pagamento.
 
-### BLOCO 9 — Configurações e backup
+### BLOCO 9 — Configurações, backup e IA
 
-Exportar/importar backup, limpar cache, validar dados e status do sistema.
+Exportar/importar backup, limpar cache, validar dados, status do sistema e configurações de IA.
 
 Teste esperado:
 - exportar backup;
 - validar dados;
-- confirmar avisos antes de ações perigosas.
+- confirmar avisos antes de ações perigosas;
+- testar configuração/erro de IA, se existir.
 
 ### BLOCO 10 — PWA/iPhone
 
@@ -244,4 +277,4 @@ Teste esperado:
 
 ## Como continuar em outro chat
 
-"Continue a reconstrução do Bela Gestão. Leia `BELA_GESTAO_HANDOFF.md` antes de qualquer alteração. A branch de trabalho é `rewrite-bela-gestao-lab`. Não mexa na `main`. O usuário quer testar cada bloco testável no iPhone e não quer usar GitHub Pages nem mexer no Vercel atual, que está fixo no sistema de inglês. O objetivo é reconstruir o Bela Gestão modularmente, preservando a ligação com o Bela Catálogo. O Bloco 0 iniciou a auditoria, criou documentação inicial e registrou a regra de checklist por bloco. Siga por blocos pequenos, sem DOM injection, sem remendos sobrepostos e sem transformar o sistema em outro arquivo gigante."
+"Continue a reconstrução do Bela Gestão. Leia `BELA_GESTAO_HANDOFF.md` antes de qualquer alteração. A branch de trabalho é `rewrite-bela-gestao-lab`. Não mexa na `main`. O usuário quer testar cada bloco testável no iPhone e não quer usar GitHub Pages nem mexer no Vercel atual, que está fixo no sistema de inglês. O usuário informou que o sistema usa funções de IA; IA é função crítica e não pode ser removida. O objetivo é reconstruir o Bela Gestão modularmente, preservando a ligação com o Bela Catálogo, Firebase, localStorage, vendas, pagamentos, WhatsApp, PWA e IA. Siga por blocos pequenos, sem DOM injection, sem remendos sobrepostos e sem transformar o sistema em outro arquivo gigante."
