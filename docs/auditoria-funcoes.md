@@ -2,7 +2,7 @@
 
 Branch: `rewrite-bela-gestao-lab`
 
-Status: rascunho inicial do BLOCO 0.
+Status: BLOCO 0B em andamento.
 
 ## Objetivo
 
@@ -75,6 +75,23 @@ O sistema atual está concentrado em `index.html` e contém, pelo menos, os segu
 - ações administrativas;
 - provável exportação/importação ou limpeza de dados.
 
+## Confirmações técnicas iniciais
+
+A busca no repositório confirmou que o `index.html` atual do Bela Gestão contém uso de `localStorage`.
+
+A busca também confirmou referências a `firebase` e `initializeApp` tanto no Bela Gestão quanto no Bela Catálogo. Isso reforça que a ligação Gestão ↔ Catálogo precisa ser tratada como parte crítica da reconstrução.
+
+Ainda falta extrair com precisão:
+
+- nomes exatos das chaves de `localStorage`;
+- objeto de configuração Firebase;
+- serviços Firebase usados;
+- nomes de coleções/caminhos, se houver;
+- campos reais do produto;
+- campos reais da venda;
+- campos reais de pagamento;
+- como o Catálogo consome os produtos.
+
 ## Riscos encontrados
 
 ### Risco 1 — Arquivo único gigante
@@ -93,6 +110,10 @@ Service worker e manifest inline podem causar cache antigo no iPhone. A reconstr
 
 A reconstrução deve suportar dados existentes e nunca apagar/reescrever dados sem validação.
 
+### Risco 5 — Firebase/Auth em domínio novo
+
+Quando o Cloudflare Pages for usado, pode ser necessário autorizar o domínio do Cloudflare no Firebase, caso exista autenticação ou regra de domínio.
+
 ## Funções que não podem ser removidas
 
 - cadastro/listagem de produtos;
@@ -110,7 +131,7 @@ A reconstrução deve suportar dados existentes e nunca apagar/reescrever dados 
 
 ## Próximo passo da auditoria
 
-No próximo bloco de auditoria técnica, extrair do `index.html` atual:
+Extrair do `index.html` atual:
 
 - nomes das chaves de armazenamento;
 - nomes das funções principais;
@@ -119,3 +140,5 @@ No próximo bloco de auditoria técnica, extrair do `index.html` atual:
 - formato real dos pagamentos;
 - qualquer referência a Firebase ou fonte compartilhada;
 - campos usados pelo catálogo.
+
+Essa extração deve acontecer antes de reescrever produtos, vendas ou pagamentos.
