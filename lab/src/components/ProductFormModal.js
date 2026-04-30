@@ -26,7 +26,7 @@ export function productToDraft(product) {
     description: product.description || '',
     price: product.price || '',
     cost: product.cost || '',
-    imageUrl: product.imageUrl || '',
+    imageUrl: product.imageUrl?.startsWith('data:image/svg+xml') ? '' : product.imageUrl || '',
     category: product.category || '',
     catalogTabs: (product.catalogTabs || []).join(', '),
     visibleInCatalog: Boolean(product.visibleInCatalog),
@@ -44,7 +44,7 @@ function escapeAttr(value) {
     .replaceAll('>', '&gt;');
 }
 
-function field({ label, name, value, type = 'text', placeholder = '', required = false }) {
+function field({ label, name, value, type = 'text', placeholder = '', required = false, hint = '' }) {
   return `
     <label class="form-field">
       <span>${label}${required ? ' *' : ''}</span>
@@ -55,6 +55,7 @@ function field({ label, name, value, type = 'text', placeholder = '', required =
         placeholder="${escapeAttr(placeholder)}"
         ${required ? 'required' : ''}
       >
+      ${hint ? `<small>${hint}</small>` : ''}
     </label>
   `;
 }
@@ -96,7 +97,7 @@ export function renderProductFormModal({ draft, errors = [], isEditing = false }
             ${field({ label: 'Custo', name: 'cost', type: 'number', value: draft.cost, placeholder: '50.00' })}
           </div>
 
-          ${field({ label: 'Imagem URL', name: 'imageUrl', value: draft.imageUrl, placeholder: 'https://...', required: true })}
+          ${field({ label: 'Imagem URL', name: 'imageUrl', value: draft.imageUrl, placeholder: 'opcional no LAB', hint: 'No sistema real, vamos portar a função de enviar foto e gerar URL automaticamente.' })}
 
           <div class="form-grid-2">
             ${field({ label: 'Categoria', name: 'category', value: draft.category, placeholder: 'perfumes', required: true })}
