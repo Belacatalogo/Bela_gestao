@@ -1,7 +1,13 @@
+import { renderProductFormModal, buildEmptyProductDraft, productToDraft, readProductForm } from './components/ProductFormModal.js';
 import { APP_CONFIG, CRITICAL_FEATURES } from './config/appConfig.js';
-import { getDataGatewayStatus, listProducts, resetProducts, toggleProductVisibility } from './services/dataGateway.js';
+import { getDataGatewayStatus, getProduct, listProducts, resetProducts, saveProduct, toggleProductVisibility } from './services/dataGateway.js';
 import { DATA_MODES, setCurrentDataMode } from './services/environmentService.js';
 import { formatBRL } from './utils/money.js';
+
+const uiState = {
+  modalDraft: null,
+  modalErrors: [],
+};
 
 function featureList() {
   return CRITICAL_FEATURES.map((feature) => `<li>${feature}</li>`).join('');
@@ -28,7 +34,10 @@ function productRows(products, canToggle = true) {
             <p>${product.brand} · ${formatBRL(product.price)}</p>
             <small>${status}</small>
           </div>
-          <button class="ghost-button" data-toggle-product="${product.id}" ${canToggle ? '' : 'disabled'}>${action}</button>
+          <div class="product-actions">
+            <button class="ghost-button" data-edit-product="${product.id}" ${canToggle ? '' : 'disabled'}>Editar</button>
+            <button class="ghost-button" data-toggle-product="${product.id}" ${canToggle ? '' : 'disabled'}>${action}</button>
+          </div>
         </article>
       `;
     })
@@ -72,12 +81,13 @@ function renderProductsPanel() {
   const products = gateway.products;
   const visibleCount = products.filter((product) => product.visibleInCatalog).length;
   const status = getDataGatewayStatus();
+  const isLabMode = status.mode === DATA_MODES.LAB;
 
   return `
     <section class="panel-card lab-test-panel">
       <div class="panel-title-row">
         <div>
-          <h2>Modo visitante</h2>
+          <h2>Produtos LAB</h2>
           <p>
             Produtos fictícios salvos apenas neste navegador. Não usa Google, Firebase nem catálogo real.
           </p>
@@ -100,9 +110,10 @@ function renderProductsPanel() {
         </div>
       </div>
 
-      <div class="lab-actions">
-        <a class="primary-button" href="./catalogo-preview/">Abrir catálogo fictício</a>
-        <button class="secondary-button" data-reset-lab ${status.mode === DATA_MODES.LAB ? '' : 'disabled'}>Restaurar dados teste</button>
+      <div class="lab-actions three-actions">
+        <button class="primary-button" data-new-product ${isLabMode ? '' : 'disabled'}>Novo produto</button>
+        <a class="secondary-button" href="./catalogo-preview/">Abrir catálogo fictício</a>
+        <button class="secondary-button" data-reset-lab ${isLabMode ? '' : 'disabled'}>Restaurar dados teste</button>
       </div>
 
       <div class="storage-note">
@@ -112,10 +123,15 @@ function renderProductsPanel() {
       </div>
 
       <div class="lab-product-list">
-        ${productRows(products, status.mode === DATA_MODES.LAB)}
+        ${productRows(products, isLabMode)}
       </div>
     </section>
   `;
+}
+
+function closeModal() {
+  uiState.modalDraft = null;
+  uiState.modalErrors = [];
 }
 
 function bindLabActions(root) {
@@ -127,18 +143,65 @@ function bindLabActions(root) {
     });
   });
 
+  root.querySelectorAll('[data-edit-product]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const productId = button.getAttribute('data-edit-product');
+      uiState.modalDraft = productToDraft(getProduct(productId));
+      uiState.modalErrors = [];
+      renderApp(root);
+    });
+  });
+
   root.querySelectorAll('[data-mode]').forEach((button) => {
     button.addEventListener('click', () => {
       const mode = button.getAttribute('data-mode');
       setCurrentDataMode(mode);
+      closeModal();
       renderApp(root);
     });
   });
+
+  const newButton = root.querySelector('[data-new-product]');
+  if (newButton) {
+    newButton.addEventListener('click', () => {
+      uiState.modalDraft = buildEmptyProductDraft();
+      uiState.modalErrors = [];
+      renderApp(root);
+    });
+  }
 
   const resetButton = root.querySelector('[data-reset-lab]');
   if (resetButton) {
     resetButton.addEventListener('click', () => {
       resetProducts();
+      closeModal();
+      renderApp(root);
+    });
+  }
+
+  root.querySelectorAll('[data-close-modal], [data-modal-backdrop]').forEach((element) => {
+    element.addEventListener('click', (event) => {
+      if (event.target !== element && !element.hasAttribute('data-close-modal')) return;
+      closeModal();
+      renderApp(root);
+    });
+  });
+
+  const form = root.querySelector('[data-product-form]');
+  if (form) {
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const draft = readProductForm(form);
+      const result = saveProduct(draft);
+
+      if (!result.ok) {
+        uiState.modalDraft = draft;
+        uiState.modalErrors = result.errors || [result.message || 'Não foi possível salvar.'];
+        renderApp(root);
+        return;
+      }
+
+      closeModal();
       renderApp(root);
     });
   }
@@ -185,13 +248,19 @@ export function renderApp(root) {
       </section>
 
       <section class="panel-card warning-card">
-        <h2>Estado do BLOCO 2</h2>
+        <h2>Estado do BLOCO 3</h2>
         <p>
-          Camada de dados segura criada. O modo real aparece apenas como somente leitura e
-          continua bloqueado para escrita. Firebase, login Google, catálogo real e IA real ainda não foram conectados.
+          Cadastro e edição de produtos fictícios adicionados no LAB. Firebase, login Google,
+          catálogo real, IA real, vendas reais e pagamentos reais continuam desconectados.
         </p>
       </section>
     </main>
+
+    ${renderProductFormModal({
+      draft: uiState.modalDraft,
+      errors: uiState.modalErrors,
+      isEditing: Boolean(uiState.modalDraft?.id),
+    })}
   `;
 
   bindLabActions(root);
