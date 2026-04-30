@@ -1,17 +1,21 @@
 import { APP_CONFIG, CRITICAL_FEATURES } from './config/appConfig.js';
-import {
-  getLabProducts,
-  getLabStorageInfo,
-  resetLabProducts,
-  updateLabProductVisibility,
-} from './services/labDataService.js';
+import { getDataGatewayStatus, listProducts, resetProducts, toggleProductVisibility } from './services/dataGateway.js';
+import { DATA_MODES, setCurrentDataMode } from './services/environmentService.js';
 import { formatBRL } from './utils/money.js';
 
 function featureList() {
   return CRITICAL_FEATURES.map((feature) => `<li>${feature}</li>`).join('');
 }
 
-function productRows(products) {
+function productRows(products, canToggle = true) {
+  if (!products.length) {
+    return `
+      <div class="empty-preview">
+        Nenhum produto disponível neste modo.
+      </div>
+    `;
+  }
+
   return products
     .map((product) => {
       const status = product.visibleInCatalog ? 'Publicado no preview' : 'Oculto no preview';
@@ -24,17 +28,50 @@ function productRows(products) {
             <p>${product.brand} · ${formatBRL(product.price)}</p>
             <small>${status}</small>
           </div>
-          <button class="ghost-button" data-toggle-product="${product.id}">${action}</button>
+          <button class="ghost-button" data-toggle-product="${product.id}" ${canToggle ? '' : 'disabled'}>${action}</button>
         </article>
       `;
     })
     .join('');
 }
 
+function renderEnvironmentPanel() {
+  const status = getDataGatewayStatus();
+
+  return `
+    <section class="panel-card environment-panel">
+      <div class="panel-title-row">
+        <div>
+          <h2>Ambiente de dados</h2>
+          <p>${status.warning}</p>
+        </div>
+        <span class="safe-pill">${status.label}</span>
+      </div>
+
+      <div class="mode-switch" role="group" aria-label="Modo de dados">
+        <button class="mode-button ${status.mode === DATA_MODES.LAB ? 'active' : ''}" data-mode="${DATA_MODES.LAB}">
+          LAB visitante
+        </button>
+        <button class="mode-button ${status.mode === DATA_MODES.REAL_READONLY ? 'active' : ''}" data-mode="${DATA_MODES.REAL_READONLY}">
+          Real somente leitura
+        </button>
+      </div>
+
+      <div class="storage-note">
+        <strong>Firebase:</strong> ${status.firebaseConfigured ? 'configurado' : 'não conectado neste bloco'}<br>
+        <strong>Login Google:</strong> ${status.googleLoginConfigured ? 'configurado' : 'não conectado neste bloco'}<br>
+        <strong>Escrita real:</strong> ${status.canWriteRealData ? 'permitida' : 'bloqueada'}<br>
+        <strong>Catálogo real:</strong> ${status.affectsRealCatalog ? 'pode ser alterado' : 'não será alterado'}
+      </div>
+    </section>
+  `;
+}
+
 function renderProductsPanel() {
-  const products = getLabProducts();
+  const gateway = listProducts();
+  const products = gateway.products;
   const visibleCount = products.filter((product) => product.visibleInCatalog).length;
-  const storageInfo = getLabStorageInfo();
+  const status = getDataGatewayStatus();
 
   return `
     <section class="panel-card lab-test-panel">
@@ -65,16 +102,17 @@ function renderProductsPanel() {
 
       <div class="lab-actions">
         <a class="primary-button" href="./catalogo-preview/">Abrir catálogo fictício</a>
-        <button class="secondary-button" data-reset-lab>Restaurar dados teste</button>
+        <button class="secondary-button" data-reset-lab ${status.mode === DATA_MODES.LAB ? '' : 'disabled'}>Restaurar dados teste</button>
       </div>
 
       <div class="storage-note">
-        <strong>Armazenamento:</strong> ${storageInfo.mode}<br>
-        <strong>Chave:</strong> <code>${storageInfo.key}</code>
+        <strong>Fonte atual:</strong> ${gateway.source}<br>
+        <strong>Chave LAB:</strong> <code>${status.labStorage.key}</code>
+        ${gateway.warning ? `<br><strong>Aviso:</strong> ${gateway.warning}` : ''}
       </div>
 
       <div class="lab-product-list">
-        ${productRows(products)}
+        ${productRows(products, status.mode === DATA_MODES.LAB)}
       </div>
     </section>
   `;
@@ -84,9 +122,15 @@ function bindLabActions(root) {
   root.querySelectorAll('[data-toggle-product]').forEach((button) => {
     button.addEventListener('click', () => {
       const productId = button.getAttribute('data-toggle-product');
-      const product = getLabProducts().find((item) => item.id === productId);
-      if (!product) return;
-      updateLabProductVisibility(productId, !product.visibleInCatalog);
+      toggleProductVisibility(productId);
+      renderApp(root);
+    });
+  });
+
+  root.querySelectorAll('[data-mode]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const mode = button.getAttribute('data-mode');
+      setCurrentDataMode(mode);
       renderApp(root);
     });
   });
@@ -94,7 +138,7 @@ function bindLabActions(root) {
   const resetButton = root.querySelector('[data-reset-lab]');
   if (resetButton) {
     resetButton.addEventListener('click', () => {
-      resetLabProducts();
+      resetProducts();
       renderApp(root);
     });
   }
@@ -127,6 +171,7 @@ export function renderApp(root) {
         </div>
       </section>
 
+      ${renderEnvironmentPanel()}
       ${renderProductsPanel()}
 
       <section class="panel-card">
@@ -140,10 +185,10 @@ export function renderApp(root) {
       </section>
 
       <section class="panel-card warning-card">
-        <h2>Estado do BLOCO 1B</h2>
+        <h2>Estado do BLOCO 2</h2>
         <p>
-          Modo visitante e catálogo fictício criados. Ainda não conecta Firebase,
-          login Google, Catálogo real, IA real, vendas reais ou pagamentos reais.
+          Camada de dados segura criada. O modo real aparece apenas como somente leitura e
+          continua bloqueado para escrita. Firebase, login Google, catálogo real e IA real ainda não foram conectados.
         </p>
       </section>
     </main>
