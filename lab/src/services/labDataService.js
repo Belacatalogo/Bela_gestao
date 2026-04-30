@@ -2,6 +2,7 @@ import { createId } from '../utils/ids.js';
 import { normalizeMoney, normalizeTabs, normalizeText, validateProductDraft } from '../utils/validators.js';
 
 const LAB_PRODUCTS_KEY = 'belaGestaoLab.products.v1';
+const LAB_PLACEHOLDER_IMAGE = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1100" viewBox="0 0 900 1100"><rect width="900" height="1100" fill="%23080808"/><rect x="34" y="34" width="832" height="1032" rx="70" fill="none" stroke="%23c9a84c" stroke-width="8" opacity="0.55"/><text x="450" y="500" text-anchor="middle" font-family="Georgia,serif" font-size="92" fill="%23f0e8dc">Bela</text><text x="450" y="590" text-anchor="middle" font-family="Arial,sans-serif" font-size="30" letter-spacing="12" fill="%23c9a84c">PRODUTO LAB</text><text x="450" y="650" text-anchor="middle" font-family="Arial,sans-serif" font-size="22" fill="%238f877b">imagem provisória</text></svg>';
 
 const SAMPLE_PRODUCTS = [
   {
@@ -87,7 +88,7 @@ function normalizeProductDraft(draft, existingProduct = null) {
     description: normalizeText(draft.description) || 'Produto cadastrado no modo LAB.',
     price: normalizeMoney(draft.price),
     cost: normalizeMoney(draft.cost),
-    imageUrl: normalizeText(draft.imageUrl),
+    imageUrl: normalizeText(draft.imageUrl) || LAB_PLACEHOLDER_IMAGE,
     category: normalizeText(draft.category).toLowerCase(),
     catalogTabs: normalizeTabs(draft.catalogTabs).length ? normalizeTabs(draft.catalogTabs) : ['todos'],
     visibleInCatalog: Boolean(draft.visibleInCatalog),
