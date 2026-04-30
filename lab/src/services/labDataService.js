@@ -1,3 +1,6 @@
+import { createId } from '../utils/ids.js';
+import { normalizeMoney, normalizeTabs, normalizeText, validateProductDraft } from '../utils/validators.js';
+
 const LAB_PRODUCTS_KEY = 'belaGestaoLab.products.v1';
 
 const SAMPLE_PRODUCTS = [
@@ -73,6 +76,29 @@ function canUseStorage() {
   }
 }
 
+function normalizeProductDraft(draft, existingProduct = null) {
+  const now = new Date().toISOString();
+  const baseOrder = existingProduct?.order || getLabProducts().length + 1;
+
+  return {
+    id: existingProduct?.id || createId('lab-prod'),
+    name: normalizeText(draft.name),
+    brand: normalizeText(draft.brand),
+    description: normalizeText(draft.description) || 'Produto cadastrado no modo LAB.',
+    price: normalizeMoney(draft.price),
+    cost: normalizeMoney(draft.cost),
+    imageUrl: normalizeText(draft.imageUrl),
+    category: normalizeText(draft.category).toLowerCase(),
+    catalogTabs: normalizeTabs(draft.catalogTabs).length ? normalizeTabs(draft.catalogTabs) : ['todos'],
+    visibleInCatalog: Boolean(draft.visibleInCatalog),
+    badge: normalizeText(draft.badge),
+    stock: Math.max(0, Number(draft.stock || 0)),
+    order: Number(draft.order || baseOrder),
+    createdAt: existingProduct?.createdAt || now,
+    updatedAt: now,
+  };
+}
+
 export function getLabProducts() {
   if (!canUseStorage()) return SAMPLE_PRODUCTS;
 
@@ -83,6 +109,10 @@ export function getLabProducts() {
   }
 
   return stored;
+}
+
+export function getLabProductById(productId) {
+  return getLabProducts().find((product) => product.id === productId) || null;
 }
 
 export function saveLabProducts(products) {
@@ -115,6 +145,33 @@ export function updateLabProductVisibility(productId, visibleInCatalog) {
 
   saveLabProducts(products);
   return products;
+}
+
+export function upsertLabProduct(draft) {
+  const validation = validateProductDraft(draft);
+  if (!validation.ok) {
+    return {
+      ok: false,
+      errors: validation.errors,
+      products: getLabProducts(),
+    };
+  }
+
+  const products = getLabProducts();
+  const existingProduct = draft.id ? products.find((product) => product.id === draft.id) : null;
+  const normalized = normalizeProductDraft(draft, existingProduct);
+  const nextProducts = existingProduct
+    ? products.map((product) => (product.id === existingProduct.id ? normalized : product))
+    : [...products, normalized];
+
+  saveLabProducts(nextProducts);
+
+  return {
+    ok: true,
+    errors: [],
+    product: normalized,
+    products: nextProducts,
+  };
 }
 
 export function getLabStorageInfo() {
