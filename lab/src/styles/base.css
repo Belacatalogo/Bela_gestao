@@ -1,0 +1,50 @@
+:root {
+  --bg: #080808;
+  --panel: #111111;
+  --panel-soft: #15110c;
+  --gold: #c9a84c;
+  --gold-soft: rgba(201, 168, 76, 0.16);
+  --cream: #f0e8dc;
+  --muted: rgba(240, 232, 220, 0.58);
+  --muted-weak: rgba(240, 232, 220, 0.34);
+  --danger-soft: rgba(200, 80, 80, 0.12);
+  --danger-border: rgba(200, 80, 80, 0.28);
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-height: 100%;
+  background: var(--bg);
+}
+
+body {
+  min-height: 100%;
+  margin: 0;
+  background:
+    radial-gradient(circle at top, rgba(201, 168, 76, 0.12), transparent 34rem),
+    var(--bg);
+  color: var(--cream);
+  font-family: 'Montserrat', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-weight: 300;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+code {
+  color: var(--gold);
+  background: rgba(201, 168, 76, 0.08);
+  border: 1px solid rgba(201, 168, 76, 0.14);
+  border-radius: 0.35rem;
+  padding: 0.08rem 0.32rem;
+}
