@@ -60,6 +60,16 @@ function field({ label, name, value, type = 'text', placeholder = '', required =
   `;
 }
 
+function imagePreview(draft) {
+  if (!draft.imageUrl) return '';
+  return `
+    <div class="image-preview-box">
+      <img src="${escapeAttr(draft.imageUrl)}" alt="Prévia da imagem do produto">
+      <small>Prévia da imagem gerada/salva no LAB.</small>
+    </div>
+  `;
+}
+
 export function renderProductFormModal({ draft, errors = [], isEditing = false }) {
   if (!draft) return '';
 
@@ -97,7 +107,16 @@ export function renderProductFormModal({ draft, errors = [], isEditing = false }
             ${field({ label: 'Custo', name: 'cost', type: 'number', value: draft.cost, placeholder: '50.00' })}
           </div>
 
-          ${field({ label: 'Imagem URL', name: 'imageUrl', value: draft.imageUrl, placeholder: 'opcional no LAB', hint: 'No sistema real, vamos portar a função de enviar foto e gerar URL automaticamente.' })}
+          <div class="image-upload-panel">
+            <label class="form-field">
+              <span>Enviar foto</span>
+              <input name="imageFile" type="file" accept="image/*">
+              <small>No LAB, a foto vira uma URL local automática. No sistema real, vamos trocar pelo serviço externo correto.</small>
+            </label>
+
+            ${field({ label: 'Imagem URL', name: 'imageUrl', value: draft.imageUrl, placeholder: 'opcional no LAB', hint: 'Você pode enviar foto acima ou colar uma URL manualmente.' })}
+            ${imagePreview(draft)}
+          </div>
 
           <div class="form-grid-2">
             ${field({ label: 'Categoria', name: 'category', value: draft.category, placeholder: 'perfumes', required: true })}
@@ -137,6 +156,7 @@ export function readProductForm(form) {
     price: data.get('price') || '',
     cost: data.get('cost') || '',
     imageUrl: data.get('imageUrl') || '',
+    imageFile: data.get('imageFile') instanceof File && data.get('imageFile').size > 0 ? data.get('imageFile') : null,
     category: data.get('category') || '',
     catalogTabs: data.get('catalogTabs') || '',
     visibleInCatalog: data.get('visibleInCatalog') === 'on',
