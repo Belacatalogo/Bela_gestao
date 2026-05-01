@@ -1,7 +1,7 @@
 export const APP_CONFIG = Object.freeze({
   name: 'Bela Gestão LAB',
   branch: 'rewrite-bela-gestao-lab',
-  version: '0.6.0-lab-photo-upload',
+  version: '0.6.1-lab-photo-scroll-fix',
   environment: 'lab',
   productionBranch: 'main',
 });
