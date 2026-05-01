@@ -27,12 +27,12 @@ Todo bloco, correção ou alteração testável deve atualizar a versão em:
 lab/src/config/appConfig.js
 ```
 
-A versão deve aparecer na tela da LAB para o usuário confirmar se o RawGitHack/preview atualizou.
+A versão deve aparecer na tela da LAB para o usuário confirmar se o preview atualizou.
 
 Versão atual:
 
 ```txt
-0.4.1-lab-search-keyboard-fix
+0.5.0-lab-catalog-contract
 ```
 
 ## Funções críticas que devem ser preservadas
@@ -88,28 +88,15 @@ O usuário não quer testar pelo GitHub Pages e não quer mexer no Vercel atual,
 
 ## Estratégia de preview
 
-Opções consideradas:
+Preview principal atual:
+- Netlify conectado à branch `rewrite-bela-gestao-lab`;
+- publish directory: `lab`;
+- Vercel do inglês continua intocado;
+- GitHub Pages não será usado.
 
-1. Cloudflare Pages separado para `Bela_gestao`:
-   - não interfere no Vercel;
-   - pode conectar ao GitHub;
-   - gera previews por branch/PR;
-   - bom para testar no iPhone.
-
-2. Netlify separado para `Bela_gestao`:
-   - não interfere no Vercel;
-   - pode conectar ao GitHub;
-   - gera deploy previews/branch deploys;
-   - bom para app estático.
-
-3. Preview temporário via RawGitHack:
-   - útil para validar blocos iniciais;
-   - atualmente funcional para `/lab/` e `/lab/catalogo-preview/`;
-   - não deve ser considerado validação final de PWA/cache/Firebase.
-
-Decisão recomendada:
-- continuar usando RawGitHack nos blocos iniciais enquanto Cloudflare está em loop no iPhone;
-- resolver Cloudflare/Netlify antes de PWA, Firebase real ou validação final.
+RawGitHack:
+- fica apenas como fallback temporário;
+- não é mais o preview principal por causa de cache/atraso.
 
 ## Objetivo da reconstrução
 
@@ -158,51 +145,80 @@ Cada bloco deve:
 
 ## Bloco atual
 
-### BLOCO 4 FIX — Busca sem derrubar teclado no iPhone
+### BLOCO 5 — Sincronização com Catálogo LAB / contrato real
 
-Status: implementado, aguardando reteste rápido.
+Status: implementado, aguardando teste no iPhone.
 
 Versão visível esperada:
 
 ```txt
-0.4.1-lab-search-keyboard-fix
+0.5.0-lab-catalog-contract
 ```
+
+Objetivo:
+- criar contrato de dados do catálogo;
+- validar se os produtos LAB têm os campos que o catálogo precisa ler;
+- mostrar categorias e abas visíveis;
+- sinalizar produtos com avisos, como `sem foto real`;
+- manter escrita no catálogo real bloqueada.
+
+Arquivos adicionados/alterados:
+- `lab/src/services/catalogContractService.js`;
+- `lab/src/app.js`;
+- `lab/src/styles/layout.css`;
+- `lab/src/config/appConfig.js`;
+- `BELA_GESTAO_HANDOFF.md`.
+
+Comportamento atual:
+- novo painel `Contrato do Catálogo LAB` aparece na tela;
+- mostra quantos produtos iriam ao catálogo fictício;
+- mostra quantidade de categorias e abas;
+- mostra alertas de produtos sem foto real;
+- indica que a escrita no catálogo real está bloqueada;
+- não conecta Firebase real;
+- não altera catálogo real.
+
+Checklist de teste do BLOCO 5:
+1. abrir o preview Netlify da LAB;
+2. confirmar que a versão visível é `0.5.0-lab-catalog-contract`;
+3. confirmar que aparece o painel `Contrato do Catálogo LAB`;
+4. conferir o número `irão ao catálogo`;
+5. conferir categorias e abas visíveis;
+6. criar um produto publicado sem imagem URL;
+7. confirmar que o painel mostra alerta de `imagem provisória LAB` ou `sem foto real`;
+8. abrir o catálogo fictício e confirmar que o produto publicado aparece;
+9. ocultar o produto;
+10. confirmar que o número `irão ao catálogo` diminui;
+11. confirmar que nada pede login Google;
+12. confirmar que o modo real continua bloqueado.
+
+Critério de aprovação:
+- versão visível atualizou;
+- painel de contrato aparece;
+- contadores fazem sentido;
+- alertas aparecem para produtos sem foto real;
+- catálogo fictício continua funcionando;
+- nada real foi alterado.
+
+## Histórico de blocos
+
+### BLOCO 4.2 — Preview mais leve
+
+Status: aprovado indiretamente; Netlify passou a ser o preview principal.
+
+Objetivo:
+- remover fontes externas do preview LAB;
+- reduzir dependências externas;
+- melhorar carregamento.
+
+### BLOCO 4 FIX — Busca sem derrubar teclado no iPhone
+
+Status: aprovado pelo usuário.
 
 Objetivo:
 - corrigir bug do Safari/iPhone em que o teclado fechava ao digitar no campo de busca;
 - evitar renderização completa a cada letra digitada;
 - manter busca funcional de forma segura.
-
-Arquivos alterados:
-- `lab/src/app.js`;
-- `lab/src/config/appConfig.js`;
-- `BELA_GESTAO_HANDOFF.md`.
-
-Comportamento corrigido:
-- digitar no campo `Buscar` não renderiza mais a tela a cada letra;
-- o teclado deve permanecer aberto enquanto digita;
-- a busca é aplicada ao tocar em `Aplicar busca` ou apertar `Enter`;
-- filtros de categoria/status continuam aplicando ao mudar seleção.
-
-Checklist de teste do BLOCO 4 FIX:
-1. abrir `https://raw.githack.com/Belacatalogo/Bela_gestao/rewrite-bela-gestao-lab/lab/index.html`;
-2. confirmar que a versão visível é `0.4.1-lab-search-keyboard-fix`;
-3. tocar no campo `Buscar`;
-4. digitar algumas letras;
-5. confirmar que o teclado não fecha a cada letra;
-6. tocar em `Aplicar busca`;
-7. confirmar que a lista filtra;
-8. tocar em `Limpar filtros`;
-9. confirmar que a lista volta ao normal.
-
-Critério de aprovação:
-- a versão visível atualizou;
-- o teclado não fecha durante digitação no campo Buscar;
-- busca continua funcionando com `Aplicar busca` ou Enter;
-- filtros continuam funcionando;
-- nada real foi alterado.
-
-## Histórico de blocos
 
 ### BLOCO 4 — Tela de produtos refinada
 
@@ -267,10 +283,6 @@ Objetivo:
 
 ## Próximos blocos previstos
 
-### BLOCO 5 — Sincronização com Catálogo LAB/contrato real
-
-Garantir contrato de dados antes de conectar catálogo real.
-
 ### BLOCO 6 — Upload de foto/geração automática de URL em modo LAB
 
 Portar de forma segura o fluxo essencial do sistema original: enviar imagem e obter URL automaticamente, primeiro em modo LAB.
@@ -297,4 +309,4 @@ Manifest, service worker, cache seguro, versão visível e comportamento instal�
 
 ## Como continuar em outro chat
 
-"Continue a reconstrução do Bela Gestão. Leia `BELA_GESTAO_HANDOFF.md` antes de qualquer alteração. A branch de trabalho é `rewrite-bela-gestao-lab`. Não mexa na `main`. Sempre atualize a versão visível em `lab/src/config/appConfig.js` a cada bloco/fix; a versão atual é `0.4.1-lab-search-keyboard-fix`. O BLOCO 4 FIX corrigiu a busca para não derrubar o teclado no iPhone: agora digita primeiro e aplica com botão `Aplicar busca` ou Enter. O usuário testa pelo RawGitHack porque Cloudflare entrou em loop no iPhone. O usuário informou que no sistema original a imagem é enviada e a URL é gerada automaticamente por outro site/serviço; isso é função crítica e não pode ser removida. O usuário informou que o sistema usa funções de IA; IA também é crítica. O objetivo é reconstruir o Bela Gestão modularmente, preservando a ligação com o Bela Catálogo, Firebase, localStorage, vendas, pagamentos, WhatsApp, PWA, upload de foto/URL automática e IA. Siga por blocos pequenos, sem DOM injection, sem remendos sobrepostos e sem transformar o sistema em outro arquivo gigante."
+"Continue a reconstrução do Bela Gestão. Leia `BELA_GESTAO_HANDOFF.md` antes de qualquer alteração. A branch de trabalho é `rewrite-bela-gestao-lab`. Não mexa na `main`. Sempre atualize a versão visível em `lab/src/config/appConfig.js` a cada bloco/fix; a versão atual é `0.5.0-lab-catalog-contract`. O preview principal agora é o Netlify conectado à branch lab, com publish directory `lab`. O BLOCO 5 adicionou o painel `Contrato do Catálogo LAB`, validando campos necessários para o catálogo sem conectar Firebase real nem alterar catálogo real. O usuário informou que no sistema original a imagem é enviada e a URL é gerada automaticamente por outro site/serviço; isso é função crítica e não pode ser removida. O usuário informou que o sistema usa funções de IA; IA também é crítica. O objetivo é reconstruir o Bela Gestão modularmente, preservando a ligação com o Bela Catálogo, Firebase, localStorage, vendas, pagamentos, WhatsApp, PWA, upload de foto/URL automática e IA. Siga por blocos pequenos, sem DOM injection, sem remendos sobrepostos e sem transformar o sistema em outro arquivo gigante."
