@@ -1,18 +1,23 @@
+import { renderDiagnosticsPanel } from './components/DiagnosticsPanel.js';
 import { renderProductFormModal, buildEmptyProductDraft, productToDraft, readProductForm } from './components/ProductFormModal.js';
 import { renderSalesPanel, readSaleForm } from './components/SalesPanel.js';
 import { APP_CONFIG, CRITICAL_FEATURES } from './config/appConfig.js';
 import { getCatalogSyncReport } from './services/catalogContractService.js';
 import { getDataGatewayStatus, getProduct, listProducts, resetProducts, saveProduct, toggleProductVisibility } from './services/dataGateway.js';
+import { buildDiagnosticsReport, clearDiagnosticEvents, copyDiagnosticsReport, installRuntimeDiagnostics, logDiagnosticEvent } from './services/diagnosticsService.js';
 import { DATA_MODES, setCurrentDataMode } from './services/environmentService.js';
 import { generateLabImageUrl } from './services/imageUploadLabService.js';
 import { createLabSale, getLabSales, getSalesStats, resetLabSales, updateLabSaleStatus } from './services/labSalesService.js';
 import { filterProducts, getProductCategories, getProductStats, PRODUCT_STATUS_FILTERS } from './services/productFilterService.js';
 import { formatBRL } from './utils/money.js';
 
+installRuntimeDiagnostics();
+
 const uiState = {
   modalDraft: null,
   modalErrors: [],
   saleErrors: [],
+  diagnosticMessage: '',
   filters: {
     query: '',
     category: 'all',
@@ -278,6 +283,7 @@ async function saveProductFromForm(root, form) {
   if (!uploadResult.ok) {
     uiState.modalDraft = draft;
     uiState.modalErrors = [uploadResult.error || 'Não foi possível gerar a URL da imagem.'];
+    logDiagnosticEvent('error', 'product.save', 'Falha ao gerar imagem LAB.', { error: uploadResult.error });
     renderApp(root);
     return;
   }
@@ -291,10 +297,12 @@ async function saveProductFromForm(root, form) {
   if (!result.ok) {
     uiState.modalDraft = draft;
     uiState.modalErrors = result.errors || [result.message || 'Não foi possível salvar.'];
+    logDiagnosticEvent('error', 'product.save', 'Falha ao salvar produto LAB.', { errors: uiState.modalErrors });
     renderApp(root);
     return;
   }
 
+  logDiagnosticEvent('info', 'product.save', 'Produto LAB salvo.', { productId: result.product?.id, name: result.product?.name });
   closeModal();
   renderApp(root);
 }
@@ -305,13 +313,31 @@ function saveSaleFromForm(root, form, products) {
 
   if (!result.ok) {
     uiState.saleErrors = result.errors || ['Não foi possível registrar a venda.'];
+    logDiagnosticEvent('error', 'sale.save', 'Falha ao registrar venda LAB.', { errors: uiState.saleErrors });
     renderApp(root);
     return;
   }
 
+  logDiagnosticEvent('info', 'sale.save', 'Venda LAB registrada.', { saleId: result.sale?.id, clientName: result.sale?.clientName });
   uiState.saleErrors = [];
   form.reset();
   renderApp(root);
+}
+
+function buildCurrentDiagnosticsReport() {
+  const gateway = listProducts();
+  const sales = getLabSales();
+  const salesStats = getSalesStats(sales);
+  const catalogReport = getCatalogSyncReport(gateway.products);
+
+  return buildDiagnosticsReport({
+    appConfig: APP_CONFIG,
+    environment: getDataGatewayStatus(),
+    products: gateway.products,
+    sales,
+    salesStats,
+    catalogReport,
+  });
 }
 
 function bindLabActions(root) {
@@ -319,6 +345,7 @@ function bindLabActions(root) {
     button.addEventListener('click', () => {
       const productId = button.getAttribute('data-toggle-product');
       toggleProductVisibility(productId);
+      logDiagnosticEvent('info', 'product.visibility', 'Visibilidade do produto LAB alterada.', { productId });
       renderApp(root);
     });
   });
@@ -336,6 +363,7 @@ function bindLabActions(root) {
     button.addEventListener('click', () => {
       const mode = button.getAttribute('data-mode');
       setCurrentDataMode(mode);
+      logDiagnosticEvent('info', 'environment.mode', 'Modo de dados alterado.', { mode });
       closeModal();
       renderApp(root);
     });
@@ -405,6 +433,7 @@ function bindLabActions(root) {
         category: 'all',
         status: PRODUCT_STATUS_FILTERS.ALL,
       };
+      logDiagnosticEvent('warn', 'lab.reset', 'Dados teste restaurados pelo usuário.');
       renderApp(root);
     });
   }
@@ -412,9 +441,37 @@ function bindLabActions(root) {
   root.querySelectorAll('[data-sale-status]').forEach((button) => {
     button.addEventListener('click', () => {
       updateLabSaleStatus(button.getAttribute('data-sale-status'), button.getAttribute('data-next-status'));
+      logDiagnosticEvent('info', 'sale.status', 'Status da venda LAB alterado.', {
+        saleId: button.getAttribute('data-sale-status'),
+        status: button.getAttribute('data-next-status'),
+      });
       renderApp(root);
     });
   });
+
+  const copyDiagnostics = root.querySelector('[data-copy-diagnostics]');
+  if (copyDiagnostics) {
+    copyDiagnostics.addEventListener('click', async () => {
+      try {
+        await copyDiagnosticsReport(buildCurrentDiagnosticsReport());
+        uiState.diagnosticMessage = 'Diagnóstico copiado.';
+        logDiagnosticEvent('info', 'diagnostics.copy', 'Diagnóstico copiado para a área de transferência.');
+      } catch (error) {
+        uiState.diagnosticMessage = 'Não foi possível copiar automaticamente.';
+        logDiagnosticEvent('error', 'diagnostics.copy', 'Falha ao copiar diagnóstico.', { error: String(error.message || error) });
+      }
+      renderApp(root);
+    });
+  }
+
+  const clearDiagnostics = root.querySelector('[data-clear-diagnostics]');
+  if (clearDiagnostics) {
+    clearDiagnostics.addEventListener('click', () => {
+      clearDiagnosticEvents();
+      uiState.diagnosticMessage = 'Eventos limpos.';
+      renderApp(root);
+    });
+  }
 
   root.querySelectorAll('[data-close-modal], [data-modal-backdrop]').forEach((element) => {
     element.addEventListener('click', (event) => {
@@ -445,6 +502,16 @@ export function renderApp(root) {
   if (!root) return;
   const gateway = listProducts();
   const sales = getLabSales();
+  const salesStats = getSalesStats(sales);
+  const catalogReport = getCatalogSyncReport(gateway.products);
+  const diagnosticReport = buildDiagnosticsReport({
+    appConfig: APP_CONFIG,
+    environment: getDataGatewayStatus(),
+    products: gateway.products,
+    sales,
+    salesStats,
+    catalogReport,
+  });
   const status = getDataGatewayStatus();
   const isLabMode = status.mode === DATA_MODES.LAB;
 
@@ -473,11 +540,13 @@ export function renderApp(root) {
       </section>
 
       ${renderEnvironmentPanel()}
+      ${renderDiagnosticsPanel(diagnosticReport)}
+      ${uiState.diagnosticMessage ? `<div class="diagnostic-toast">${uiState.diagnosticMessage}</div>` : ''}
       ${renderCatalogContractPanel(gateway.products)}
       ${renderSalesPanel({
         products: gateway.products,
         sales,
-        stats: getSalesStats(sales),
+        stats: salesStats,
         errors: uiState.saleErrors,
         canWrite: isLabMode,
       })}
@@ -494,10 +563,10 @@ export function renderApp(root) {
       </section>
 
       <section class="panel-card warning-card">
-        <h2>Estado do BLOCO 7</h2>
+        <h2>Estado do BLOCO 8A</h2>
         <p>
-          Vendas LAB iniciais adicionadas. O fluxo registra vendas fictícias com cliente,
-          produto, quantidade, total e lucro. Nada real foi conectado.
+          Diagnóstico LAB completo adicionado. Ele mostra versão, ambiente, storage, produtos,
+          imagens, vendas, navegador, alertas e eventos de erro para facilitar correções futuras.
         </p>
       </section>
     </main>
