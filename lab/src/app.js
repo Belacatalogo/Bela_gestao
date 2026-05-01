@@ -1,5 +1,6 @@
 import { renderProductFormModal, buildEmptyProductDraft, productToDraft, readProductForm } from './components/ProductFormModal.js';
 import { APP_CONFIG, CRITICAL_FEATURES } from './config/appConfig.js';
+import { getCatalogSyncReport } from './services/catalogContractService.js';
 import { getDataGatewayStatus, getProduct, listProducts, resetProducts, saveProduct, toggleProductVisibility } from './services/dataGateway.js';
 import { DATA_MODES, setCurrentDataMode } from './services/environmentService.js';
 import { filterProducts, getProductCategories, getProductStats, PRODUCT_STATUS_FILTERS } from './services/productFilterService.js';
@@ -90,6 +91,67 @@ function renderEnvironmentPanel() {
         <strong>Escrita real:</strong> ${status.canWriteRealData ? 'permitida' : 'bloqueada'}<br>
         <strong>Catálogo real:</strong> ${status.affectsRealCatalog ? 'pode ser alterado' : 'não será alterado'}
       </div>
+    </section>
+  `;
+}
+
+function renderCatalogContractPanel(products) {
+  const report = getCatalogSyncReport(products);
+  const rowsWithIssues = report.rows.filter((row) => !row.ok || row.warnings.length > 0);
+
+  return `
+    <section class="panel-card catalog-contract-panel">
+      <div class="panel-title-row">
+        <div>
+          <h2>Contrato do Catálogo LAB</h2>
+          <p>
+            Validação dos campos que o catálogo precisa ler. Ainda não conecta nem altera o catálogo real.
+          </p>
+        </div>
+        <span class="safe-pill">Contrato</span>
+      </div>
+
+      <div class="mini-grid four-stats">
+        <div class="mini-stat">
+          <strong>${report.visibleProducts}</strong>
+          <span>irão ao catálogo</span>
+        </div>
+        <div class="mini-stat">
+          <strong>${report.categories.length}</strong>
+          <span>categorias</span>
+        </div>
+        <div class="mini-stat">
+          <strong>${report.tabs.length}</strong>
+          <span>abas</span>
+        </div>
+        <div class="mini-stat">
+          <strong>${report.warningProducts}</strong>
+          <span>alertas</span>
+        </div>
+      </div>
+
+      <div class="storage-note">
+        <strong>Modo:</strong> ${report.mode}<br>
+        <strong>Escrita no catálogo real:</strong> ${report.canSyncRealCatalog ? 'permitida' : 'bloqueada'}<br>
+        <strong>Categorias visíveis:</strong> ${report.categories.length ? report.categories.join(', ') : 'nenhuma'}<br>
+        <strong>Abas visíveis:</strong> ${report.tabs.length ? report.tabs.join(', ') : 'nenhuma'}
+      </div>
+
+      ${rowsWithIssues.length ? `
+        <div class="contract-issues">
+          ${rowsWithIssues.map((row) => `
+            <article class="contract-issue-card">
+              <strong>${row.name}</strong>
+              ${row.missing.length ? `<span>Faltando: ${row.missing.join(', ')}</span>` : ''}
+              ${row.warnings.length ? `<span>Aviso: ${row.warnings.join(' · ')}</span>` : ''}
+            </article>
+          `).join('')}
+        </div>
+      ` : `
+        <div class="contract-ok">
+          Todos os produtos LAB têm os campos obrigatórios para o catálogo fictício.
+        </div>
+      `}
     </section>
   `;
 }
@@ -326,6 +388,7 @@ function bindLabActions(root) {
 
 export function renderApp(root) {
   if (!root) return;
+  const gateway = listProducts();
 
   root.innerHTML = `
     <main class="lab-page">
@@ -352,6 +415,7 @@ export function renderApp(root) {
       </section>
 
       ${renderEnvironmentPanel()}
+      ${renderCatalogContractPanel(gateway.products)}
       ${renderProductsPanel()}
 
       <section class="panel-card">
@@ -365,10 +429,10 @@ export function renderApp(root) {
       </section>
 
       <section class="panel-card warning-card">
-        <h2>Estado do BLOCO 4 FIX</h2>
+        <h2>Estado do BLOCO 5</h2>
         <p>
-          A busca não renderiza mais a tela a cada letra digitada. Digite normalmente e toque em
-          Aplicar busca ou use Enter para filtrar, evitando que o teclado do iPhone feche.
+          Contrato do catálogo LAB adicionado. O sistema valida quais campos iriam para o catálogo,
+          mas continua sem conectar nem alterar o catálogo real.
         </p>
       </section>
     </main>
