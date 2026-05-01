@@ -19,6 +19,22 @@ Não usar DOM injection.
 Não fazer remendos sobrepostos.
 Não misturar HTML, CSS, dados, Firebase, IA e regras de negócio no mesmo arquivo.
 
+## Regra de versão visível
+
+Todo bloco, correção ou alteração testável deve atualizar a versão em:
+
+```txt
+lab/src/config/appConfig.js
+```
+
+A versão deve aparecer na tela da LAB para o usuário confirmar se o RawGitHack/preview atualizou.
+
+Versão atual:
+
+```txt
+0.4.1-lab-search-keyboard-fix
+```
+
 ## Funções críticas que devem ser preservadas
 
 - produtos;
@@ -63,7 +79,8 @@ A partir do primeiro bloco que gerar algo testável, cada bloco deve terminar co
 2. link ou forma de preview disponível;
 3. checklist exato do que o usuário deve testar no iPhone;
 4. critério objetivo de aprovação;
-5. aviso do que NÃO foi alterado.
+5. aviso do que NÃO foi alterado;
+6. versão visível que deve aparecer na tela.
 
 Não avançar para blocos maiores sem orientar o teste do bloco anterior.
 
@@ -136,13 +153,20 @@ Cada bloco deve:
 5. permitir teste no iPhone;
 6. não depender de gambiarra visual ou DOM injection;
 7. manter compatibilidade com o catálogo;
-8. entregar checklist de teste quando houver algo testável.
+8. entregar checklist de teste quando houver algo testável;
+9. atualizar versão visível.
 
 ## Bloco atual
 
 ### BLOCO 4 FIX — Busca sem derrubar teclado no iPhone
 
 Status: implementado, aguardando reteste rápido.
+
+Versão visível esperada:
+
+```txt
+0.4.1-lab-search-keyboard-fix
+```
 
 Objetivo:
 - corrigir bug do Safari/iPhone em que o teclado fechava ao digitar no campo de busca;
@@ -151,6 +175,7 @@ Objetivo:
 
 Arquivos alterados:
 - `lab/src/app.js`;
+- `lab/src/config/appConfig.js`;
 - `BELA_GESTAO_HANDOFF.md`.
 
 Comportamento corrigido:
@@ -161,15 +186,17 @@ Comportamento corrigido:
 
 Checklist de teste do BLOCO 4 FIX:
 1. abrir `https://raw.githack.com/Belacatalogo/Bela_gestao/rewrite-bela-gestao-lab/lab/index.html`;
-2. tocar no campo `Buscar`;
-3. digitar algumas letras;
-4. confirmar que o teclado não fecha a cada letra;
-5. tocar em `Aplicar busca`;
-6. confirmar que a lista filtra;
-7. tocar em `Limpar filtros`;
-8. confirmar que a lista volta ao normal.
+2. confirmar que a versão visível é `0.4.1-lab-search-keyboard-fix`;
+3. tocar no campo `Buscar`;
+4. digitar algumas letras;
+5. confirmar que o teclado não fecha a cada letra;
+6. tocar em `Aplicar busca`;
+7. confirmar que a lista filtra;
+8. tocar em `Limpar filtros`;
+9. confirmar que a lista volta ao normal.
 
 Critério de aprovação:
+- a versão visível atualizou;
 - o teclado não fecha durante digitação no campo Buscar;
 - busca continua funcionando com `Aplicar busca` ou Enter;
 - filtros continuam funcionando;
@@ -270,4 +297,4 @@ Manifest, service worker, cache seguro, versão visível e comportamento instal�
 
 ## Como continuar em outro chat
 
-"Continue a reconstrução do Bela Gestão. Leia `BELA_GESTAO_HANDOFF.md` antes de qualquer alteração. A branch de trabalho é `rewrite-bela-gestao-lab`. Não mexa na `main`. O BLOCO 4 FIX corrigiu a busca para não derrubar o teclado no iPhone: agora digita primeiro e aplica com botão `Aplicar busca` ou Enter. O usuário testa pelo RawGitHack porque Cloudflare entrou em loop no iPhone. O usuário informou que no sistema original a imagem é enviada e a URL é gerada automaticamente por outro site/serviço; isso é função crítica e não pode ser removida. O usuário informou que o sistema usa funções de IA; IA também é crítica. O objetivo é reconstruir o Bela Gestão modularmente, preservando a ligação com o Bela Catálogo, Firebase, localStorage, vendas, pagamentos, WhatsApp, PWA, upload de foto/URL automática e IA. Siga por blocos pequenos, sem DOM injection, sem remendos sobrepostos e sem transformar o sistema em outro arquivo gigante."
+"Continue a reconstrução do Bela Gestão. Leia `BELA_GESTAO_HANDOFF.md` antes de qualquer alteração. A branch de trabalho é `rewrite-bela-gestao-lab`. Não mexa na `main`. Sempre atualize a versão visível em `lab/src/config/appConfig.js` a cada bloco/fix; a versão atual é `0.4.1-lab-search-keyboard-fix`. O BLOCO 4 FIX corrigiu a busca para não derrubar o teclado no iPhone: agora digita primeiro e aplica com botão `Aplicar busca` ou Enter. O usuário testa pelo RawGitHack porque Cloudflare entrou em loop no iPhone. O usuário informou que no sistema original a imagem é enviada e a URL é gerada automaticamente por outro site/serviço; isso é função crítica e não pode ser removida. O usuário informou que o sistema usa funções de IA; IA também é crítica. O objetivo é reconstruir o Bela Gestão modularmente, preservando a ligação com o Bela Catálogo, Firebase, localStorage, vendas, pagamentos, WhatsApp, PWA, upload de foto/URL automática e IA. Siga por blocos pequenos, sem DOM injection, sem remendos sobrepostos e sem transformar o sistema em outro arquivo gigante."
