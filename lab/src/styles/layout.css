@@ -453,17 +453,20 @@ button:disabled {
   justify-content: center;
   background: rgba(0, 0, 0, 0.76);
   backdrop-filter: blur(8px);
-  padding: 18px 12px 0;
+  padding: 8px 10px 0;
+  overscroll-behavior: contain;
 }
 
 .product-modal {
   width: min(100%, 620px);
-  max-height: 92vh;
+  height: calc(100dvh - 16px);
+  max-height: calc(100dvh - 16px);
   overflow-y: auto;
+  overscroll-behavior: contain;
   border: 1px solid rgba(201, 168, 76, 0.22);
   border-radius: 22px 22px 0 0;
   background: #101010;
-  padding: 12px 16px calc(22px + env(safe-area-inset-bottom));
+  padding: 12px 16px calc(104px + env(safe-area-inset-bottom));
   box-shadow: 0 -18px 60px rgba(0, 0, 0, 0.4);
   -webkit-overflow-scrolling: touch;
 }
@@ -546,7 +549,7 @@ button:disabled {
 
 .image-preview-box img {
   width: 100%;
-  max-height: 260px;
+  max-height: 180px;
   object-fit: cover;
   border-radius: 14px;
   border: 1px solid rgba(201, 168, 76, 0.18);
