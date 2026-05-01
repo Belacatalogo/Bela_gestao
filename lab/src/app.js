@@ -2,22 +2,36 @@ import { renderProductFormModal, buildEmptyProductDraft, productToDraft, readPro
 import { APP_CONFIG, CRITICAL_FEATURES } from './config/appConfig.js';
 import { getDataGatewayStatus, getProduct, listProducts, resetProducts, saveProduct, toggleProductVisibility } from './services/dataGateway.js';
 import { DATA_MODES, setCurrentDataMode } from './services/environmentService.js';
+import { filterProducts, getProductCategories, getProductStats, PRODUCT_STATUS_FILTERS } from './services/productFilterService.js';
 import { formatBRL } from './utils/money.js';
 
 const uiState = {
   modalDraft: null,
   modalErrors: [],
+  filters: {
+    query: '',
+    category: 'all',
+    status: PRODUCT_STATUS_FILTERS.ALL,
+  },
 };
 
 function featureList() {
   return CRITICAL_FEATURES.map((feature) => `<li>${feature}</li>`).join('');
 }
 
+function escapeAttr(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('"', '&quot;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;');
+}
+
 function productRows(products, canToggle = true) {
   if (!products.length) {
     return `
       <div class="empty-preview">
-        Nenhum produto disponível neste modo.
+        Nenhum produto encontrado com os filtros atuais.
       </div>
     `;
   }
@@ -26,10 +40,14 @@ function productRows(products, canToggle = true) {
     .map((product) => {
       const status = product.visibleInCatalog ? 'Publicado no preview' : 'Oculto no preview';
       const action = product.visibleInCatalog ? 'Ocultar' : 'Publicar';
+      const hasPlaceholderImage = String(product.imageUrl || '').startsWith('data:image/svg+xml');
       return `
         <article class="lab-product-card">
           <div>
-            <span class="mini-badge">${product.category}</span>
+            <div class="badge-row">
+              <span class="mini-badge">${product.category}</span>
+              ${hasPlaceholderImage ? '<span class="mini-badge muted-badge">sem foto real</span>' : ''}
+            </div>
             <h3>${product.name}</h3>
             <p>${product.brand} · ${formatBRL(product.price)}</p>
             <small>${status}</small>
@@ -76,10 +94,46 @@ function renderEnvironmentPanel() {
   `;
 }
 
+function renderFilterControls(products) {
+  const categories = getProductCategories(products);
+
+  return `
+    <div class="product-filters">
+      <label class="compact-field full-row">
+        <span>Buscar</span>
+        <input data-filter-query type="search" value="${escapeAttr(uiState.filters.query)}" placeholder="Nome, marca, categoria...">
+      </label>
+
+      <label class="compact-field">
+        <span>Categoria</span>
+        <select data-filter-category>
+          <option value="all" ${uiState.filters.category === 'all' ? 'selected' : ''}>Todas</option>
+          ${categories.map((category) => `
+            <option value="${escapeAttr(category)}" ${uiState.filters.category === category ? 'selected' : ''}>${category}</option>
+          `).join('')}
+        </select>
+      </label>
+
+      <label class="compact-field">
+        <span>Status</span>
+        <select data-filter-status>
+          <option value="all" ${uiState.filters.status === PRODUCT_STATUS_FILTERS.ALL ? 'selected' : ''}>Todos</option>
+          <option value="visible" ${uiState.filters.status === PRODUCT_STATUS_FILTERS.VISIBLE ? 'selected' : ''}>Publicados</option>
+          <option value="hidden" ${uiState.filters.status === PRODUCT_STATUS_FILTERS.HIDDEN ? 'selected' : ''}>Ocultos</option>
+          <option value="no-image" ${uiState.filters.status === PRODUCT_STATUS_FILTERS.NO_IMAGE ? 'selected' : ''}>Sem foto real</option>
+        </select>
+      </label>
+
+      <button class="secondary-button full-row" data-clear-filters>Limpar filtros</button>
+    </div>
+  `;
+}
+
 function renderProductsPanel() {
   const gateway = listProducts();
   const products = gateway.products;
-  const visibleCount = products.filter((product) => product.visibleInCatalog).length;
+  const filteredProducts = filterProducts(products, uiState.filters);
+  const stats = getProductStats(products);
   const status = getDataGatewayStatus();
   const isLabMode = status.mode === DATA_MODES.LAB;
 
@@ -95,18 +149,22 @@ function renderProductsPanel() {
         <span class="safe-pill">Seguro</span>
       </div>
 
-      <div class="mini-grid">
+      <div class="mini-grid four-stats">
         <div class="mini-stat">
-          <strong>${products.length}</strong>
-          <span>produtos teste</span>
+          <strong>${stats.total}</strong>
+          <span>produtos</span>
         </div>
         <div class="mini-stat">
-          <strong>${visibleCount}</strong>
-          <span>visíveis no preview</span>
+          <strong>${stats.visible}</strong>
+          <span>publicados</span>
         </div>
         <div class="mini-stat">
-          <strong>0</strong>
-          <span>alterações reais</span>
+          <strong>${stats.hidden}</strong>
+          <span>ocultos</span>
+        </div>
+        <div class="mini-stat">
+          <strong>${stats.withoutUploadedImage}</strong>
+          <span>sem foto real</span>
         </div>
       </div>
 
@@ -116,14 +174,17 @@ function renderProductsPanel() {
         <button class="secondary-button" data-reset-lab ${isLabMode ? '' : 'disabled'}>Restaurar dados teste</button>
       </div>
 
+      ${renderFilterControls(products)}
+
       <div class="storage-note">
         <strong>Fonte atual:</strong> ${gateway.source}<br>
+        <strong>Exibindo:</strong> ${filteredProducts.length} de ${products.length} produtos<br>
         <strong>Chave LAB:</strong> <code>${status.labStorage.key}</code>
         ${gateway.warning ? `<br><strong>Aviso:</strong> ${gateway.warning}` : ''}
       </div>
 
       <div class="lab-product-list">
-        ${productRows(products, isLabMode)}
+        ${productRows(filteredProducts, isLabMode)}
       </div>
     </section>
   `;
@@ -161,6 +222,42 @@ function bindLabActions(root) {
     });
   });
 
+  const queryInput = root.querySelector('[data-filter-query]');
+  if (queryInput) {
+    queryInput.addEventListener('input', () => {
+      uiState.filters.query = queryInput.value;
+      renderApp(root);
+    });
+  }
+
+  const categoryFilter = root.querySelector('[data-filter-category]');
+  if (categoryFilter) {
+    categoryFilter.addEventListener('change', () => {
+      uiState.filters.category = categoryFilter.value;
+      renderApp(root);
+    });
+  }
+
+  const statusFilter = root.querySelector('[data-filter-status]');
+  if (statusFilter) {
+    statusFilter.addEventListener('change', () => {
+      uiState.filters.status = statusFilter.value;
+      renderApp(root);
+    });
+  }
+
+  const clearFilters = root.querySelector('[data-clear-filters]');
+  if (clearFilters) {
+    clearFilters.addEventListener('click', () => {
+      uiState.filters = {
+        query: '',
+        category: 'all',
+        status: PRODUCT_STATUS_FILTERS.ALL,
+      };
+      renderApp(root);
+    });
+  }
+
   const newButton = root.querySelector('[data-new-product]');
   if (newButton) {
     newButton.addEventListener('click', () => {
@@ -175,6 +272,11 @@ function bindLabActions(root) {
     resetButton.addEventListener('click', () => {
       resetProducts();
       closeModal();
+      uiState.filters = {
+        query: '',
+        category: 'all',
+        status: PRODUCT_STATUS_FILTERS.ALL,
+      };
       renderApp(root);
     });
   }
@@ -248,10 +350,10 @@ export function renderApp(root) {
       </section>
 
       <section class="panel-card warning-card">
-        <h2>Estado do BLOCO 3</h2>
+        <h2>Estado do BLOCO 4</h2>
         <p>
-          Cadastro e edição de produtos fictícios adicionados no LAB. Firebase, login Google,
-          catálogo real, IA real, vendas reais e pagamentos reais continuam desconectados.
+          Busca, filtros, contadores e refinamento da tela de produtos LAB adicionados. Firebase,
+          login Google, catálogo real, IA real, vendas reais e pagamentos reais continuam desconectados.
         </p>
       </section>
     </main>
