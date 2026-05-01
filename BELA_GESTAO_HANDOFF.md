@@ -24,6 +24,7 @@ Não misturar HTML, CSS, dados, Firebase, IA e regras de negócio no mesmo arqui
 - produtos;
 - categorias/abas do catálogo;
 - ligação Gestão ↔ Catálogo;
+- upload de foto/geração automática de URL de imagem;
 - Firebase/fonte compartilhada;
 - localStorage/dados antigos;
 - vendas;
@@ -139,69 +140,75 @@ Cada bloco deve:
 
 ## Bloco atual
 
-### BLOCO 3 — Produtos LAB: cadastro e edição fictícia
+### BLOCO 4 — Tela de produtos refinada
 
 Status: implementado, aguardando teste no iPhone.
 
 Objetivo:
-- criar cadastro de produto fictício no LAB;
-- permitir edição de produto fictício existente;
-- validar campos obrigatórios antes de salvar;
-- manter escrita real bloqueada;
-- manter catálogo fictício lendo os produtos LAB;
-- não conectar Firebase, login Google, catálogo real ou IA real.
+- melhorar a tela de produtos LAB;
+- adicionar busca;
+- adicionar filtro por categoria;
+- adicionar filtro por status;
+- mostrar contadores úteis;
+- sinalizar produtos sem foto real;
+- manter tudo em modo LAB, sem Firebase, login Google ou catálogo real.
 
 Arquivos adicionados/alterados neste bloco:
-- `lab/src/utils/ids.js`;
-- `lab/src/utils/validators.js`;
-- `lab/src/services/labDataService.js`;
-- `lab/src/services/dataGateway.js`;
-- `lab/src/components/ProductFormModal.js`;
+- `lab/src/services/productFilterService.js`;
 - `lab/src/app.js`;
 - `lab/src/styles/layout.css`;
 - `BELA_GESTAO_HANDOFF.md`.
 
 Comportamento atual:
-- botão `Novo produto` abre formulário em modal;
-- botão `Editar` abre o produto selecionado no formulário;
-- campos disponíveis: nome, marca, descrição, preço, custo, imagem URL, categoria, estoque, abas do catálogo, selo, ordem e visibilidade;
-- validação bloqueia salvar sem nome, marca, categoria, preço maior que zero e imagem URL;
-- salvar cria/edita apenas no `localStorage` LAB;
-- catálogo fictício reflete produtos publicados;
-- modo `REAL somente leitura` bloqueia cadastro/edição/restauração.
+- painel de produtos mostra total, publicados, ocultos e sem foto real;
+- campo de busca filtra por nome, marca, descrição, categoria, selo e abas;
+- filtro de categoria lista categorias existentes;
+- filtro de status permite ver todos, publicados, ocultos e sem foto real;
+- botão `Limpar filtros` restaura a visualização;
+- produtos sem foto real exibem selo `sem foto real`;
+- nada real foi conectado ou alterado.
 
-Checklist de teste do BLOCO 3:
+Checklist de teste do BLOCO 4:
 1. abrir `https://raw.githack.com/Belacatalogo/Bela_gestao/rewrite-bela-gestao-lab/lab/index.html`;
 2. confirmar que está em `LAB visitante`;
-3. tocar em `Novo produto`;
-4. confirmar que abre modal/formulário;
-5. tentar salvar vazio e confirmar que aparecem erros;
-6. preencher nome, marca, preço, imagem URL e categoria;
-7. manter `Publicado no catálogo fictício` marcado;
-8. salvar;
-9. confirmar que o novo produto aparece na lista LAB;
-10. abrir `/lab/catalogo-preview/` e confirmar que o novo produto aparece no catálogo fictício;
-11. voltar para `/lab/`;
-12. tocar em `Editar` no produto criado;
-13. alterar nome ou preço;
-14. salvar;
-15. confirmar que a alteração aparece na lista e no catálogo fictício;
-16. editar novamente e desmarcar `Publicado no catálogo fictício`;
-17. confirmar que o produto continua na lista LAB, mas some do catálogo fictício;
-18. trocar para `Real somente leitura`;
-19. confirmar que `Novo produto`, `Editar`, `Ocultar/Publicar` e `Restaurar` ficam bloqueados/desativados;
-20. voltar para `LAB visitante` e confirmar que os dados teste continuam.
+3. confirmar que aparecem os contadores `produtos`, `publicados`, `ocultos` e `sem foto real`;
+4. digitar no campo `Buscar` o nome de um produto existente;
+5. confirmar que a lista filtra corretamente;
+6. tocar em `Limpar filtros`;
+7. filtrar por categoria, por exemplo `perfumes`;
+8. confirmar que só aparecem produtos dessa categoria;
+9. filtrar por status `Publicados`;
+10. confirmar que só aparecem produtos publicados;
+11. filtrar por status `Ocultos`;
+12. confirmar que só aparecem produtos ocultos;
+13. criar produto novo sem imagem URL;
+14. confirmar que o contador `sem foto real` aumenta;
+15. filtrar por `Sem foto real`;
+16. confirmar que o produto aparece nesse filtro;
+17. abrir o catálogo fictício e confirmar que produtos publicados continuam aparecendo;
+18. alternar para `Real somente leitura` e confirmar que filtros não alteram dados reais.
 
 Critério de aprovação:
-- cadastro abre e salva no LAB;
-- validação funciona;
-- edição funciona;
-- visibilidade altera o catálogo fictício;
+- busca funciona;
+- filtros funcionam;
+- contadores fazem sentido;
+- produtos sem foto real são sinalizados;
+- catálogo fictício continua funcionando;
 - modo real continua bloqueado;
 - nada exige login Google;
 - nada real é alterado.
 
 ## Histórico de blocos
+
+### BLOCO 3 — Produtos LAB: cadastro e edição fictícia
+
+Status: aprovado pelo usuário após correção.
+
+Observação importante:
+- o usuário confirmou que, no sistema original, a imagem não é inserida por URL manual;
+- a função real é envio de foto com geração automática de URL por outro site/serviço;
+- isso foi registrado como função crítica;
+- no LAB, imagem URL virou opcional e usa placeholder quando vazia.
 
 ### BLOCO 2 — Camada de dados segura
 
@@ -243,34 +250,34 @@ Objetivo:
 
 ## Próximos blocos previstos
 
-### BLOCO 4 — Tela de produtos refinada
-
-Criar busca, filtros, categorias e refinamento visual para iPhone.
-
 ### BLOCO 5 — Sincronização com Catálogo LAB/contrato real
 
 Garantir contrato de dados antes de conectar catálogo real.
 
-### BLOCO 6 — Vendas
+### BLOCO 6 — Upload de foto/geração automática de URL em modo LAB
+
+Portar de forma segura o fluxo essencial do sistema original: enviar imagem e obter URL automaticamente, primeiro em modo LAB.
+
+### BLOCO 7 — Vendas
 
 Recriar fluxo de compradores, vendas, valores e lucro.
 
-### BLOCO 7 — Pagamentos
+### BLOCO 8 — Pagamentos
 
 Recriar parcelas, status de pagamento, atrasos, observações e WhatsApp.
 
-### BLOCO 8 — Dashboard
+### BLOCO 9 — Dashboard
 
 Resumo de vendas, lucro, produtos, pendências e indicadores.
 
-### BLOCO 9 — Configurações, backup e IA
+### BLOCO 10 — Configurações, backup e IA
 
 Exportar/importar backup, limpar cache, validar dados, status do sistema e configurações de IA.
 
-### BLOCO 10 — PWA/iPhone
+### BLOCO 11 — PWA/iPhone
 
 Manifest, service worker, cache seguro, versão visível e comportamento instalável.
 
 ## Como continuar em outro chat
 
-"Continue a reconstrução do Bela Gestão. Leia `BELA_GESTAO_HANDOFF.md` antes de qualquer alteração. A branch de trabalho é `rewrite-bela-gestao-lab`. Não mexa na `main`. O BLOCO 3 criou cadastro e edição de produtos fictícios em modo LAB, com validação, modal e catálogo fictício refletindo visibilidade. O usuário testa pelo RawGitHack porque Cloudflare entrou em loop no iPhone. O usuário informou que o sistema usa funções de IA; IA é função crítica e não pode ser removida. O objetivo é reconstruir o Bela Gestão modularmente, preservando a ligação com o Bela Catálogo, Firebase, localStorage, vendas, pagamentos, WhatsApp, PWA e IA. Siga por blocos pequenos, sem DOM injection, sem remendos sobrepostos e sem transformar o sistema em outro arquivo gigante."
+"Continue a reconstrução do Bela Gestão. Leia `BELA_GESTAO_HANDOFF.md` antes de qualquer alteração. A branch de trabalho é `rewrite-bela-gestao-lab`. Não mexa na `main`. O BLOCO 4 adicionou busca, filtros, contadores e sinalização de produtos sem foto real. O usuário testa pelo RawGitHack porque Cloudflare entrou em loop no iPhone. O usuário informou que no sistema original a imagem é enviada e a URL é gerada automaticamente por outro site/serviço; isso é função crítica e não pode ser removida. O usuário informou que o sistema usa funções de IA; IA também é crítica. O objetivo é reconstruir o Bela Gestão modularmente, preservando a ligação com o Bela Catálogo, Firebase, localStorage, vendas, pagamentos, WhatsApp, PWA, upload de foto/URL automática e IA. Siga por blocos pequenos, sem DOM injection, sem remendos sobrepostos e sem transformar o sistema em outro arquivo gigante."
