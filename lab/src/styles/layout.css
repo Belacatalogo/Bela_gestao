@@ -178,6 +178,10 @@ button:disabled {
   margin: 16px 0;
 }
 
+.mini-grid.four-stats {
+  grid-template-columns: repeat(2, 1fr);
+}
+
 .mini-stat {
   border: 1px solid rgba(201, 168, 76, 0.12);
   border-radius: 14px;
@@ -256,6 +260,51 @@ button:disabled {
   text-transform: none;
 }
 
+.product-filters {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  border: 1px solid rgba(201, 168, 76, 0.12);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.025);
+  padding: 12px;
+  margin: 0 0 14px;
+}
+
+.compact-field {
+  display: grid;
+  gap: 6px;
+}
+
+.compact-field span {
+  color: rgba(240, 232, 220, 0.48);
+  font-size: 0.52rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.compact-field input,
+.compact-field select {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid rgba(201, 168, 76, 0.18);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--cream);
+  padding: 10px 12px;
+  outline: none;
+  font-size: 0.86rem;
+}
+
+.compact-field select option {
+  background: #111;
+  color: var(--cream);
+}
+
+.full-row {
+  grid-column: 1 / -1;
+}
+
 .storage-note {
   border: 1px dashed rgba(201, 168, 76, 0.2);
   border-radius: 14px;
@@ -301,12 +350,23 @@ button:disabled {
   gap: 8px;
 }
 
+.badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
 .mini-badge {
   border: 1px solid rgba(201, 168, 76, 0.2);
   color: var(--gold);
   font-size: 0.48rem;
   letter-spacing: 0.16em;
   padding: 4px 7px;
+}
+
+.muted-badge {
+  color: rgba(240, 232, 220, 0.46);
+  border-color: rgba(240, 232, 220, 0.14);
 }
 
 .ghost-button {
@@ -422,8 +482,16 @@ button:disabled {
   min-height: 84px;
 }
 
+.form-field small {
+  color: rgba(240, 232, 220, 0.4);
+  font-size: 0.68rem;
+  line-height: 1.45;
+}
+
 .form-field input:focus,
-.form-field textarea:focus {
+.form-field textarea:focus,
+.compact-field input:focus,
+.compact-field select:focus {
   border-color: rgba(201, 168, 76, 0.55);
 }
 
@@ -472,8 +540,13 @@ button:disabled {
     grid-template-columns: 1fr 1fr;
   }
 
-  .lab-actions.three-actions {
-    grid-template-columns: repeat(3, 1fr);
+  .product-filters {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .lab-actions.three-actions,
+  .mini-grid.four-stats {
+    grid-template-columns: repeat(4, 1fr);
   }
 
   .lab-product-card {
