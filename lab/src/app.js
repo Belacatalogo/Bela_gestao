@@ -104,6 +104,8 @@ function renderFilterControls(products) {
         <input data-filter-query type="search" value="${escapeAttr(uiState.filters.query)}" placeholder="Nome, marca, categoria...">
       </label>
 
+      <button class="secondary-button full-row" data-apply-search>Aplicar busca</button>
+
       <label class="compact-field">
         <span>Categoria</span>
         <select data-filter-category>
@@ -195,6 +197,12 @@ function closeModal() {
   uiState.modalErrors = [];
 }
 
+function applySearch(root) {
+  const queryInput = root.querySelector('[data-filter-query]');
+  if (queryInput) uiState.filters.query = queryInput.value;
+  renderApp(root);
+}
+
 function bindLabActions(root) {
   root.querySelectorAll('[data-toggle-product]').forEach((button) => {
     button.addEventListener('click', () => {
@@ -224,10 +232,17 @@ function bindLabActions(root) {
 
   const queryInput = root.querySelector('[data-filter-query]');
   if (queryInput) {
-    queryInput.addEventListener('input', () => {
-      uiState.filters.query = queryInput.value;
-      renderApp(root);
+    queryInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        applySearch(root);
+      }
     });
+  }
+
+  const applySearchButton = root.querySelector('[data-apply-search]');
+  if (applySearchButton) {
+    applySearchButton.addEventListener('click', () => applySearch(root));
   }
 
   const categoryFilter = root.querySelector('[data-filter-category]');
@@ -350,10 +365,10 @@ export function renderApp(root) {
       </section>
 
       <section class="panel-card warning-card">
-        <h2>Estado do BLOCO 4</h2>
+        <h2>Estado do BLOCO 4 FIX</h2>
         <p>
-          Busca, filtros, contadores e refinamento da tela de produtos LAB adicionados. Firebase,
-          login Google, catálogo real, IA real, vendas reais e pagamentos reais continuam desconectados.
+          A busca não renderiza mais a tela a cada letra digitada. Digite normalmente e toque em
+          Aplicar busca ou use Enter para filtrar, evitando que o teclado do iPhone feche.
         </p>
       </section>
     </main>
