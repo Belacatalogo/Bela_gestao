@@ -1,15 +1,18 @@
 import { renderProductFormModal, buildEmptyProductDraft, productToDraft, readProductForm } from './components/ProductFormModal.js';
+import { renderSalesPanel, readSaleForm } from './components/SalesPanel.js';
 import { APP_CONFIG, CRITICAL_FEATURES } from './config/appConfig.js';
 import { getCatalogSyncReport } from './services/catalogContractService.js';
 import { getDataGatewayStatus, getProduct, listProducts, resetProducts, saveProduct, toggleProductVisibility } from './services/dataGateway.js';
 import { DATA_MODES, setCurrentDataMode } from './services/environmentService.js';
 import { generateLabImageUrl } from './services/imageUploadLabService.js';
+import { createLabSale, getLabSales, getSalesStats, resetLabSales, updateLabSaleStatus } from './services/labSalesService.js';
 import { filterProducts, getProductCategories, getProductStats, PRODUCT_STATUS_FILTERS } from './services/productFilterService.js';
 import { formatBRL } from './utils/money.js';
 
 const uiState = {
   modalDraft: null,
   modalErrors: [],
+  saleErrors: [],
   filters: {
     query: '',
     category: 'all',
@@ -296,6 +299,21 @@ async function saveProductFromForm(root, form) {
   renderApp(root);
 }
 
+function saveSaleFromForm(root, form, products) {
+  const draft = readSaleForm(form);
+  const result = createLabSale(draft, products);
+
+  if (!result.ok) {
+    uiState.saleErrors = result.errors || ['Não foi possível registrar a venda.'];
+    renderApp(root);
+    return;
+  }
+
+  uiState.saleErrors = [];
+  form.reset();
+  renderApp(root);
+}
+
 function bindLabActions(root) {
   root.querySelectorAll('[data-toggle-product]').forEach((button) => {
     button.addEventListener('click', () => {
@@ -379,7 +397,9 @@ function bindLabActions(root) {
   if (resetButton) {
     resetButton.addEventListener('click', () => {
       resetProducts();
+      resetLabSales();
       closeModal();
+      uiState.saleErrors = [];
       uiState.filters = {
         query: '',
         category: 'all',
@@ -388,6 +408,13 @@ function bindLabActions(root) {
       renderApp(root);
     });
   }
+
+  root.querySelectorAll('[data-sale-status]').forEach((button) => {
+    button.addEventListener('click', () => {
+      updateLabSaleStatus(button.getAttribute('data-sale-status'), button.getAttribute('data-next-status'));
+      renderApp(root);
+    });
+  });
 
   root.querySelectorAll('[data-close-modal], [data-modal-backdrop]').forEach((element) => {
     element.addEventListener('click', (event) => {
@@ -404,11 +431,22 @@ function bindLabActions(root) {
       saveProductFromForm(root, form);
     });
   }
+
+  const saleForm = root.querySelector('[data-sale-form]');
+  if (saleForm) {
+    saleForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      saveSaleFromForm(root, saleForm, listProducts().products);
+    });
+  }
 }
 
 export function renderApp(root) {
   if (!root) return;
   const gateway = listProducts();
+  const sales = getLabSales();
+  const status = getDataGatewayStatus();
+  const isLabMode = status.mode === DATA_MODES.LAB;
 
   root.innerHTML = `
     <main class="lab-page">
@@ -436,6 +474,13 @@ export function renderApp(root) {
 
       ${renderEnvironmentPanel()}
       ${renderCatalogContractPanel(gateway.products)}
+      ${renderSalesPanel({
+        products: gateway.products,
+        sales,
+        stats: getSalesStats(sales),
+        errors: uiState.saleErrors,
+        canWrite: isLabMode,
+      })}
       ${renderProductsPanel()}
 
       <section class="panel-card">
@@ -449,10 +494,10 @@ export function renderApp(root) {
       </section>
 
       <section class="panel-card warning-card">
-        <h2>Estado do BLOCO 6</h2>
+        <h2>Estado do BLOCO 7</h2>
         <p>
-          Upload de foto LAB adicionado. A foto escolhida vira uma URL local automática e aparece
-          no catálogo fictício. Nada é enviado para serviço externo real neste bloco.
+          Vendas LAB iniciais adicionadas. O fluxo registra vendas fictícias com cliente,
+          produto, quantidade, total e lucro. Nada real foi conectado.
         </p>
       </section>
     </main>
