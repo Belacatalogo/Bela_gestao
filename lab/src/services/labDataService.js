@@ -2,6 +2,7 @@ import { createId } from '../utils/ids.js';
 import { normalizeMoney, normalizeTabs, normalizeText, validateProductDraft } from '../utils/validators.js';
 
 const LAB_PRODUCTS_KEY = 'belaGestaoLab.products.v1';
+const MAX_STORED_DATA_IMAGE_LENGTH = 420000;
 const LAB_PLACEHOLDER_IMAGE = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1100" viewBox="0 0 900 1100"><rect width="900" height="1100" fill="%23080808"/><rect x="34" y="34" width="832" height="1032" rx="70" fill="none" stroke="%23c9a84c" stroke-width="8" opacity="0.55"/><text x="450" y="500" text-anchor="middle" font-family="Georgia,serif" font-size="92" fill="%23f0e8dc">Bela</text><text x="450" y="590" text-anchor="middle" font-family="Arial,sans-serif" font-size="30" letter-spacing="12" fill="%23c9a84c">PRODUTO LAB</text><text x="450" y="650" text-anchor="middle" font-family="Arial,sans-serif" font-size="22" fill="%238f877b">imagem provisória</text></svg>';
 
 const SAMPLE_PRODUCTS = [
@@ -77,6 +78,36 @@ function canUseStorage() {
   }
 }
 
+function isHeavyLabDataImage(imageUrl) {
+  return String(imageUrl || '').startsWith('data:image/') && String(imageUrl || '').length > MAX_STORED_DATA_IMAGE_LENGTH;
+}
+
+function sanitizeProduct(product) {
+  if (!product || typeof product !== 'object') return product;
+  if (!isHeavyLabDataImage(product.imageUrl)) return product;
+
+  return {
+    ...product,
+    imageUrl: LAB_PLACEHOLDER_IMAGE,
+    labImageCleaned: true,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function sanitizeStoredProducts(products) {
+  let changed = false;
+  const sanitized = products.map((product) => {
+    const nextProduct = sanitizeProduct(product);
+    if (nextProduct !== product) changed = true;
+    return nextProduct;
+  });
+
+  return {
+    products: sanitized,
+    changed,
+  };
+}
+
 function normalizeProductDraft(draft, existingProduct = null) {
   const now = new Date().toISOString();
   const baseOrder = existingProduct?.order || getLabProducts().length + 1;
@@ -109,7 +140,12 @@ export function getLabProducts() {
     return SAMPLE_PRODUCTS;
   }
 
-  return stored;
+  const sanitized = sanitizeStoredProducts(stored);
+  if (sanitized.changed) {
+    window.localStorage.setItem(LAB_PRODUCTS_KEY, JSON.stringify(sanitized.products));
+  }
+
+  return sanitized.products;
 }
 
 export function getLabProductById(productId) {
@@ -118,7 +154,8 @@ export function getLabProductById(productId) {
 
 export function saveLabProducts(products) {
   if (!canUseStorage()) return false;
-  window.localStorage.setItem(LAB_PRODUCTS_KEY, JSON.stringify(products));
+  const sanitized = sanitizeStoredProducts(products);
+  window.localStorage.setItem(LAB_PRODUCTS_KEY, JSON.stringify(sanitized.products));
   return true;
 }
 
