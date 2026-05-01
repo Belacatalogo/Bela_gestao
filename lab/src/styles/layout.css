@@ -42,7 +42,7 @@ p {
 }
 
 h1 {
-  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-family: Georgia, 'Times New Roman', serif;
   font-size: clamp(2.6rem, 14vw, 5rem);
   font-weight: 300;
   letter-spacing: 0.08em;
@@ -56,14 +56,14 @@ h1 span {
 }
 
 h2 {
-  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-family: Georgia, 'Times New Roman', serif;
   font-size: 1.45rem;
   font-weight: 300;
   margin-bottom: 8px;
 }
 
 h3 {
-  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-family: Georgia, 'Times New Roman', serif;
   font-size: 1.18rem;
   font-weight: 300;
   margin: 6px 0 2px;
@@ -196,7 +196,7 @@ button:disabled {
 }
 
 .mini-stat strong {
-  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-family: Georgia, 'Times New Roman', serif;
   color: var(--gold);
   font-size: 1.45rem;
   line-height: 1;
@@ -384,6 +384,43 @@ button:disabled {
   font-size: 0.74rem;
   letter-spacing: 0.16em;
   text-transform: uppercase;
+}
+
+.contract-issues {
+  display: grid;
+  gap: 8px;
+}
+
+.contract-issue-card,
+.contract-ok {
+  border: 1px solid rgba(201, 168, 76, 0.14);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.035);
+  padding: 11px 12px;
+}
+
+.contract-issue-card strong,
+.contract-issue-card span {
+  display: block;
+}
+
+.contract-issue-card strong {
+  color: var(--cream);
+  font-size: 0.82rem;
+  margin-bottom: 5px;
+}
+
+.contract-issue-card span,
+.contract-ok {
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+
+.contract-ok {
+  color: #7dd87d;
+  border-color: rgba(100, 200, 100, 0.22);
+  background: rgba(100, 200, 100, 0.08);
 }
 
 .feature-list {
