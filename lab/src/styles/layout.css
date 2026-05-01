@@ -514,6 +514,11 @@ button:disabled {
   font-size: 0.9rem;
 }
 
+.form-field input[type='file'] {
+  padding: 10px;
+  color: rgba(240, 232, 220, 0.68);
+}
+
 .form-field textarea {
   resize: vertical;
   min-height: 84px;
@@ -523,6 +528,34 @@ button:disabled {
   color: rgba(240, 232, 220, 0.4);
   font-size: 0.68rem;
   line-height: 1.45;
+}
+
+.image-upload-panel {
+  display: grid;
+  gap: 10px;
+  border: 1px solid rgba(201, 168, 76, 0.14);
+  border-radius: 16px;
+  background: rgba(201, 168, 76, 0.035);
+  padding: 12px;
+}
+
+.image-preview-box {
+  display: grid;
+  gap: 7px;
+}
+
+.image-preview-box img {
+  width: 100%;
+  max-height: 260px;
+  object-fit: cover;
+  border-radius: 14px;
+  border: 1px solid rgba(201, 168, 76, 0.18);
+  background: #080808;
+}
+
+.image-preview-box small {
+  color: rgba(240, 232, 220, 0.4);
+  font-size: 0.68rem;
 }
 
 .form-field input:focus,
