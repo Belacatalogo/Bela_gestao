@@ -32,7 +32,7 @@ A versão deve aparecer na tela da LAB para o usuário confirmar se o preview at
 Versão atual:
 
 ```txt
-0.5.0-lab-catalog-contract
+0.6.0-lab-photo-upload
 ```
 
 ## Funções críticas que devem ser preservadas
@@ -145,15 +145,72 @@ Cada bloco deve:
 
 ## Bloco atual
 
-### BLOCO 5 — Sincronização com Catálogo LAB / contrato real
+### BLOCO 6 — Upload de foto / geração automática de URL em modo LAB
 
 Status: implementado, aguardando teste no iPhone.
 
 Versão visível esperada:
 
 ```txt
-0.5.0-lab-catalog-contract
+0.6.0-lab-photo-upload
 ```
+
+Objetivo:
+- criar fluxo LAB para escolher foto do iPhone;
+- gerar automaticamente uma URL local `data:image/...`;
+- salvar essa URL no produto LAB;
+- mostrar a foto no catálogo fictício;
+- preservar a regra do sistema real: imagem não deve depender de URL manual;
+- não enviar nada para serviço externo real neste bloco.
+
+Arquivos adicionados/alterados:
+- `lab/src/services/imageUploadLabService.js`;
+- `lab/src/components/ProductFormModal.js`;
+- `lab/src/app.js`;
+- `lab/src/styles/layout.css`;
+- `lab/src/config/appConfig.js`;
+- `BELA_GESTAO_HANDOFF.md`.
+
+Comportamento atual:
+- formulário de produto tem campo `Enviar foto`;
+- foto escolhida vira uma URL local automática;
+- produto salvo com foto mostra selo `foto LAB`;
+- catálogo fictício mostra a foto enviada;
+- limite LAB: imagens até 4 MB;
+- aceita JPG, PNG, WEBP e GIF;
+- modo real continua bloqueado;
+- Firebase real e catálogo real continuam desconectados.
+
+Checklist de teste do BLOCO 6:
+1. abrir o preview Netlify da LAB;
+2. confirmar que a versão visível é `0.6.0-lab-photo-upload`;
+3. tocar em `Novo produto`;
+4. preencher nome, marca, preço e categoria;
+5. tocar em `Enviar foto`;
+6. escolher uma foto do iPhone;
+7. salvar no LAB;
+8. confirmar que o produto aparece na lista com selo `foto LAB`;
+9. abrir o catálogo fictício;
+10. confirmar que a foto aparece no produto;
+11. editar esse produto;
+12. confirmar que a imagem continua salva;
+13. criar outro produto sem foto;
+14. confirmar que ele ainda usa imagem provisória e aparece como sem foto real;
+15. confirmar que nada pede login Google;
+16. confirmar que modo real continua bloqueado.
+
+Critério de aprovação:
+- upload de foto abre no iPhone;
+- salvar com foto funciona;
+- foto aparece no catálogo fictício;
+- produto sem foto continua funcionando com placeholder;
+- nada real foi alterado.
+
+## Histórico de blocos
+
+### BLOCO 5 — Sincronização com Catálogo LAB / contrato real
+
+Status: aprovado pelo usuário.
 
 Objetivo:
 - criar contrato de dados do catálogo;
@@ -161,46 +218,6 @@ Objetivo:
 - mostrar categorias e abas visíveis;
 - sinalizar produtos com avisos, como `sem foto real`;
 - manter escrita no catálogo real bloqueada.
-
-Arquivos adicionados/alterados:
-- `lab/src/services/catalogContractService.js`;
-- `lab/src/app.js`;
-- `lab/src/styles/layout.css`;
-- `lab/src/config/appConfig.js`;
-- `BELA_GESTAO_HANDOFF.md`.
-
-Comportamento atual:
-- novo painel `Contrato do Catálogo LAB` aparece na tela;
-- mostra quantos produtos iriam ao catálogo fictício;
-- mostra quantidade de categorias e abas;
-- mostra alertas de produtos sem foto real;
-- indica que a escrita no catálogo real está bloqueada;
-- não conecta Firebase real;
-- não altera catálogo real.
-
-Checklist de teste do BLOCO 5:
-1. abrir o preview Netlify da LAB;
-2. confirmar que a versão visível é `0.5.0-lab-catalog-contract`;
-3. confirmar que aparece o painel `Contrato do Catálogo LAB`;
-4. conferir o número `irão ao catálogo`;
-5. conferir categorias e abas visíveis;
-6. criar um produto publicado sem imagem URL;
-7. confirmar que o painel mostra alerta de `imagem provisória LAB` ou `sem foto real`;
-8. abrir o catálogo fictício e confirmar que o produto publicado aparece;
-9. ocultar o produto;
-10. confirmar que o número `irão ao catálogo` diminui;
-11. confirmar que nada pede login Google;
-12. confirmar que o modo real continua bloqueado.
-
-Critério de aprovação:
-- versão visível atualizou;
-- painel de contrato aparece;
-- contadores fazem sentido;
-- alertas aparecem para produtos sem foto real;
-- catálogo fictício continua funcionando;
-- nada real foi alterado.
-
-## Histórico de blocos
 
 ### BLOCO 4.2 — Preview mais leve
 
@@ -283,9 +300,9 @@ Objetivo:
 
 ## Próximos blocos previstos
 
-### BLOCO 6 — Upload de foto/geração automática de URL em modo LAB
+### BLOCO 6B — Adaptador real de upload externo
 
-Portar de forma segura o fluxo essencial do sistema original: enviar imagem e obter URL automaticamente, primeiro em modo LAB.
+Mapear/configurar com segurança o serviço externo real usado para transformar foto em URL, sem expor segredo e sem quebrar fallback LAB.
 
 ### BLOCO 7 — Vendas
 
@@ -309,4 +326,4 @@ Manifest, service worker, cache seguro, versão visível e comportamento instal�
 
 ## Como continuar em outro chat
 
-"Continue a reconstrução do Bela Gestão. Leia `BELA_GESTAO_HANDOFF.md` antes de qualquer alteração. A branch de trabalho é `rewrite-bela-gestao-lab`. Não mexa na `main`. Sempre atualize a versão visível em `lab/src/config/appConfig.js` a cada bloco/fix; a versão atual é `0.5.0-lab-catalog-contract`. O preview principal agora é o Netlify conectado à branch lab, com publish directory `lab`. O BLOCO 5 adicionou o painel `Contrato do Catálogo LAB`, validando campos necessários para o catálogo sem conectar Firebase real nem alterar catálogo real. O usuário informou que no sistema original a imagem é enviada e a URL é gerada automaticamente por outro site/serviço; isso é função crítica e não pode ser removida. O usuário informou que o sistema usa funções de IA; IA também é crítica. O objetivo é reconstruir o Bela Gestão modularmente, preservando a ligação com o Bela Catálogo, Firebase, localStorage, vendas, pagamentos, WhatsApp, PWA, upload de foto/URL automática e IA. Siga por blocos pequenos, sem DOM injection, sem remendos sobrepostos e sem transformar o sistema em outro arquivo gigante."
+"Continue a reconstrução do Bela Gestão. Leia `BELA_GESTAO_HANDOFF.md` antes de qualquer alteração. A branch de trabalho é `rewrite-bela-gestao-lab`. Não mexa na `main`. Sempre atualize a versão visível em `lab/src/config/appConfig.js` a cada bloco/fix; a versão atual é `0.6.0-lab-photo-upload`. O preview principal agora é o Netlify conectado à branch lab, com publish directory `lab`. O BLOCO 6 adicionou upload de foto LAB: o usuário escolhe foto no iPhone, o sistema gera uma URL local `data:image/...`, salva no produto e mostra no catálogo fictício. Isso ainda não envia para serviço externo real. O usuário informou que no sistema original a imagem é enviada e a URL é gerada automaticamente por outro site/serviço; isso é função crítica e não pode ser removida. O usuário informou que o sistema usa funções de IA; IA também é crítica. O objetivo é reconstruir o Bela Gestão modularmente, preservando a ligação com o Bela Catálogo, Firebase, localStorage, vendas, pagamentos, WhatsApp, PWA, upload de foto/URL automática e IA. Siga por blocos pequenos, sem DOM injection, sem remendos sobrepostos e sem transformar o sistema em outro arquivo gigante."
