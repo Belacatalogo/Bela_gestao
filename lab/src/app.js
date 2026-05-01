@@ -3,6 +3,7 @@ import { APP_CONFIG, CRITICAL_FEATURES } from './config/appConfig.js';
 import { getCatalogSyncReport } from './services/catalogContractService.js';
 import { getDataGatewayStatus, getProduct, listProducts, resetProducts, saveProduct, toggleProductVisibility } from './services/dataGateway.js';
 import { DATA_MODES, setCurrentDataMode } from './services/environmentService.js';
+import { generateLabImageUrl } from './services/imageUploadLabService.js';
 import { filterProducts, getProductCategories, getProductStats, PRODUCT_STATUS_FILTERS } from './services/productFilterService.js';
 import { formatBRL } from './utils/money.js';
 
@@ -42,12 +43,14 @@ function productRows(products, canToggle = true) {
       const status = product.visibleInCatalog ? 'Publicado no preview' : 'Oculto no preview';
       const action = product.visibleInCatalog ? 'Ocultar' : 'Publicar';
       const hasPlaceholderImage = String(product.imageUrl || '').startsWith('data:image/svg+xml');
+      const hasLabUpload = String(product.imageUrl || '').startsWith('data:image/') && !hasPlaceholderImage;
       return `
         <article class="lab-product-card">
           <div>
             <div class="badge-row">
               <span class="mini-badge">${product.category}</span>
               ${hasPlaceholderImage ? '<span class="mini-badge muted-badge">sem foto real</span>' : ''}
+              ${hasLabUpload ? '<span class="mini-badge">foto LAB</span>' : ''}
             </div>
             <h3>${product.name}</h3>
             <p>${product.brand} · ${formatBRL(product.price)}</p>
@@ -265,6 +268,34 @@ function applySearch(root) {
   renderApp(root);
 }
 
+async function saveProductFromForm(root, form) {
+  const draft = readProductForm(form);
+  const uploadResult = await generateLabImageUrl(draft.imageFile);
+
+  if (!uploadResult.ok) {
+    uiState.modalDraft = draft;
+    uiState.modalErrors = [uploadResult.error || 'Não foi possível gerar a URL da imagem.'];
+    renderApp(root);
+    return;
+  }
+
+  if (uploadResult.imageUrl) {
+    draft.imageUrl = uploadResult.imageUrl;
+  }
+
+  const result = saveProduct(draft);
+
+  if (!result.ok) {
+    uiState.modalDraft = draft;
+    uiState.modalErrors = result.errors || [result.message || 'Não foi possível salvar.'];
+    renderApp(root);
+    return;
+  }
+
+  closeModal();
+  renderApp(root);
+}
+
 function bindLabActions(root) {
   root.querySelectorAll('[data-toggle-product]').forEach((button) => {
     button.addEventListener('click', () => {
@@ -370,18 +401,7 @@ function bindLabActions(root) {
   if (form) {
     form.addEventListener('submit', (event) => {
       event.preventDefault();
-      const draft = readProductForm(form);
-      const result = saveProduct(draft);
-
-      if (!result.ok) {
-        uiState.modalDraft = draft;
-        uiState.modalErrors = result.errors || [result.message || 'Não foi possível salvar.'];
-        renderApp(root);
-        return;
-      }
-
-      closeModal();
-      renderApp(root);
+      saveProductFromForm(root, form);
     });
   }
 }
@@ -429,10 +449,10 @@ export function renderApp(root) {
       </section>
 
       <section class="panel-card warning-card">
-        <h2>Estado do BLOCO 5</h2>
+        <h2>Estado do BLOCO 6</h2>
         <p>
-          Contrato do catálogo LAB adicionado. O sistema valida quais campos iriam para o catálogo,
-          mas continua sem conectar nem alterar o catálogo real.
+          Upload de foto LAB adicionado. A foto escolhida vira uma URL local automática e aparece
+          no catálogo fictício. Nada é enviado para serviço externo real neste bloco.
         </p>
       </section>
     </main>
