@@ -140,9 +140,46 @@ Cada bloco deve:
 
 ## Bloco atual
 
+### BLOCO 4 FIX — Busca sem derrubar teclado no iPhone
+
+Status: implementado, aguardando reteste rápido.
+
+Objetivo:
+- corrigir bug do Safari/iPhone em que o teclado fechava ao digitar no campo de busca;
+- evitar renderização completa a cada letra digitada;
+- manter busca funcional de forma segura.
+
+Arquivos alterados:
+- `lab/src/app.js`;
+- `BELA_GESTAO_HANDOFF.md`.
+
+Comportamento corrigido:
+- digitar no campo `Buscar` não renderiza mais a tela a cada letra;
+- o teclado deve permanecer aberto enquanto digita;
+- a busca é aplicada ao tocar em `Aplicar busca` ou apertar `Enter`;
+- filtros de categoria/status continuam aplicando ao mudar seleção.
+
+Checklist de teste do BLOCO 4 FIX:
+1. abrir `https://raw.githack.com/Belacatalogo/Bela_gestao/rewrite-bela-gestao-lab/lab/index.html`;
+2. tocar no campo `Buscar`;
+3. digitar algumas letras;
+4. confirmar que o teclado não fecha a cada letra;
+5. tocar em `Aplicar busca`;
+6. confirmar que a lista filtra;
+7. tocar em `Limpar filtros`;
+8. confirmar que a lista volta ao normal.
+
+Critério de aprovação:
+- o teclado não fecha durante digitação no campo Buscar;
+- busca continua funcionando com `Aplicar busca` ou Enter;
+- filtros continuam funcionando;
+- nada real foi alterado.
+
+## Histórico de blocos
+
 ### BLOCO 4 — Tela de produtos refinada
 
-Status: implementado, aguardando teste no iPhone.
+Status: implementado com correção posterior.
 
 Objetivo:
 - melhorar a tela de produtos LAB;
@@ -152,53 +189,6 @@ Objetivo:
 - mostrar contadores úteis;
 - sinalizar produtos sem foto real;
 - manter tudo em modo LAB, sem Firebase, login Google ou catálogo real.
-
-Arquivos adicionados/alterados neste bloco:
-- `lab/src/services/productFilterService.js`;
-- `lab/src/app.js`;
-- `lab/src/styles/layout.css`;
-- `BELA_GESTAO_HANDOFF.md`.
-
-Comportamento atual:
-- painel de produtos mostra total, publicados, ocultos e sem foto real;
-- campo de busca filtra por nome, marca, descrição, categoria, selo e abas;
-- filtro de categoria lista categorias existentes;
-- filtro de status permite ver todos, publicados, ocultos e sem foto real;
-- botão `Limpar filtros` restaura a visualização;
-- produtos sem foto real exibem selo `sem foto real`;
-- nada real foi conectado ou alterado.
-
-Checklist de teste do BLOCO 4:
-1. abrir `https://raw.githack.com/Belacatalogo/Bela_gestao/rewrite-bela-gestao-lab/lab/index.html`;
-2. confirmar que está em `LAB visitante`;
-3. confirmar que aparecem os contadores `produtos`, `publicados`, `ocultos` e `sem foto real`;
-4. digitar no campo `Buscar` o nome de um produto existente;
-5. confirmar que a lista filtra corretamente;
-6. tocar em `Limpar filtros`;
-7. filtrar por categoria, por exemplo `perfumes`;
-8. confirmar que só aparecem produtos dessa categoria;
-9. filtrar por status `Publicados`;
-10. confirmar que só aparecem produtos publicados;
-11. filtrar por status `Ocultos`;
-12. confirmar que só aparecem produtos ocultos;
-13. criar produto novo sem imagem URL;
-14. confirmar que o contador `sem foto real` aumenta;
-15. filtrar por `Sem foto real`;
-16. confirmar que o produto aparece nesse filtro;
-17. abrir o catálogo fictício e confirmar que produtos publicados continuam aparecendo;
-18. alternar para `Real somente leitura` e confirmar que filtros não alteram dados reais.
-
-Critério de aprovação:
-- busca funciona;
-- filtros funcionam;
-- contadores fazem sentido;
-- produtos sem foto real são sinalizados;
-- catálogo fictício continua funcionando;
-- modo real continua bloqueado;
-- nada exige login Google;
-- nada real é alterado.
-
-## Histórico de blocos
 
 ### BLOCO 3 — Produtos LAB: cadastro e edição fictícia
 
@@ -280,4 +270,4 @@ Manifest, service worker, cache seguro, versão visível e comportamento instal�
 
 ## Como continuar em outro chat
 
-"Continue a reconstrução do Bela Gestão. Leia `BELA_GESTAO_HANDOFF.md` antes de qualquer alteração. A branch de trabalho é `rewrite-bela-gestao-lab`. Não mexa na `main`. O BLOCO 4 adicionou busca, filtros, contadores e sinalização de produtos sem foto real. O usuário testa pelo RawGitHack porque Cloudflare entrou em loop no iPhone. O usuário informou que no sistema original a imagem é enviada e a URL é gerada automaticamente por outro site/serviço; isso é função crítica e não pode ser removida. O usuário informou que o sistema usa funções de IA; IA também é crítica. O objetivo é reconstruir o Bela Gestão modularmente, preservando a ligação com o Bela Catálogo, Firebase, localStorage, vendas, pagamentos, WhatsApp, PWA, upload de foto/URL automática e IA. Siga por blocos pequenos, sem DOM injection, sem remendos sobrepostos e sem transformar o sistema em outro arquivo gigante."
+"Continue a reconstrução do Bela Gestão. Leia `BELA_GESTAO_HANDOFF.md` antes de qualquer alteração. A branch de trabalho é `rewrite-bela-gestao-lab`. Não mexa na `main`. O BLOCO 4 FIX corrigiu a busca para não derrubar o teclado no iPhone: agora digita primeiro e aplica com botão `Aplicar busca` ou Enter. O usuário testa pelo RawGitHack porque Cloudflare entrou em loop no iPhone. O usuário informou que no sistema original a imagem é enviada e a URL é gerada automaticamente por outro site/serviço; isso é função crítica e não pode ser removida. O usuário informou que o sistema usa funções de IA; IA também é crítica. O objetivo é reconstruir o Bela Gestão modularmente, preservando a ligação com o Bela Catálogo, Firebase, localStorage, vendas, pagamentos, WhatsApp, PWA, upload de foto/URL automática e IA. Siga por blocos pequenos, sem DOM injection, sem remendos sobrepostos e sem transformar o sistema em outro arquivo gigante."
