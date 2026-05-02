@@ -1,3 +1,4 @@
+import { renderDashboardPanel } from './components/DashboardPanel.js';
 import { renderDiagnosticsPanel } from './components/DiagnosticsPanel.js';
 import { renderPaymentsPanel } from './components/PaymentsPanel.js';
 import { renderProductFormModal, buildEmptyProductDraft, productToDraft, readProductForm } from './components/ProductFormModal.js';
@@ -310,6 +311,7 @@ export function renderApp(root) {
         </div>
       </section>
       ${renderEnvironmentPanel()}
+      ${renderDashboardPanel({ products: state.products, salesStats: state.salesStats, paymentStats: state.paymentStats, catalogReport: state.catalogReport })}
       ${renderDiagnosticsPanel(state.diagnostics)}
       ${uiState.diagnosticMessage ? `<div class="diagnostic-toast">${uiState.diagnosticMessage}</div>` : ''}
       ${renderCatalogContractPanel(state.products)}
@@ -318,7 +320,7 @@ export function renderApp(root) {
       ${renderWhatsAppPanel({ sales: state.sales, payments: state.payments })}
       ${renderProductsPanel(state.products, state.gateway, isLabMode)}
       <section class="panel-card"><h2>Funções críticas preservadas</h2><p>Nenhum módulo abaixo será removido sem auditoria e teste por bloco.</p><ul class="feature-list">${CRITICAL_FEATURES.map((feature) => `<li>${feature}</li>`).join('')}</ul></section>
-      <section class="panel-card warning-card"><h2>Estado do BLOCO 8C</h2><p>WhatsApp LAB inicial adicionado. O sistema monta mensagens de venda, cobrança e confirmação de pagamento, mas o envio continua manual.</p></section>
+      <section class="panel-card warning-card"><h2>Estado do BLOCO 9</h2><p>Dashboard LAB inicial adicionado com resumo financeiro, produtos publicados, produtos sem foto e alertas principais.</p></section>
     </main>
     ${renderProductFormModal({ draft: uiState.modalDraft, errors: uiState.modalErrors, isEditing: Boolean(uiState.modalDraft?.id) })}
   `;
