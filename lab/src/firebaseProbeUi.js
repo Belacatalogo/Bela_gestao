@@ -1,4 +1,5 @@
 import { logDiagnosticEvent } from './services/diagnosticsService.js';
+import { importFirebaseProductsToLabControlled } from './services/firebaseControlledImportService.js';
 import { getFirebaseReadonlyProbeReadiness, runFirebaseProductsPricesPreview, runFirebaseReadonlyProbe, runFirebaseRealKeysMapProbe } from './services/firebaseReadonlyProbeService.js';
 
 const PANEL_ID = 'firebase-readonly-probe-panel';
@@ -18,7 +19,7 @@ function renderProbePanel() {
       <div class="panel-title-row">
         <div>
           <h2>Firebase READ-ONLY Probe</h2>
-          <p>Sondagem segura do Realtime Database. Faz somente leitura e não importa dados para o LAB.</p>
+          <p>Sondagem segura do Realtime Database. Faz somente leitura e pode importar somente para o LAB local.</p>
         </div>
         <span class="safe-pill">Probe</span>
       </div>
@@ -33,8 +34,8 @@ function renderProbePanel() {
       <div class="storage-note">
         ${escapeHtml(readiness.note)}<br>
         <strong>Login:</strong> não solicitado neste bloco.<br>
-        <strong>Escrita:</strong> bloqueada.<br>
-        <strong>Importação:</strong> bloqueada neste bloco.
+        <strong>Escrita Firebase:</strong> bloqueada.<br>
+        <strong>Importação:</strong> permitida apenas para localStorage LAB.
       </div>
 
       <div class="product-filters">
@@ -47,10 +48,11 @@ function renderProbePanel() {
         <button class="primary-button full-row" type="button" data-run-firebase-probe ${readiness.ready ? '' : 'disabled'}>Rodar probe READ-ONLY</button>
         <button class="secondary-button full-row" type="button" data-map-firebase-real-keys ${readiness.ready ? '' : 'disabled'}>Mapear chaves reais</button>
         <button class="secondary-button full-row" type="button" data-preview-products-prices ${readiness.ready ? '' : 'disabled'}>Preview produtos + preços</button>
+        <button class="primary-button full-row" type="button" data-import-firebase-products-lab ${readiness.ready ? '' : 'disabled'}>Importar produtos para LAB</button>
       </div>
 
       <div data-firebase-probe-result>
-        ${readiness.ready ? '<div class="diagnostic-ok">Pronto para testar leitura segura. Nenhuma escrita será feita.</div>' : `<div class="diagnostic-warning">Ainda não pronto: ${escapeHtml(readiness.note)}</div>`}
+        ${readiness.ready ? '<div class="diagnostic-ok">Pronto para testar leitura segura. Escrita Firebase segue bloqueada.</div>' : `<div class="diagnostic-warning">Ainda não pronto: ${escapeHtml(readiness.note)}</div>`}
       </div>
 
       <details class="diagnostic-details" open>
@@ -176,12 +178,40 @@ function renderProductsPricesPreview(container, result) {
   `;
 }
 
+function renderImportResult(container, result) {
+  if (!container) return;
+  if (!result.ok) {
+    container.innerHTML = `<div class="diagnostic-warning">${escapeHtml(result.message)}</div><div class="storage-note">Nenhuma escrita foi feita no Firebase.</div>`;
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="diagnostic-ok">${escapeHtml(result.message)}</div>
+    <div class="diagnostic-table">
+      <div class="diagnostic-row"><span>Produtos importados no LAB</span><strong>${escapeHtml(result.productCount)}</strong></div>
+      <div class="diagnostic-row"><span>Com preço</span><strong>${escapeHtml(result.withPrice)}</strong></div>
+      <div class="diagnostic-row"><span>Com imagem/foto</span><strong>${escapeHtml(result.withImage)}</strong></div>
+      <div class="diagnostic-row"><span>Preços via fallback /precos</span><strong>${escapeHtml(result.fallbackPrices)}</strong></div>
+      <div class="diagnostic-row"><span>Sem preço</span><strong>${escapeHtml(result.missingPrices)}</strong></div>
+      <div class="diagnostic-row"><span>Escrita Firebase</span><strong>${result.firebaseWriteExecuted ? 'sim' : 'não'}</strong></div>
+    </div>
+    <details class="diagnostic-details" open>
+      <summary>Amostra importada no LAB</summary>
+      <div class="diagnostic-table">
+        ${result.sample.map((product) => `<div class="diagnostic-row"><span>${escapeHtml(product.name)}<br><small>ID Firebase: ${escapeHtml(product.firebaseId)} · preço: ${escapeHtml(product.price)} · ${escapeHtml(product.priceSource)}</small></span><strong>${escapeHtml(product.category)}</strong></div>`).join('')}
+      </div>
+    </details>
+    <div class="storage-note">Atualize/role até “Produtos LAB” para ver os produtos reais importados localmente. O Firebase real não foi alterado.</div>
+  `;
+}
+
 function bindProbePanel() {
   const panel = document.getElementById(PANEL_ID);
   if (!panel) return;
   const button = panel.querySelector('[data-run-firebase-probe]');
   const mapButton = panel.querySelector('[data-map-firebase-real-keys]');
   const previewButton = panel.querySelector('[data-preview-products-prices]');
+  const importButton = panel.querySelector('[data-import-firebase-products-lab]');
   const select = panel.querySelector('[data-firebase-probe-path]');
   const resultBox = panel.querySelector('[data-firebase-probe-result]');
 
@@ -228,6 +258,21 @@ function bindProbePanel() {
       logDiagnosticEvent('error', 'firebase.products.prices.preview', 'Erro inesperado no preview de produtos/preços.', { error: String(error?.message || error) });
     } finally {
       previewButton.disabled = false;
+    }
+  });
+
+  importButton?.addEventListener('click', async () => {
+    importButton.disabled = true;
+    resultBox.innerHTML = '<div class="diagnostic-warning">Importando produtos Firebase para LAB localStorage...</div>';
+    try {
+      const result = await importFirebaseProductsToLabControlled();
+      renderImportResult(resultBox, result);
+      logDiagnosticEvent(result.ok ? 'info' : 'error', 'firebase.products.import.lab', result.message, { ok: result.ok, productCount: result.productCount, withPrice: result.withPrice, withImage: result.withImage });
+    } catch (error) {
+      renderResult(resultBox, { ok: false, message: String(error?.message || error), error });
+      logDiagnosticEvent('error', 'firebase.products.import.lab', 'Erro inesperado na importação Firebase → LAB.', { error: String(error?.message || error) });
+    } finally {
+      importButton.disabled = false;
     }
   });
 }
