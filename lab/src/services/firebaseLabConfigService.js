@@ -9,6 +9,16 @@ const REQUIRED_FIELDS = [
   'appId',
 ];
 
+const OPTIONAL_FIELDS = [
+  'databaseURL',
+  'measurementId',
+];
+
+const ALLOWED_FIELDS = [
+  ...REQUIRED_FIELDS,
+  ...OPTIONAL_FIELDS,
+];
+
 function safeParse(text) {
   try {
     return JSON.parse(text);
@@ -19,8 +29,9 @@ function safeParse(text) {
 
 function normalizeConfig(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-  return REQUIRED_FIELDS.reduce((acc, field) => {
-    acc[field] = String(value[field] || '').trim();
+  return ALLOWED_FIELDS.reduce((acc, field) => {
+    const cleanValue = String(value[field] || '').trim();
+    if (cleanValue || REQUIRED_FIELDS.includes(field)) acc[field] = cleanValue;
     return acc;
   }, {});
 }
@@ -97,14 +108,17 @@ export function getFirebaseLabConfigSummary() {
   const payload = getFirebaseLabConfigPayload();
   const config = payload?.config || null;
   const presentFields = config ? REQUIRED_FIELDS.filter((field) => Boolean(config[field])) : [];
+  const optionalPresentFields = config ? OPTIONAL_FIELDS.filter((field) => Boolean(config[field])) : [];
   const missingFields = REQUIRED_FIELDS.filter((field) => !config?.[field]);
 
   return {
     storageKey: FIREBASE_LAB_CONFIG_KEY,
     hasConfig: Boolean(config),
+    hasDatabaseURL: Boolean(config?.databaseURL),
     savedAt: payload?.savedAt || '',
     mode: payload?.mode || 'not-configured',
     presentFields,
+    optionalPresentFields,
     missingFields,
     maskedConfig: config ? Object.fromEntries(Object.entries(config).map(([key, value]) => [key, maskValue(value)])) : {},
     warning: 'Config salva apenas no localStorage deste navegador LAB. Não foi enviada ao repositório e não ativa escrita real.',
