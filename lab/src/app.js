@@ -1,5 +1,6 @@
 import { renderDashboardPanel } from './components/DashboardPanel.js';
 import { renderDiagnosticsPanel } from './components/DiagnosticsPanel.js';
+import { renderLegacyBackupAuditPanel } from './components/LegacyBackupAuditPanel.js';
 import { renderPaymentsPanel } from './components/PaymentsPanel.js';
 import { renderProductFormModal, buildEmptyProductDraft, productToDraft, readProductForm } from './components/ProductFormModal.js';
 import { renderSalesPanel, readSaleForm } from './components/SalesPanel.js';
@@ -12,6 +13,7 @@ import { buildDiagnosticsReport, clearDiagnosticEvents, copyDiagnosticsReport, i
 import { DATA_MODES, setCurrentDataMode } from './services/environmentService.js';
 import { generateLabImageUrl } from './services/imageUploadLabService.js';
 import { clearLabStorageByPrefix, downloadLabBackup, getLabStorageKeys, importLabBackupFromText } from './services/labBackupService.js';
+import { auditLegacyBackupText, summarizeLegacyAudit } from './services/legacyBackupAuditService.js';
 import { ensurePaymentForSale, getPaymentStats, resetLabPayments, syncPaymentsFromSales, updateLabPaymentStatus } from './services/labPaymentsService.js';
 import { createLabSale, getLabSales, getSalesStats, resetLabSales, updateLabSaleStatus } from './services/labSalesService.js';
 import { filterProducts, getProductCategories, getProductStats, PRODUCT_STATUS_FILTERS } from './services/productFilterService.js';
@@ -25,6 +27,7 @@ const uiState = {
   modalErrors: [],
   saleErrors: [],
   diagnosticMessage: '',
+  legacyAuditReport: null,
   filters: {
     query: '',
     category: 'all',
@@ -257,6 +260,19 @@ async function importBackupFromInput(root, input) {
   renderApp(root);
 }
 
+async function auditLegacyBackupFromInput(root, input) {
+  const file = input.files?.[0];
+  if (!file) return;
+  const text = await file.text();
+  const report = auditLegacyBackupText(text);
+  uiState.legacyAuditReport = report;
+  uiState.diagnosticMessage = report.ok ? summarizeLegacyAudit(report) : report.error;
+  logDiagnosticEvent(report.ok ? 'info' : 'error', 'legacy.audit', report.ok ? 'Backup real auditado.' : 'Falha ao auditar backup real.', {
+    summary: report.ok ? summarizeLegacyAudit(report) : report.error,
+  });
+  renderApp(root);
+}
+
 function bindLabActions(root) {
   root.querySelectorAll('[data-mode]').forEach((button) => button.addEventListener('click', () => {
     setCurrentDataMode(button.getAttribute('data-mode'));
@@ -296,6 +312,7 @@ function bindLabActions(root) {
   });
 
   root.querySelector('[data-import-backup]')?.addEventListener('change', (event) => importBackupFromInput(root, event.currentTarget));
+  root.querySelector('[data-legacy-backup-audit]')?.addEventListener('change', (event) => auditLegacyBackupFromInput(root, event.currentTarget));
 
   root.querySelector('[data-clear-lab-storage]')?.addEventListener('click', () => {
     const removed = clearLabStorageByPrefix();
@@ -349,13 +366,14 @@ export function renderApp(root) {
       ${renderDiagnosticsPanel(state.diagnostics)}
       ${uiState.diagnosticMessage ? `<div class="diagnostic-toast">${uiState.diagnosticMessage}</div>` : ''}
       ${renderSettingsBackupPanel({ storageKeys: getLabStorageKeys() })}
+      ${renderLegacyBackupAuditPanel({ report: uiState.legacyAuditReport })}
       ${renderCatalogContractPanel(state.products)}
       ${renderSalesPanel({ products: state.products, sales: state.sales, stats: state.salesStats, errors: uiState.saleErrors, canWrite: isLabMode })}
       ${renderPaymentsPanel({ payments: state.payments, stats: state.paymentStats, canWrite: isLabMode })}
       ${renderWhatsAppPanel({ sales: state.sales, payments: state.payments })}
       ${renderProductsPanel(state.products, state.gateway, isLabMode)}
       <section class="panel-card"><h2>Funções críticas preservadas</h2><p>Nenhum módulo abaixo será removido sem auditoria e teste por bloco.</p><ul class="feature-list">${CRITICAL_FEATURES.map((feature) => `<li>${feature}</li>`).join('')}</ul></section>
-      <section class="panel-card warning-card"><h2>Estado do BLOCO 10A</h2><p>Configurações e Backup LAB adicionados para exportar, importar e limpar dados locais de teste.</p></section>
+      <section class="panel-card warning-card"><h2>Estado do BLOCO 10B</h2><p>Auditoria de backup real adicionada. O sistema lê formato legado, mostra compatibilidade e não importa automaticamente dados reais.</p></section>
     </main>
     ${renderProductFormModal({ draft: uiState.modalDraft, errors: uiState.modalErrors, isEditing: Boolean(uiState.modalDraft?.id) })}
   `;
