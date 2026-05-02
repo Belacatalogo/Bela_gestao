@@ -1,7 +1,7 @@
 export const APP_CONFIG = Object.freeze({
   name: 'Bela Gestão LAB',
   branch: 'rewrite-bela-gestao-lab',
-  version: '0.13.4-lab-firebase-products-prices-preview',
+  version: '0.13.5-lab-firebase-controlled-import',
   environment: 'lab',
   productionBranch: 'main',
 });
