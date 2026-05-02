@@ -1,0 +1,128 @@
+import { logDiagnosticEvent } from './services/diagnosticsService.js';
+import { getFirebaseReadonlyProbeReadiness, runFirebaseReadonlyProbe } from './services/firebaseReadonlyProbeService.js';
+
+const PANEL_ID = 'firebase-readonly-probe-panel';
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;');
+}
+
+function renderProbePanel() {
+  const readiness = getFirebaseReadonlyProbeReadiness();
+  return `
+    <section id="${PANEL_ID}" class="panel-card firebase-probe-panel">
+      <div class="panel-title-row">
+        <div>
+          <h2>Firebase READ-ONLY Probe</h2>
+          <p>Sondagem segura do Realtime Database. Faz somente leitura e não importa dados para o LAB.</p>
+        </div>
+        <span class="safe-pill">Probe</span>
+      </div>
+
+      <div class="mini-grid four-stats">
+        <div class="mini-stat"><strong>${readiness.ready ? 'sim' : 'não'}</strong><span>pronto</span></div>
+        <div class="mini-stat"><strong>${readiness.hasConfig ? 'sim' : 'não'}</strong><span>config</span></div>
+        <div class="mini-stat"><strong>${readiness.hasDatabaseUrl ? 'sim' : 'não'}</strong><span>databaseURL</span></div>
+        <div class="mini-stat"><strong>${readiness.writeBlocked ? 'sim' : 'não'}</strong><span>escrita bloqueada</span></div>
+      </div>
+
+      <div class="storage-note">
+        ${escapeHtml(readiness.note)}<br>
+        <strong>Login:</strong> não solicitado neste bloco.<br>
+        <strong>Escrita:</strong> bloqueada.
+      </div>
+
+      <div class="product-filters">
+        <label class="compact-field full-row">
+          <span>Caminho de leitura segura</span>
+          <select data-firebase-probe-path>
+            ${readiness.safeProbePaths.map((item) => `<option value="${escapeHtml(item.path)}">${escapeHtml(item.label)} — ${escapeHtml(item.path)}</option>`).join('')}
+          </select>
+        </label>
+        <button class="primary-button full-row" type="button" data-run-firebase-probe ${readiness.ready ? '' : 'disabled'}>Rodar probe READ-ONLY</button>
+      </div>
+
+      <div data-firebase-probe-result>
+        ${readiness.ready ? '<div class="diagnostic-ok">Pronto para testar leitura segura. Nenhuma escrita será feita.</div>' : `<div class="diagnostic-warning">Ainda não pronto: ${escapeHtml(readiness.note)}</div>`}
+      </div>
+
+      <details class="diagnostic-details">
+        <summary>Caminhos disponíveis para probe</summary>
+        <div class="diagnostic-table">
+          ${readiness.safeProbePaths.map((item) => `<div class="diagnostic-row"><span>${escapeHtml(item.label)}</span><strong>${escapeHtml(item.path)}</strong></div>`).join('')}
+        </div>
+      </details>
+    </section>
+  `;
+}
+
+function findInsertionPoint() {
+  return document.querySelector('.firebase-config-panel') || document.querySelector('.firebase-readonly-panel') || document.querySelector('.dashboard-panel');
+}
+
+function ensurePanel() {
+  if (document.getElementById(PANEL_ID)) return;
+  const anchor = findInsertionPoint();
+  if (!anchor) return;
+  anchor.insertAdjacentHTML('afterend', renderProbePanel());
+  bindProbePanel();
+}
+
+function renderResult(container, result) {
+  if (!container) return;
+
+  if (result.ok) {
+    const keys = result.summary.keys?.length ? result.summary.keys.join(', ') : 'nenhuma chave listada';
+    container.innerHTML = `
+      <div class="diagnostic-ok">${escapeHtml(result.message)}</div>
+      <div class="diagnostic-table">
+        <div class="diagnostic-row"><span>Caminho</span><strong>${escapeHtml(result.path)}</strong></div>
+        <div class="diagnostic-row"><span>Existe</span><strong>${result.summary.exists ? 'sim' : 'não'}</strong></div>
+        <div class="diagnostic-row"><span>Tipo</span><strong>${escapeHtml(result.summary.type)}</strong></div>
+        <div class="diagnostic-row"><span>Quantidade aproximada</span><strong>${escapeHtml(result.summary.count)}</strong></div>
+        <div class="diagnostic-row"><span>Chaves encontradas</span><strong>${escapeHtml(keys)}</strong></div>
+      </div>
+    `;
+    return;
+  }
+
+  const error = result.error ? `${result.error.code || result.error.name}: ${result.error.message}` : result.message;
+  container.innerHTML = `
+    <div class="diagnostic-warning">${escapeHtml(error)}</div>
+    <div class="storage-note">Falha esperada se as regras do Firebase bloquearem leitura pública. Nenhuma escrita foi feita.</div>
+  `;
+}
+
+function bindProbePanel() {
+  const panel = document.getElementById(PANEL_ID);
+  if (!panel) return;
+  const button = panel.querySelector('[data-run-firebase-probe]');
+  const select = panel.querySelector('[data-firebase-probe-path]');
+  const resultBox = panel.querySelector('[data-firebase-probe-result]');
+
+  button?.addEventListener('click', async () => {
+    const path = select?.value || '/';
+    button.disabled = true;
+    resultBox.innerHTML = '<div class="diagnostic-warning">Rodando probe READ-ONLY...</div>';
+    try {
+      const result = await runFirebaseReadonlyProbe(path);
+      renderResult(resultBox, result);
+      logDiagnosticEvent(result.ok ? 'info' : 'error', 'firebase.readonly.probe', result.message, { path, ok: result.ok, error: result.error || null });
+    } catch (error) {
+      renderResult(resultBox, { ok: false, message: String(error?.message || error), error });
+      logDiagnosticEvent('error', 'firebase.readonly.probe', 'Erro inesperado no probe READ-ONLY.', { error: String(error?.message || error) });
+    } finally {
+      button.disabled = false;
+    }
+  });
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  ensurePanel();
+  const observer = new MutationObserver(() => ensurePanel());
+  observer.observe(document.body, { childList: true, subtree: true });
+});
