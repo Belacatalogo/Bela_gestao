@@ -3,6 +3,7 @@ import { getAiFunctionsMapReport } from '../services/aiFunctionsMapService.js';
 import { getCatalogUploadMapReport } from '../services/catalogUploadMapService.js';
 import { getDataGatewayStatus } from '../services/dataGateway.js';
 import { getFirebaseReadinessReport } from '../services/firebaseReadinessService.js';
+import { getFirebaseReadonlyContractReport } from '../services/firebaseReadonlyService.js';
 import { getMasterBackupSchemaReport } from '../services/masterBackupSchemaService.js';
 import { getRealDataContractReport } from '../services/realDataContractService.js';
 import { getSourceCompatibilityReport } from '../services/sourceCompatibilityService.js';
@@ -14,6 +15,7 @@ export function renderDashboardPanel({ products, salesStats, paymentStats, catal
   const alerts = buildAlerts({ products, paymentStats, catalogReport, noRealPhoto });
   const realContractReport = getRealDataContractReport({ appVersion: APP_CONFIG.version, environment: getDataGatewayStatus() });
   const firebaseReport = getFirebaseReadinessReport();
+  const firebaseReadonlyReport = getFirebaseReadonlyContractReport();
   const compatibilityReport = getSourceCompatibilityReport();
   const catalogUploadReport = getCatalogUploadMapReport();
   const aiReport = getAiFunctionsMapReport();
@@ -36,6 +38,7 @@ export function renderDashboardPanel({ products, salesStats, paymentStats, catal
       </div>
       <div class="dashboard-alerts">${alerts.length ? alerts.map((alert) => `<div class="diagnostic-warning">${alert}</div>`).join('') : '<div class="diagnostic-ok">Nenhum alerta crítico no Dashboard LAB.</div>'}</div>
     </section>
+    ${renderFirebaseReadonlyPanel(firebaseReadonlyReport)}
     ${renderMasterBackupSchemaPanel(masterBackupReport)}
     ${renderRealDataContractPanel(realContractReport)}
     ${renderFirebaseReadinessPanel(firebaseReport)}
@@ -43,6 +46,24 @@ export function renderDashboardPanel({ products, salesStats, paymentStats, catal
     ${renderCatalogUploadMapPanel(catalogUploadReport)}
     ${renderAiFunctionsMapPanel(aiReport)}
   `;
+}
+
+function renderFirebaseReadonlyPanel(report) {
+  return `
+    <section class="panel-card firebase-readonly-panel">
+      <div class="panel-title-row"><div><h2>Firebase READ-ONLY LAB</h2><p>Adaptador seguro para preparar leitura real sem login, sem credencial no código e sem escrita.</p></div><span class="safe-pill">Read-only</span></div>
+      <div class="mini-grid four-stats">
+        <div class="mini-stat"><strong>${report.adapterReady ? 'pronto' : 'não'}</strong><span>adaptador</span></div>
+        <div class="mini-stat"><strong>${report.realConfigProvided ? 'sim' : 'não'}</strong><span>config real</span></div>
+        <div class="mini-stat"><strong>${report.readonlyEnabled ? 'sim' : 'não'}</strong><span>leitura ativa</span></div>
+        <div class="mini-stat"><strong>${report.realWritesBlocked ? 'sim' : 'não'}</strong><span>escrita bloqueada</span></div>
+      </div>
+      <div class="storage-note">Nenhuma leitura real foi executada. O próximo passo será fornecer configuração de forma segura e listar dados sem escrever nada.</div>
+      <details class="diagnostic-details" open><summary>Caminhos planejados de leitura</summary><div class="diagnostic-table">${report.plannedReadPaths.map((item) => `<div class="diagnostic-row"><span>${item.label}<br><small>${item.plannedCollections.join(', ')}</small></span><strong>${item.masterSection}</strong></div>`).join('')}</div></details>
+      <details class="diagnostic-details"><summary>Ações de escrita bloqueadas</summary><div class="diagnostic-list">${report.blockedWriteActions.map((action) => `<div class="diagnostic-warning">${action}</div>`).join('')}</div></details>
+      <details class="diagnostic-details"><summary>Regras do contrato READ-ONLY</summary><div class="diagnostic-list">${report.contractRules.map((rule) => `<div class="diagnostic-warning">${rule}</div>`).join('')}</div></details>
+      <details class="diagnostic-details"><summary>Status de configuração</summary><div class="diagnostic-table"><div class="diagnostic-row"><span>Campos presentes</span><strong>${report.validation.presentFields.length}</strong></div><div class="diagnostic-row"><span>Campos ausentes</span><strong>${report.validation.missingFields.join(', ')}</strong></div><div class="diagnostic-row"><span>Próximo passo</span><strong>${report.nextStep}</strong></div></div></details>
+    </section>`;
 }
 
 function renderMasterBackupSchemaPanel(report) {
