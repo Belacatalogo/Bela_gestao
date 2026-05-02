@@ -3,6 +3,7 @@ import { getAiFunctionsMapReport } from '../services/aiFunctionsMapService.js';
 import { getCatalogUploadMapReport } from '../services/catalogUploadMapService.js';
 import { getDataGatewayStatus } from '../services/dataGateway.js';
 import { getFirebaseReadinessReport } from '../services/firebaseReadinessService.js';
+import { getMasterBackupSchemaReport } from '../services/masterBackupSchemaService.js';
 import { getRealDataContractReport } from '../services/realDataContractService.js';
 import { getSourceCompatibilityReport } from '../services/sourceCompatibilityService.js';
 import { formatBRL } from '../utils/money.js';
@@ -16,6 +17,7 @@ export function renderDashboardPanel({ products, salesStats, paymentStats, catal
   const compatibilityReport = getSourceCompatibilityReport();
   const catalogUploadReport = getCatalogUploadMapReport();
   const aiReport = getAiFunctionsMapReport();
+  const masterBackupReport = getMasterBackupSchemaReport({ appVersion: APP_CONFIG.version, products, sales: salesStats.sales || [], payments: paymentStats.payments || [] });
 
   return `
     <section class="panel-card dashboard-panel">
@@ -34,12 +36,32 @@ export function renderDashboardPanel({ products, salesStats, paymentStats, catal
       </div>
       <div class="dashboard-alerts">${alerts.length ? alerts.map((alert) => `<div class="diagnostic-warning">${alert}</div>`).join('') : '<div class="diagnostic-ok">Nenhum alerta crítico no Dashboard LAB.</div>'}</div>
     </section>
+    ${renderMasterBackupSchemaPanel(masterBackupReport)}
     ${renderRealDataContractPanel(realContractReport)}
     ${renderFirebaseReadinessPanel(firebaseReport)}
     ${renderSourceCompatibilityPanel(compatibilityReport)}
     ${renderCatalogUploadMapPanel(catalogUploadReport)}
     ${renderAiFunctionsMapPanel(aiReport)}
   `;
+}
+
+function renderMasterBackupSchemaPanel(report) {
+  return `
+    <section class="panel-card master-backup-schema-panel">
+      <div class="panel-title-row"><div><h2>Schema Mestre do Backup</h2><p>Contrato único para JSON manual, Firebase diário e restore completo futuro.</p></div><span class="safe-pill">Schema v${report.schemaVersion}</span></div>
+      <div class="mini-grid four-stats">
+        <div class="mini-stat"><strong>${report.schemaActive ? 'ativo' : 'não'}</strong><span>schema</span></div>
+        <div class="mini-stat"><strong>${report.normalized ? 'ok' : 'não'}</strong><span>normalização</span></div>
+        <div class="mini-stat"><strong>${report.sensitivePolicyActive ? 'ativa' : 'não'}</strong><span>dados sensíveis</span></div>
+        <div class="mini-stat"><strong>${report.restoreReadiness.realWritesBlocked ? 'sim' : 'não'}</strong><span>escrita bloqueada</span></div>
+      </div>
+      <div class="storage-note">O backup final deve guardar tudo do sistema, mas nunca expor chaves, tokens ou segredos em repositório/backup público.</div>
+      <details class="diagnostic-details" open><summary>Seções do backup mestre</summary><div class="diagnostic-table">${report.sections.map((section) => `<div class="diagnostic-row"><span>${section}</span><strong>obrigatório</strong></div>`).join('')}</div></details>
+      <details class="diagnostic-details"><summary>Contagem atual normalizada</summary><div class="diagnostic-table">${Object.entries(report.counts).map(([key, value]) => `<div class="diagnostic-row"><span>${key}</span><strong>${value}</strong></div>`).join('')}</div></details>
+      <details class="diagnostic-details"><summary>Campos sensíveis tratados</summary><div class="diagnostic-list">${report.sensitiveFields.map((field) => `<div class="diagnostic-row"><span>${field}</span><strong>anonimizar/exportar com cuidado</strong></div>`).join('')}</div></details>
+      <details class="diagnostic-details"><summary>Nunca salvar publicamente</summary><div class="diagnostic-list">${report.neverPublicFields.map((field) => `<div class="diagnostic-warning">${field}</div>`).join('')}</div></details>
+      <details class="diagnostic-details"><summary>Antes de restaurar dados reais</summary><div class="diagnostic-list">${report.requiredBeforeRealRestore.map((item) => `<div class="diagnostic-warning">${item}</div>`).join('')}</div></details>
+    </section>`;
 }
 
 function renderRealDataContractPanel(report) {
