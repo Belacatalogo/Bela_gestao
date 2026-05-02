@@ -1,7 +1,11 @@
 import { formatBRL } from '../utils/money.js';
 
 export function renderPaymentsPanel({ payments, stats, canWrite = true }) {
-  const importedCount = payments.filter((payment) => payment.legacyProductId || payment.legacySid).length;
+  const importedPayments = payments.filter((payment) => payment.legacyProductId || payment.legacySid);
+  const importedPending = importedPayments.filter((payment) => payment.status !== 'pago');
+  const importedPaid = importedPayments.filter((payment) => payment.status === 'pago');
+  const dueGroups = groupPendingByDueDate(importedPending);
+  const orderedPayments = orderPaymentsForReview(payments);
 
   return `
     <section class="panel-card payments-panel">
@@ -10,7 +14,7 @@ export function renderPaymentsPanel({ payments, stats, canWrite = true }) {
           <h2>Pagamentos LAB</h2>
           <p>Controle fictício e parcelas importadas do backup real.</p>
         </div>
-        <span class="safe-pill">${importedCount ? `${importedCount} importadas` : 'LAB'}</span>
+        <span class="safe-pill">${importedPayments.length ? `${importedPayments.length} importadas` : 'LAB'}</span>
       </div>
 
       <div class="mini-grid four-stats">
@@ -20,12 +24,66 @@ export function renderPaymentsPanel({ payments, stats, canWrite = true }) {
         <div class="mini-stat"><strong>${stats.pendingCount}</strong><span>abertas</span></div>
       </div>
 
+      ${importedPayments.length ? `
+        <div class="mini-grid four-stats">
+          <div class="mini-stat"><strong>${importedPending.length}</strong><span>importadas abertas</span></div>
+          <div class="mini-stat"><strong>${importedPaid.length}</strong><span>importadas pagas</span></div>
+          <div class="mini-stat"><strong>${dueGroups.length}</strong><span>vencimentos</span></div>
+          <div class="mini-stat"><strong>${countWithNotes(importedPayments)}</strong><span>com observação</span></div>
+        </div>
+        ${renderDueSummary(dueGroups)}
+      ` : ''}
+
       <div class="storage-note">
-        Parcelas LAB são locais. Parcelas importadas preservam vencimento, histórico e observação quando disponíveis.
+        Parcelas pendentes aparecem primeiro. Parcelas importadas preservam vencimento, histórico e observação quando disponíveis.
       </div>
 
-      <div class="sales-list">${renderPaymentRows(payments, canWrite)}</div>
+      <div class="sales-list">${renderPaymentRows(orderedPayments, canWrite)}</div>
     </section>
+  `;
+}
+
+function orderPaymentsForReview(payments) {
+  return [...payments].sort((a, b) => {
+    const aPending = a.status === 'pago' ? 1 : 0;
+    const bPending = b.status === 'pago' ? 1 : 0;
+    if (aPending !== bPending) return aPending - bPending;
+    const aDue = a.dueDate || '9999-99-99';
+    const bDue = b.dueDate || '9999-99-99';
+    if (aDue !== bDue) return aDue.localeCompare(bDue);
+    return String(a.saleClientName || '').localeCompare(String(b.saleClientName || ''));
+  });
+}
+
+function groupPendingByDueDate(payments) {
+  const map = new Map();
+  payments.forEach((payment) => {
+    const key = payment.dueDate || 'sem vencimento';
+    map.set(key, (map.get(key) || 0) + 1);
+  });
+  return Array.from(map.entries())
+    .map(([dueDate, count]) => ({ dueDate, count }))
+    .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+}
+
+function countWithNotes(payments) {
+  return payments.filter((payment) => String(payment.notes || '').trim()).length;
+}
+
+function renderDueSummary(groups) {
+  if (!groups.length) return '<div class="diagnostic-ok">Nenhuma parcela importada pendente.</div>';
+  return `
+    <details class="diagnostic-details" open>
+      <summary>Resumo por vencimento</summary>
+      <div class="diagnostic-table">
+        ${groups.map((group) => `
+          <div class="diagnostic-row">
+            <span>${group.dueDate}</span>
+            <strong>${group.count} parcela(s)</strong>
+          </div>
+        `).join('')}
+      </div>
+    </details>
   `;
 }
 
@@ -33,12 +91,13 @@ function renderPaymentRows(payments, canWrite) {
   if (!payments.length) return '<div class="empty-preview">Nenhuma parcela LAB gerada ainda.</div>';
 
   return payments.map((payment) => `
-    <article class="sale-card">
+    <article class="sale-card ${payment.status === 'pago' ? 'payment-paid' : 'payment-pending'}">
       <div>
         <div class="badge-row">
           <span class="mini-badge">${payment.status}</span>
           <span class="mini-badge muted-badge">${payment.installmentNumber}/${payment.installmentsTotal}</span>
           ${payment.legacyProductId ? '<span class="mini-badge">backup real</span>' : ''}
+          ${payment.dueDate ? `<span class="mini-badge muted-badge">venc. ${payment.dueDate}</span>` : ''}
         </div>
         <h3>${payment.saleClientName}</h3>
         <p>${payment.saleProductName} · ${formatBRL(payment.amount)}</p>
