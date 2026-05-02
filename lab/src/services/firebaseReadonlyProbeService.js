@@ -95,6 +95,87 @@ function classifyRealKey(path, summary) {
   return 'uso ainda indefinido';
 }
 
+function isObject(value) {
+  return value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function collectFieldNames(rows) {
+  const fields = new Set();
+  rows.forEach((row) => {
+    if (!isObject(row.value)) return;
+    Object.keys(row.value).forEach((field) => fields.add(field));
+  });
+  return Array.from(fields).sort();
+}
+
+function extractDisplayName(product) {
+  if (!isObject(product)) return '';
+  return product.nome || product.name || product.titulo || product.title || product.produto || product.label || '';
+}
+
+function extractImageField(product) {
+  if (!isObject(product)) return '';
+  return product.foto || product.imageUrl || product.imagem || product.img || product.url || product.image || '';
+}
+
+function normalizePriceValue(value) {
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') {
+    const normalized = value.replace(/R\$\s?/i, '').replace(/\./g, '').replace(',', '.').trim();
+    const number = Number(normalized);
+    return Number.isFinite(number) ? number : null;
+  }
+  if (isObject(value)) {
+    return normalizePriceValue(value.preco ?? value.price ?? value.valor ?? value.value);
+  }
+  return null;
+}
+
+function mapObjectRows(value) {
+  if (!isObject(value)) return [];
+  return Object.entries(value).map(([id, item]) => ({ id, value: item }));
+}
+
+function buildProductsPricesPreview(productsValue, pricesValue) {
+  const productRows = mapObjectRows(productsValue);
+  const priceRows = mapObjectRows(pricesValue);
+  const priceMap = new Map(priceRows.map((row) => [String(row.id), row.value]));
+  const productIds = new Set(productRows.map((row) => String(row.id)));
+  const priceIds = new Set(priceRows.map((row) => String(row.id)));
+
+  const matchedIds = productRows.filter((row) => priceIds.has(String(row.id))).map((row) => String(row.id));
+  const productsWithoutPrice = productRows.filter((row) => !priceIds.has(String(row.id))).map((row) => String(row.id));
+  const pricesWithoutProduct = priceRows.filter((row) => !productIds.has(String(row.id))).map((row) => String(row.id));
+
+  const sampleProducts = productRows.slice(0, 12).map((row) => {
+    const priceRaw = priceMap.get(String(row.id));
+    return {
+      id: String(row.id),
+      name: extractDisplayName(row.value),
+      hasImage: Boolean(extractImageField(row.value)),
+      productFields: isObject(row.value) ? Object.keys(row.value).slice(0, 12) : [],
+      price: normalizePriceValue(priceRaw),
+      priceType: Array.isArray(priceRaw) ? 'array' : typeof priceRaw,
+      priceFields: isObject(priceRaw) ? Object.keys(priceRaw).slice(0, 10) : [],
+    };
+  });
+
+  return {
+    ok: true,
+    imported: false,
+    writeBlocked: true,
+    productCount: productRows.length,
+    priceCount: priceRows.length,
+    matchedCount: matchedIds.length,
+    productsWithoutPrice: productsWithoutPrice.slice(0, 20),
+    pricesWithoutProduct: pricesWithoutProduct.slice(0, 20),
+    productFields: collectFieldNames(productRows),
+    priceFields: collectFieldNames(priceRows),
+    sampleProducts,
+    message: 'Preview de produtos e preços reais concluído em READ-ONLY. Nada foi importado para o LAB.',
+  };
+}
+
 export function getFirebaseReadonlyProbeReadiness() {
   const config = getFirebaseLabConfig();
   const summary = getFirebaseLabConfigSummary();
@@ -130,8 +211,14 @@ async function getRealtimeDatabaseHelpers(config) {
   return { database, ref, get };
 }
 
-export async function runFirebaseReadonlyProbe(path = '/') {
+async function readPath(path) {
   const config = getFirebaseLabConfig();
+  const { database, ref, get } = await getRealtimeDatabaseHelpers(config);
+  const snapshot = await get(ref(database, path));
+  return snapshot.val();
+}
+
+export async function runFirebaseReadonlyProbe(path = '/') {
   const readiness = getFirebaseReadonlyProbeReadiness();
 
   if (!readiness.ready) {
@@ -145,9 +232,7 @@ export async function runFirebaseReadonlyProbe(path = '/') {
   }
 
   try {
-    const { database, ref, get } = await getRealtimeDatabaseHelpers(config);
-    const snapshot = await get(ref(database, path));
-    const value = snapshot.val();
+    const value = await readPath(path);
     const summary = summarizeSnapshot(value);
 
     return {
@@ -204,4 +289,35 @@ export async function runFirebaseRealKeysMapProbe() {
     rows,
     message: 'Mapa de chaves reais concluído em modo READ-ONLY. Nenhuma escrita foi executada.',
   };
+}
+
+export async function runFirebaseProductsPricesPreview() {
+  const readiness = getFirebaseReadonlyProbeReadiness();
+  if (!readiness.ready) {
+    return {
+      ok: false,
+      blocked: true,
+      stage: 'readiness',
+      message: 'Config Firebase LAB ainda não está pronta para preview de produtos/preços.',
+      readiness,
+    };
+  }
+
+  try {
+    const [productsValue, pricesValue] = await Promise.all([
+      readPath('/produtos_custom'),
+      readPath('/precos'),
+    ]);
+
+    return buildProductsPricesPreview(productsValue, pricesValue);
+  } catch (error) {
+    return {
+      ok: false,
+      blocked: false,
+      writeBlocked: true,
+      imported: false,
+      error: safeError(error),
+      message: 'Preview READ-ONLY de produtos/preços falhou. Nenhuma escrita foi feita.',
+    };
+  }
 }
