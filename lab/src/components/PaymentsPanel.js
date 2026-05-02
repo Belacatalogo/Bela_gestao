@@ -22,7 +22,7 @@ export function renderPaymentsPanel({ payments, stats, canWrite = true }) {
         Toda venda LAB gera automaticamente uma parcela LAB. Nada real é alterado.
       </div>
 
-      <div class="payments-list">
+      <div class="sales-list">
         ${renderPaymentRows(payments, canWrite)}
       </div>
     </section>
@@ -35,7 +35,7 @@ function renderPaymentRows(payments, canWrite) {
   }
 
   return payments.map((payment) => `
-    <article class="payment-card">
+    <article class="sale-card">
       <div>
         <div class="badge-row">
           <span class="mini-badge">${payment.status}</span>
