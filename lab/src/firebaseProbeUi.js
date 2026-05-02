@@ -1,5 +1,5 @@
 import { logDiagnosticEvent } from './services/diagnosticsService.js';
-import { getFirebaseReadonlyProbeReadiness, runFirebaseReadonlyProbe, runFirebaseRealKeysMapProbe } from './services/firebaseReadonlyProbeService.js';
+import { getFirebaseReadonlyProbeReadiness, runFirebaseProductsPricesPreview, runFirebaseReadonlyProbe, runFirebaseRealKeysMapProbe } from './services/firebaseReadonlyProbeService.js';
 
 const PANEL_ID = 'firebase-readonly-probe-panel';
 
@@ -46,6 +46,7 @@ function renderProbePanel() {
         </label>
         <button class="primary-button full-row" type="button" data-run-firebase-probe ${readiness.ready ? '' : 'disabled'}>Rodar probe READ-ONLY</button>
         <button class="secondary-button full-row" type="button" data-map-firebase-real-keys ${readiness.ready ? '' : 'disabled'}>Mapear chaves reais</button>
+        <button class="secondary-button full-row" type="button" data-preview-products-prices ${readiness.ready ? '' : 'disabled'}>Preview produtos + preços</button>
       </div>
 
       <div data-firebase-probe-result>
@@ -144,11 +145,43 @@ function renderMapResult(container, result) {
   `;
 }
 
+function renderProductsPricesPreview(container, result) {
+  if (!container) return;
+  if (!result.ok) {
+    const error = result.error ? `${result.error.code || result.error.name}: ${result.error.message}` : result.message;
+    container.innerHTML = `<div class="diagnostic-warning">${escapeHtml(error)}</div><div class="storage-note">Nenhuma escrita foi feita e nada foi importado para o LAB.</div>`;
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="diagnostic-ok">${escapeHtml(result.message)}</div>
+    <div class="diagnostic-table">
+      <div class="diagnostic-row"><span>Produtos reais</span><strong>${escapeHtml(result.productCount)}</strong></div>
+      <div class="diagnostic-row"><span>Preços reais</span><strong>${escapeHtml(result.priceCount)}</strong></div>
+      <div class="diagnostic-row"><span>Produtos com preço pelo mesmo ID</span><strong>${escapeHtml(result.matchedCount)}</strong></div>
+      <div class="diagnostic-row"><span>Produtos sem preço</span><strong>${escapeHtml(result.productsWithoutPrice.join(', ') || 'nenhum nos primeiros detectados')}</strong></div>
+      <div class="diagnostic-row"><span>Preços sem produto</span><strong>${escapeHtml(result.pricesWithoutProduct.join(', ') || 'nenhum nos primeiros detectados')}</strong></div>
+    </div>
+    <details class="diagnostic-details" open>
+      <summary>Campos encontrados nos produtos</summary>
+      <div class="diagnostic-table"><div class="diagnostic-row"><span>Campos</span><strong>${escapeHtml(result.productFields.join(', ') || 'nenhum')}</strong></div></div>
+    </details>
+    <details class="diagnostic-details" open>
+      <summary>Amostra de produtos reais</summary>
+      <div class="diagnostic-table">
+        ${result.sampleProducts.map((product) => `<div class="diagnostic-row"><span>ID ${escapeHtml(product.id)}<br><small>${escapeHtml(product.name || 'sem nome detectado')} · imagem: ${product.hasImage ? 'sim' : 'não'} · preço: ${product.price ?? 'não detectado'}</small></span><strong>${escapeHtml(product.productFields.join(', ') || 'sem campos')}</strong></div>`).join('')}
+      </div>
+    </details>
+    <div class="storage-note">Preview concluído sem importação. Próximo bloco pode criar importação controlada para o LAB.</div>
+  `;
+}
+
 function bindProbePanel() {
   const panel = document.getElementById(PANEL_ID);
   if (!panel) return;
   const button = panel.querySelector('[data-run-firebase-probe]');
   const mapButton = panel.querySelector('[data-map-firebase-real-keys]');
+  const previewButton = panel.querySelector('[data-preview-products-prices]');
   const select = panel.querySelector('[data-firebase-probe-path]');
   const resultBox = panel.querySelector('[data-firebase-probe-result]');
 
@@ -180,6 +213,21 @@ function bindProbePanel() {
       logDiagnosticEvent('error', 'firebase.real.keys.map', 'Erro inesperado ao mapear chaves reais.', { error: String(error?.message || error) });
     } finally {
       mapButton.disabled = false;
+    }
+  });
+
+  previewButton?.addEventListener('click', async () => {
+    previewButton.disabled = true;
+    resultBox.innerHTML = '<div class="diagnostic-warning">Lendo preview READ-ONLY de produtos e preços...</div>';
+    try {
+      const result = await runFirebaseProductsPricesPreview();
+      renderProductsPricesPreview(resultBox, result);
+      logDiagnosticEvent(result.ok ? 'info' : 'error', 'firebase.products.prices.preview', result.message, { ok: result.ok, productCount: result.productCount, priceCount: result.priceCount, matchedCount: result.matchedCount, error: result.error || null });
+    } catch (error) {
+      renderResult(resultBox, { ok: false, message: String(error?.message || error), error });
+      logDiagnosticEvent('error', 'firebase.products.prices.preview', 'Erro inesperado no preview de produtos/preços.', { error: String(error?.message || error) });
+    } finally {
+      previewButton.disabled = false;
     }
   });
 }
