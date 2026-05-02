@@ -159,6 +159,16 @@ export function saveLabProducts(products) {
   return true;
 }
 
+export function replaceLabProducts(products) {
+  const normalizedProducts = Array.isArray(products) ? products.map((product, index) => ({
+    ...product,
+    order: Number(product.order || index + 1),
+    updatedAt: product.updatedAt || new Date().toISOString(),
+  })) : [];
+  saveLabProducts(normalizedProducts);
+  return normalizedProducts;
+}
+
 export function resetLabProducts() {
   if (!canUseStorage()) return SAMPLE_PRODUCTS;
   window.localStorage.setItem(LAB_PRODUCTS_KEY, JSON.stringify(SAMPLE_PRODUCTS));
