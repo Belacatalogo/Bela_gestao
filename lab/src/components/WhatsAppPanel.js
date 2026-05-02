@@ -27,25 +27,10 @@ export function renderWhatsAppPanel({ sales, payments }) {
         <input data-whatsapp-phone type="tel" placeholder="Ex: 62991930771">
       </label>
 
-      <div class="whatsapp-message-grid">
-        ${renderMessageCard({
-          title: 'Confirmar venda',
-          text: saleMessage,
-          type: 'sale-confirmation',
-          disabled: !latestSale,
-        })}
-        ${renderMessageCard({
-          title: 'Cobrar pendência',
-          text: reminderMessage,
-          type: 'payment-reminder',
-          disabled: !latestPending,
-        })}
-        ${renderMessageCard({
-          title: 'Confirmar pagamento',
-          text: paidMessage,
-          type: 'payment-confirmation',
-          disabled: !payments.length,
-        })}
+      <div class="sales-list">
+        ${renderMessageCard({ title: 'Confirmar venda', text: saleMessage, type: 'sale-confirmation', disabled: !latestSale })}
+        ${renderMessageCard({ title: 'Cobrar pendência', text: reminderMessage, type: 'payment-reminder', disabled: !latestPending })}
+        ${renderMessageCard({ title: 'Confirmar pagamento', text: paidMessage, type: 'payment-confirmation', disabled: !payments.length })}
       </div>
     </section>
   `;
@@ -54,12 +39,21 @@ export function renderWhatsAppPanel({ sales, payments }) {
 function renderMessageCard({ title, text, type, disabled }) {
   const href = buildWhatsAppUrl({ message: text });
   return `
-    <article class="whatsapp-card">
-      <h3>${title}</h3>
-      <p>${text}</p>
-      <a class="secondary-button ${disabled ? 'disabled-link' : ''}" href="${disabled ? '#' : href}" target="_blank" rel="noopener noreferrer" data-whatsapp-link data-message-type="${type}" aria-disabled="${disabled ? 'true' : 'false'}">
-        Abrir WhatsApp
-      </a>
+    <article class="sale-card">
+      <div>
+        <div class="badge-row">
+          <span class="mini-badge">WhatsApp</span>
+          <span class="mini-badge muted-badge">${type}</span>
+        </div>
+        <h3>${title}</h3>
+        <p>${text}</p>
+        <small>Prévia da mensagem. O envio continua manual.</small>
+      </div>
+      <div class="product-actions">
+        <a class="secondary-button ${disabled ? 'disabled-link' : ''}" href="${disabled ? '#' : href}" target="_blank" rel="noopener noreferrer" data-whatsapp-link data-message-type="${type}" aria-disabled="${disabled ? 'true' : 'false'}">
+          Abrir
+        </a>
+      </div>
     </article>
   `;
 }
