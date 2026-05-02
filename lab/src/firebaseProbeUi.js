@@ -1,5 +1,6 @@
 import { logDiagnosticEvent } from './services/diagnosticsService.js';
 import { importFirebaseProductsToLabControlled } from './services/firebaseControlledImportService.js';
+import { runFirebaseCatalogCompletenessAudit } from './services/firebaseCatalogCompletenessAuditService.js';
 import { getFirebaseReadonlyProbeReadiness, runFirebaseProductsPricesPreview, runFirebaseReadonlyProbe, runFirebaseRealKeysMapProbe } from './services/firebaseReadonlyProbeService.js';
 
 const PANEL_ID = 'firebase-readonly-probe-panel';
@@ -48,6 +49,7 @@ function renderProbePanel() {
         <button class="primary-button full-row" type="button" data-run-firebase-probe ${readiness.ready ? '' : 'disabled'}>Rodar probe READ-ONLY</button>
         <button class="secondary-button full-row" type="button" data-map-firebase-real-keys ${readiness.ready ? '' : 'disabled'}>Mapear chaves reais</button>
         <button class="secondary-button full-row" type="button" data-preview-products-prices ${readiness.ready ? '' : 'disabled'}>Preview produtos + preços</button>
+        <button class="secondary-button full-row" type="button" data-audit-catalog-completeness ${readiness.ready ? '' : 'disabled'}>Auditar completude do catálogo</button>
         <button class="primary-button full-row" type="button" data-import-firebase-products-lab ${readiness.ready ? '' : 'disabled'}>Importar produtos para LAB</button>
       </div>
 
@@ -178,6 +180,50 @@ function renderProductsPricesPreview(container, result) {
   `;
 }
 
+function renderAuditResult(container, result) {
+  if (!container) return;
+  if (!result.ok) {
+    const error = result.error ? `${result.error.code || result.error.name}: ${result.error.message}` : result.message;
+    container.innerHTML = `<div class="diagnostic-warning">${escapeHtml(error)}</div><div class="storage-note">Nenhuma escrita foi feita e nada foi importado para o LAB.</div>`;
+    return;
+  }
+
+  const warningsHtml = result.warnings.length
+    ? result.warnings.map((warning) => `<div class="diagnostic-warning">${escapeHtml(warning)}</div>`).join('')
+    : '<div class="diagnostic-ok">Nenhum alerta crítico de completude detectado nesta auditoria.</div>';
+
+  container.innerHTML = `
+    <div class="diagnostic-ok">${escapeHtml(result.message)}</div>
+    ${warningsHtml}
+    <div class="diagnostic-table">
+      <div class="diagnostic-row"><span>Produtos em produtos_custom</span><strong>${escapeHtml(result.counts.produtosCustom)}</strong></div>
+      <div class="diagnostic-row"><span>Preços em /precos</span><strong>${escapeHtml(result.counts.precos)}</strong></div>
+      <div class="diagnostic-row"><span>Produtos com preço por ID</span><strong>${escapeHtml(result.counts.productsWithMatchingPrice)}</strong></div>
+      <div class="diagnostic-row"><span>Produtos sem preço em /precos</span><strong>${escapeHtml(result.counts.productsWithoutPrice)}</strong></div>
+      <div class="diagnostic-row"><span>Preços órfãos</span><strong>${escapeHtml(result.counts.orphanPrices)}</strong></div>
+      <div class="diagnostic-row"><span>IDs no carrossel</span><strong>${escapeHtml(result.counts.carouselIds)}</strong></div>
+      <div class="diagnostic-row"><span>Carrossel sem produto</span><strong>${escapeHtml(result.counts.carouselMissingProducts)}</strong></div>
+      <div class="diagnostic-row"><span>Possíveis extras em backup</span><strong>${escapeHtml(result.counts.candidateExtraProductIds)}</strong></div>
+    </div>
+    <details class="diagnostic-details" open>
+      <summary>Amostras de inconsistência</summary>
+      <div class="diagnostic-table">
+        <div class="diagnostic-row"><span>Produtos sem preço</span><strong>${escapeHtml(result.samples.productsWithoutPrice.join(', ') || 'nenhum')}</strong></div>
+        <div class="diagnostic-row"><span>Preços órfãos</span><strong>${escapeHtml(result.samples.orphanPrices.join(', ') || 'nenhum')}</strong></div>
+        <div class="diagnostic-row"><span>Carrossel sem produto</span><strong>${escapeHtml(result.samples.carouselMissingProducts.join(', ') || 'nenhum')}</strong></div>
+        <div class="diagnostic-row"><span>Extras candidatos em backup</span><strong>${escapeHtml(result.samples.candidateExtraProductIds.join(', ') || 'nenhum')}</strong></div>
+      </div>
+    </details>
+    <details class="diagnostic-details" open>
+      <summary>Comparação com backups</summary>
+      <div class="diagnostic-table">
+        ${result.backups.map((backup) => `<div class="diagnostic-row"><span>${escapeHtml(backup.label)}<br><small>maior bucket: ${escapeHtml(backup.largestBucket.label)}</small></span><strong>${escapeHtml(backup.largestBucket.count)} item(ns) · overlap: ${escapeHtml(backup.overlapWithProdutosCustom)}</strong></div>`).join('')}
+      </div>
+    </details>
+    <div class="storage-note"><strong>Conclusão:</strong> ${escapeHtml(result.conclusion)}<br>Nenhuma escrita foi feita no Firebase.</div>
+  `;
+}
+
 function renderImportResult(container, result) {
   if (!container) return;
   if (!result.ok) {
@@ -211,6 +257,7 @@ function bindProbePanel() {
   const button = panel.querySelector('[data-run-firebase-probe]');
   const mapButton = panel.querySelector('[data-map-firebase-real-keys]');
   const previewButton = panel.querySelector('[data-preview-products-prices]');
+  const auditButton = panel.querySelector('[data-audit-catalog-completeness]');
   const importButton = panel.querySelector('[data-import-firebase-products-lab]');
   const select = panel.querySelector('[data-firebase-probe-path]');
   const resultBox = panel.querySelector('[data-firebase-probe-result]');
@@ -258,6 +305,21 @@ function bindProbePanel() {
       logDiagnosticEvent('error', 'firebase.products.prices.preview', 'Erro inesperado no preview de produtos/preços.', { error: String(error?.message || error) });
     } finally {
       previewButton.disabled = false;
+    }
+  });
+
+  auditButton?.addEventListener('click', async () => {
+    auditButton.disabled = true;
+    resultBox.innerHTML = '<div class="diagnostic-warning">Auditando completude do catálogo em READ-ONLY...</div>';
+    try {
+      const result = await runFirebaseCatalogCompletenessAudit();
+      renderAuditResult(resultBox, result);
+      logDiagnosticEvent(result.ok ? 'info' : 'error', 'firebase.catalog.completeness.audit', result.message, { ok: result.ok, counts: result.counts || {}, warnings: result.warnings || [], error: result.error || null });
+    } catch (error) {
+      renderResult(resultBox, { ok: false, message: String(error?.message || error), error });
+      logDiagnosticEvent('error', 'firebase.catalog.completeness.audit', 'Erro inesperado na auditoria de completude.', { error: String(error?.message || error) });
+    } finally {
+      auditButton.disabled = false;
     }
   });
 
