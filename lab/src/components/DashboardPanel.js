@@ -1,5 +1,6 @@
 import { APP_CONFIG } from '../config/appConfig.js';
 import { getDataGatewayStatus } from '../services/dataGateway.js';
+import { getFirebaseReadinessReport } from '../services/firebaseReadinessService.js';
 import { getRealDataContractReport } from '../services/realDataContractService.js';
 import { formatBRL } from '../utils/money.js';
 
@@ -11,6 +12,7 @@ export function renderDashboardPanel({ products, salesStats, paymentStats, catal
     appVersion: APP_CONFIG.version,
     environment: getDataGatewayStatus(),
   });
+  const firebaseReport = getFirebaseReadinessReport();
 
   return `
     <section class="panel-card dashboard-panel">
@@ -42,6 +44,7 @@ export function renderDashboardPanel({ products, salesStats, paymentStats, catal
     </section>
 
     ${renderRealDataContractPanel(realContractReport)}
+    ${renderFirebaseReadinessPanel(firebaseReport)}
   `;
 }
 
@@ -91,6 +94,52 @@ function renderRealDataContractPanel(report) {
         <summary>Regras de segurança</summary>
         <div class="diagnostic-list">
           ${report.rules.map((rule) => `<div class="diagnostic-warning">${rule}</div>`).join('')}
+        </div>
+      </details>
+    </section>
+  `;
+}
+
+function renderFirebaseReadinessPanel(report) {
+  return `
+    <section class="panel-card firebase-readiness-panel">
+      <div class="panel-title-row">
+        <div>
+          <h2>Firebase Readiness LAB</h2>
+          <p>Preparação para leitura real futura, sem login e sem credenciais neste bloco.</p>
+        </div>
+        <span class="safe-pill">Bloqueado</span>
+      </div>
+
+      <div class="mini-grid four-stats">
+        <div class="mini-stat"><strong>${report.firebaseConnected ? 'sim' : 'não'}</strong><span>Firebase</span></div>
+        <div class="mini-stat"><strong>${report.authConnected ? 'sim' : 'não'}</strong><span>Google Auth</span></div>
+        <div class="mini-stat"><strong>${report.firestoreConnected ? 'sim' : 'não'}</strong><span>Firestore</span></div>
+        <div class="mini-stat"><strong>${report.realWritesBlocked ? 'sim' : 'não'}</strong><span>escrita bloqueada</span></div>
+      </div>
+
+      <div class="storage-note">
+        Nenhuma chave Firebase foi adicionada ao repositório. A leitura real será feita em bloco futuro, primeiro em modo somente leitura.
+      </div>
+
+      <details class="diagnostic-details" open>
+        <summary>Campos de configuração necessários</summary>
+        <div class="diagnostic-list">
+          ${report.requiredConfigFields.map((field) => `<div class="diagnostic-row"><span>${field}</span><strong>necessário</strong></div>`).join('')}
+        </div>
+      </details>
+
+      <details class="diagnostic-details">
+        <summary>Áreas de dados que o Firebase precisa cobrir</summary>
+        <div class="diagnostic-list">
+          ${report.requiredDataAreas.map((area) => `<div class="diagnostic-row"><span>${area}</span><strong>mapear</strong></div>`).join('')}
+        </div>
+      </details>
+
+      <details class="diagnostic-details">
+        <summary>Ações reais bloqueadas no LAB</summary>
+        <div class="diagnostic-list">
+          ${report.blockedActions.map((action) => `<div class="diagnostic-warning">${action}</div>`).join('')}
         </div>
       </details>
     </section>
