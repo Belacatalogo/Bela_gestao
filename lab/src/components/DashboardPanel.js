@@ -2,6 +2,7 @@ import { APP_CONFIG } from '../config/appConfig.js';
 import { getDataGatewayStatus } from '../services/dataGateway.js';
 import { getFirebaseReadinessReport } from '../services/firebaseReadinessService.js';
 import { getRealDataContractReport } from '../services/realDataContractService.js';
+import { getSourceCompatibilityReport } from '../services/sourceCompatibilityService.js';
 import { formatBRL } from '../utils/money.js';
 
 export function renderDashboardPanel({ products, salesStats, paymentStats, catalogReport }) {
@@ -13,6 +14,7 @@ export function renderDashboardPanel({ products, salesStats, paymentStats, catal
     environment: getDataGatewayStatus(),
   });
   const firebaseReport = getFirebaseReadinessReport();
+  const compatibilityReport = getSourceCompatibilityReport();
 
   return `
     <section class="panel-card dashboard-panel">
@@ -45,6 +47,7 @@ export function renderDashboardPanel({ products, salesStats, paymentStats, catal
 
     ${renderRealDataContractPanel(realContractReport)}
     ${renderFirebaseReadinessPanel(firebaseReport)}
+    ${renderSourceCompatibilityPanel(compatibilityReport)}
   `;
 }
 
@@ -144,6 +147,57 @@ function renderFirebaseReadinessPanel(report) {
       </details>
     </section>
   `;
+}
+
+function renderSourceCompatibilityPanel(report) {
+  return `
+    <section class="panel-card source-compat-panel">
+      <div class="panel-title-row">
+        <div>
+          <h2>Comparador JSON x Firebase</h2>
+          <p>Matriz do que o backup manual já cobre e do que ainda precisa vir do Firebase/catálogo real.</p>
+        </div>
+        <span class="safe-pill">Matriz</span>
+      </div>
+
+      <div class="mini-grid four-stats">
+        <div class="mini-stat"><strong>${report.counts.areas}</strong><span>áreas</span></div>
+        <div class="mini-stat"><strong>${report.counts.jsonCovered}</strong><span>JSON cobre</span></div>
+        <div class="mini-stat"><strong>${report.counts.jsonPartial}</strong><span>parcial</span></div>
+        <div class="mini-stat"><strong>${report.counts.jsonNotCovered}</strong><span>faltando</span></div>
+      </div>
+
+      <details class="diagnostic-details" open>
+        <summary>Matriz de compatibilidade</summary>
+        <div class="diagnostic-table">
+          ${report.rows.map((row) => `
+            <div class="diagnostic-row">
+              <span>${row.area}<br><small>${row.note}</small></span>
+              <strong>JSON: ${labelStatus(row.jsonManual)} · LAB: ${row.labStatus}</strong>
+            </div>
+          `).join('')}
+        </div>
+      </details>
+
+      <details class="diagnostic-details">
+        <summary>Bloqueios antes do Firebase real</summary>
+        <div class="diagnostic-list">
+          ${report.blockersBeforeRealFirebase.map((item) => `<div class="diagnostic-warning">${item}</div>`).join('')}
+        </div>
+      </details>
+    </section>
+  `;
+}
+
+function labelStatus(status) {
+  const labels = {
+    coberto: 'coberto',
+    parcial: 'parcial',
+    'nao-coberto': 'não cobre',
+    desconhecido: 'desconhecido',
+    manual: 'manual',
+  };
+  return labels[status] || status;
 }
 
 function buildAlerts({ products, paymentStats, catalogReport, noRealPhoto }) {
