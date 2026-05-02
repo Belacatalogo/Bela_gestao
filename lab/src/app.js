@@ -3,6 +3,7 @@ import { renderDiagnosticsPanel } from './components/DiagnosticsPanel.js';
 import { renderLegacyBackupAuditPanel } from './components/LegacyBackupAuditPanel.js';
 import { renderPaymentsPanel } from './components/PaymentsPanel.js';
 import { renderProductFormModal, buildEmptyProductDraft, productToDraft, readProductForm } from './components/ProductFormModal.js';
+import { renderPwaStatusPanel } from './components/PwaStatusPanel.js';
 import { renderSalesPanel, readSaleForm } from './components/SalesPanel.js';
 import { renderSettingsBackupPanel } from './components/SettingsBackupPanel.js';
 import { renderWhatsAppPanel } from './components/WhatsAppPanel.js';
@@ -17,6 +18,7 @@ import { auditLegacyBackupText, summarizeLegacyAudit } from './services/legacyBa
 import { importLegacyBackupToLab } from './services/legacyBackupImportService.js';
 import { ensurePaymentForSale, getPaymentStats, resetLabPayments, syncPaymentsFromSales, updateLabPaymentStatus } from './services/labPaymentsService.js';
 import { createLabSale, getLabSales, getSalesStats, resetLabSales, updateLabSaleStatus } from './services/labSalesService.js';
+import { checkPwaLabUpdate, clearPwaLabCaches, getPwaLabStatus, reloadPwaLab } from './services/pwaLabService.js';
 import { filterProducts, getProductCategories, getProductStats, PRODUCT_STATUS_FILTERS } from './services/productFilterService.js';
 import { buildWhatsAppUrl } from './services/whatsappLabService.js';
 import { formatBRL } from './utils/money.js';
@@ -31,6 +33,8 @@ const uiState = {
   legacyAuditReport: null,
   legacyBackupText: '',
   legacyImportResult: null,
+  pwaStatus: null,
+  pwaStatusLoading: false,
   filters: {
     query: '',
     category: 'all',
@@ -208,6 +212,21 @@ function buildCurrentState() {
   return { gateway, products, sales, payments, salesStats, paymentStats, catalogReport, environment, diagnostics };
 }
 
+async function refreshPwaStatus(root, silent = true) {
+  try {
+    uiState.pwaStatusLoading = true;
+    uiState.pwaStatus = await getPwaLabStatus();
+    uiState.pwaStatusLoading = false;
+    if (!silent) uiState.diagnosticMessage = 'Status PWA atualizado.';
+    renderApp(root, { skipPwaRefresh: true });
+  } catch (error) {
+    uiState.pwaStatusLoading = false;
+    uiState.diagnosticMessage = 'Não foi possível ler status PWA.';
+    logDiagnosticEvent('error', 'pwa.status', 'Falha ao ler status PWA LAB.', { error: String(error.message || error) });
+    renderApp(root, { skipPwaRefresh: true });
+  }
+}
+
 async function saveProductFromForm(root, form) {
   const draft = readProductForm(form);
   const uploadResult = await generateLabImageUrl(draft.imageFile);
@@ -355,6 +374,25 @@ function bindLabActions(root) {
     renderApp(root);
   });
 
+  root.querySelector('[data-pwa-check-update]')?.addEventListener('click', async () => {
+    const result = await checkPwaLabUpdate();
+    uiState.diagnosticMessage = result.message;
+    logDiagnosticEvent(result.ok ? 'info' : 'warn', 'pwa.update', result.message);
+    await refreshPwaStatus(root, true);
+  });
+
+  root.querySelector('[data-pwa-clear-cache]')?.addEventListener('click', async () => {
+    const result = await clearPwaLabCaches();
+    uiState.diagnosticMessage = result.message;
+    logDiagnosticEvent(result.ok ? 'warn' : 'error', 'pwa.cache.clear', result.message, { removed: result.removed || [] });
+    await refreshPwaStatus(root, true);
+  });
+
+  root.querySelector('[data-pwa-reload]')?.addEventListener('click', () => {
+    logDiagnosticEvent('info', 'pwa.reload', 'Recarregamento manual do PWA LAB solicitado.');
+    reloadPwaLab();
+  });
+
   root.querySelectorAll('[data-sale-status]').forEach((button) => button.addEventListener('click', () => { updateLabSaleStatus(button.getAttribute('data-sale-status'), button.getAttribute('data-next-status')); logDiagnosticEvent('info', 'sale.status', 'Status da venda LAB alterado.'); renderApp(root); }));
   root.querySelectorAll('[data-payment-status]').forEach((button) => button.addEventListener('click', () => { updateLabPaymentStatus(button.getAttribute('data-payment-status'), button.getAttribute('data-next-status')); logDiagnosticEvent('info', 'payment.status', 'Status da parcela LAB alterado.'); renderApp(root); }));
 
@@ -378,7 +416,7 @@ function bindLabActions(root) {
   root.querySelector('[data-sale-form]')?.addEventListener('submit', (event) => { event.preventDefault(); saveSaleFromForm(root, event.currentTarget, listProducts().products); });
 }
 
-export function renderApp(root) {
+export function renderApp(root, options = {}) {
   if (!root) return;
   const state = buildCurrentState();
   const isLabMode = state.environment.mode === DATA_MODES.LAB;
@@ -399,6 +437,7 @@ export function renderApp(root) {
       ${renderDashboardPanel({ products: state.products, salesStats: state.salesStats, paymentStats: state.paymentStats, catalogReport: state.catalogReport })}
       ${renderDiagnosticsPanel(state.diagnostics)}
       ${uiState.diagnosticMessage ? `<div class="diagnostic-toast">${uiState.diagnosticMessage}</div>` : ''}
+      ${renderPwaStatusPanel({ pwaStatus: uiState.pwaStatus })}
       ${renderSettingsBackupPanel({ storageKeys: getLabStorageKeys() })}
       ${renderLegacyBackupAuditPanel({ report: uiState.legacyAuditReport, importResult: uiState.legacyImportResult })}
       ${renderCatalogContractPanel(state.products)}
@@ -407,9 +446,13 @@ export function renderApp(root) {
       ${renderWhatsAppPanel({ sales: state.sales, payments: state.payments })}
       ${renderProductsPanel(state.products, state.gateway, isLabMode)}
       <section class="panel-card"><h2>Funções críticas preservadas</h2><p>Nenhum módulo abaixo será removido sem auditoria e teste por bloco.</p><ul class="feature-list">${CRITICAL_FEATURES.map((feature) => `<li>${feature}</li>`).join('')}</ul></section>
-      <section class="panel-card warning-card"><h2>Estado do BLOCO 10C</h2><p>Importador seguro de backup real para LAB adicionado, com opção anonimizada e opção com dados reais apenas neste navegador.</p></section>
+      <section class="panel-card warning-card"><h2>Estado do BLOCO 11B</h2><p>Controle de PWA/cache LAB adicionado para verificar atualização, limpar cache e recarregar o app no iPhone.</p></section>
     </main>
     ${renderProductFormModal({ draft: uiState.modalDraft, errors: uiState.modalErrors, isEditing: Boolean(uiState.modalDraft?.id) })}
   `;
   bindLabActions(root);
+
+  if (!options.skipPwaRefresh && !uiState.pwaStatus && !uiState.pwaStatusLoading) {
+    refreshPwaStatus(root, true);
+  }
 }
