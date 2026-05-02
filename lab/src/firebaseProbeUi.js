@@ -1,6 +1,7 @@
 import { logDiagnosticEvent } from './services/diagnosticsService.js';
 import { importFirebaseProductsToLabControlled } from './services/firebaseControlledImportService.js';
 import { runFirebaseCatalogCompletenessAudit } from './services/firebaseCatalogCompletenessAuditService.js';
+import { exportFirebaseReadonlySnapshotJson } from './services/firebaseSnapshotExportService.js';
 import { getFirebaseReadonlyProbeReadiness, runFirebaseProductsPricesPreview, runFirebaseReadonlyProbe, runFirebaseRealKeysMapProbe } from './services/firebaseReadonlyProbeService.js';
 
 const PANEL_ID = 'firebase-readonly-probe-panel';
@@ -20,7 +21,7 @@ function renderProbePanel() {
       <div class="panel-title-row">
         <div>
           <h2>Firebase READ-ONLY Probe</h2>
-          <p>Sondagem segura do Realtime Database. Faz somente leitura e pode importar somente para o LAB local.</p>
+          <p>Sondagem segura do Realtime Database. Faz somente leitura e pode importar/exportar somente no LAB local.</p>
         </div>
         <span class="safe-pill">Probe</span>
       </div>
@@ -36,7 +37,7 @@ function renderProbePanel() {
         ${escapeHtml(readiness.note)}<br>
         <strong>Login:</strong> não solicitado neste bloco.<br>
         <strong>Escrita Firebase:</strong> bloqueada.<br>
-        <strong>Importação:</strong> permitida apenas para localStorage LAB.
+        <strong>Exportação:</strong> baixa JSON local pelo navegador.
       </div>
 
       <div class="product-filters">
@@ -50,6 +51,7 @@ function renderProbePanel() {
         <button class="secondary-button full-row" type="button" data-map-firebase-real-keys ${readiness.ready ? '' : 'disabled'}>Mapear chaves reais</button>
         <button class="secondary-button full-row" type="button" data-preview-products-prices ${readiness.ready ? '' : 'disabled'}>Preview produtos + preços</button>
         <button class="secondary-button full-row" type="button" data-audit-catalog-completeness ${readiness.ready ? '' : 'disabled'}>Auditar completude do catálogo</button>
+        <button class="secondary-button full-row" type="button" data-export-firebase-snapshot ${readiness.ready ? '' : 'disabled'}>Exportar snapshot JSON</button>
         <button class="primary-button full-row" type="button" data-import-firebase-products-lab ${readiness.ready ? '' : 'disabled'}>Importar produtos para LAB</button>
       </div>
 
@@ -101,7 +103,6 @@ function renderChildren(summary) {
 
 function renderResult(container, result) {
   if (!container) return;
-
   if (result.ok) {
     const keys = result.summary.keys?.length ? result.summary.keys.join(', ') : 'nenhuma chave listada';
     container.innerHTML = `
@@ -118,21 +119,13 @@ function renderResult(container, result) {
     `;
     return;
   }
-
   const error = result.error ? `${result.error.code || result.error.name}: ${result.error.message}` : result.message;
-  container.innerHTML = `
-    <div class="diagnostic-warning">${escapeHtml(error)}</div>
-    <div class="storage-note">Falha esperada se as regras do Firebase bloquearem leitura pública. Nenhuma escrita foi feita.</div>
-  `;
+  container.innerHTML = `<div class="diagnostic-warning">${escapeHtml(error)}</div><div class="storage-note">Falha esperada se as regras do Firebase bloquearem leitura pública. Nenhuma escrita foi feita.</div>`;
 }
 
 function renderMapResult(container, result) {
   if (!container) return;
-  if (!result.ok) {
-    renderResult(container, result);
-    return;
-  }
-
+  if (!result.ok) { renderResult(container, result); return; }
   container.innerHTML = `
     <div class="diagnostic-ok">${escapeHtml(result.message)}</div>
     <div class="diagnostic-table">
@@ -156,7 +149,6 @@ function renderProductsPricesPreview(container, result) {
     container.innerHTML = `<div class="diagnostic-warning">${escapeHtml(error)}</div><div class="storage-note">Nenhuma escrita foi feita e nada foi importado para o LAB.</div>`;
     return;
   }
-
   container.innerHTML = `
     <div class="diagnostic-ok">${escapeHtml(result.message)}</div>
     <div class="diagnostic-table">
@@ -166,16 +158,8 @@ function renderProductsPricesPreview(container, result) {
       <div class="diagnostic-row"><span>Produtos sem preço</span><strong>${escapeHtml(result.productsWithoutPrice.join(', ') || 'nenhum nos primeiros detectados')}</strong></div>
       <div class="diagnostic-row"><span>Preços sem produto</span><strong>${escapeHtml(result.pricesWithoutProduct.join(', ') || 'nenhum nos primeiros detectados')}</strong></div>
     </div>
-    <details class="diagnostic-details" open>
-      <summary>Campos encontrados nos produtos</summary>
-      <div class="diagnostic-table"><div class="diagnostic-row"><span>Campos</span><strong>${escapeHtml(result.productFields.join(', ') || 'nenhum')}</strong></div></div>
-    </details>
-    <details class="diagnostic-details" open>
-      <summary>Amostra de produtos reais</summary>
-      <div class="diagnostic-table">
-        ${result.sampleProducts.map((product) => `<div class="diagnostic-row"><span>ID ${escapeHtml(product.id)}<br><small>${escapeHtml(product.name || 'sem nome detectado')} · imagem: ${product.hasImage ? 'sim' : 'não'} · preço: ${product.price ?? 'não detectado'}</small></span><strong>${escapeHtml(product.productFields.join(', ') || 'sem campos')}</strong></div>`).join('')}
-      </div>
-    </details>
+    <details class="diagnostic-details" open><summary>Campos encontrados nos produtos</summary><div class="diagnostic-table"><div class="diagnostic-row"><span>Campos</span><strong>${escapeHtml(result.productFields.join(', ') || 'nenhum')}</strong></div></div></details>
+    <details class="diagnostic-details" open><summary>Amostra de produtos reais</summary><div class="diagnostic-table">${result.sampleProducts.map((product) => `<div class="diagnostic-row"><span>ID ${escapeHtml(product.id)}<br><small>${escapeHtml(product.name || 'sem nome detectado')} · imagem: ${product.hasImage ? 'sim' : 'não'} · preço: ${product.price ?? 'não detectado'}</small></span><strong>${escapeHtml(product.productFields.join(', ') || 'sem campos')}</strong></div>`).join('')}</div></details>
     <div class="storage-note">Preview concluído sem importação. Próximo bloco pode criar importação controlada para o LAB.</div>
   `;
 }
@@ -187,14 +171,9 @@ function renderAuditResult(container, result) {
     container.innerHTML = `<div class="diagnostic-warning">${escapeHtml(error)}</div><div class="storage-note">Nenhuma escrita foi feita e nada foi importado para o LAB.</div>`;
     return;
   }
-
-  const warningsHtml = result.warnings.length
-    ? result.warnings.map((warning) => `<div class="diagnostic-warning">${escapeHtml(warning)}</div>`).join('')
-    : '<div class="diagnostic-ok">Nenhum alerta crítico de completude detectado nesta auditoria.</div>';
-
+  const warningsHtml = result.warnings.length ? result.warnings.map((warning) => `<div class="diagnostic-warning">${escapeHtml(warning)}</div>`).join('') : '<div class="diagnostic-ok">Nenhum alerta crítico de completude detectado nesta auditoria.</div>';
   container.innerHTML = `
-    <div class="diagnostic-ok">${escapeHtml(result.message)}</div>
-    ${warningsHtml}
+    <div class="diagnostic-ok">${escapeHtml(result.message)}</div>${warningsHtml}
     <div class="diagnostic-table">
       <div class="diagnostic-row"><span>Produtos em produtos_custom</span><strong>${escapeHtml(result.counts.produtosCustom)}</strong></div>
       <div class="diagnostic-row"><span>Preços em /precos</span><strong>${escapeHtml(result.counts.precos)}</strong></div>
@@ -205,32 +184,43 @@ function renderAuditResult(container, result) {
       <div class="diagnostic-row"><span>Carrossel sem produto</span><strong>${escapeHtml(result.counts.carouselMissingProducts)}</strong></div>
       <div class="diagnostic-row"><span>Possíveis extras em backup</span><strong>${escapeHtml(result.counts.candidateExtraProductIds)}</strong></div>
     </div>
-    <details class="diagnostic-details" open>
-      <summary>Amostras de inconsistência</summary>
-      <div class="diagnostic-table">
-        <div class="diagnostic-row"><span>Produtos sem preço</span><strong>${escapeHtml(result.samples.productsWithoutPrice.join(', ') || 'nenhum')}</strong></div>
-        <div class="diagnostic-row"><span>Preços órfãos</span><strong>${escapeHtml(result.samples.orphanPrices.join(', ') || 'nenhum')}</strong></div>
-        <div class="diagnostic-row"><span>Carrossel sem produto</span><strong>${escapeHtml(result.samples.carouselMissingProducts.join(', ') || 'nenhum')}</strong></div>
-        <div class="diagnostic-row"><span>Extras candidatos em backup</span><strong>${escapeHtml(result.samples.candidateExtraProductIds.join(', ') || 'nenhum')}</strong></div>
-      </div>
-    </details>
-    <details class="diagnostic-details" open>
-      <summary>Comparação com backups</summary>
-      <div class="diagnostic-table">
-        ${result.backups.map((backup) => `<div class="diagnostic-row"><span>${escapeHtml(backup.label)}<br><small>maior bucket: ${escapeHtml(backup.largestBucket.label)}</small></span><strong>${escapeHtml(backup.largestBucket.count)} item(ns) · overlap: ${escapeHtml(backup.overlapWithProdutosCustom)}</strong></div>`).join('')}
-      </div>
-    </details>
+    <details class="diagnostic-details" open><summary>Amostras de inconsistência</summary><div class="diagnostic-table">
+      <div class="diagnostic-row"><span>Produtos sem preço</span><strong>${escapeHtml(result.samples.productsWithoutPrice.join(', ') || 'nenhum')}</strong></div>
+      <div class="diagnostic-row"><span>Preços órfãos</span><strong>${escapeHtml(result.samples.orphanPrices.join(', ') || 'nenhum')}</strong></div>
+      <div class="diagnostic-row"><span>Carrossel sem produto</span><strong>${escapeHtml(result.samples.carouselMissingProducts.join(', ') || 'nenhum')}</strong></div>
+      <div class="diagnostic-row"><span>Extras candidatos em backup</span><strong>${escapeHtml(result.samples.candidateExtraProductIds.join(', ') || 'nenhum')}</strong></div>
+    </div></details>
+    <details class="diagnostic-details" open><summary>Comparação com backups</summary><div class="diagnostic-table">${result.backups.map((backup) => `<div class="diagnostic-row"><span>${escapeHtml(backup.label)}<br><small>maior bucket: ${escapeHtml(backup.largestBucket.label)}</small></span><strong>${escapeHtml(backup.largestBucket.count)} item(ns) · overlap: ${escapeHtml(backup.overlapWithProdutosCustom)}</strong></div>`).join('')}</div></details>
     <div class="storage-note"><strong>Conclusão:</strong> ${escapeHtml(result.conclusion)}<br>Nenhuma escrita foi feita no Firebase.</div>
+  `;
+}
+
+function renderSnapshotExportResult(container, result) {
+  if (!container) return;
+  if (!result.ok) {
+    const error = result.error ? `${result.error.code || result.error.name}: ${result.error.message}` : result.message;
+    container.innerHTML = `<div class="diagnostic-warning">${escapeHtml(error)}</div><div class="storage-note">Nenhuma escrita foi feita no Firebase.</div>`;
+    return;
+  }
+  container.innerHTML = `
+    <div class="diagnostic-ok">${escapeHtml(result.message)}</div>
+    <div class="diagnostic-table">
+      <div class="diagnostic-row"><span>Arquivo</span><strong>${escapeHtml(result.filename)}</strong></div>
+      <div class="diagnostic-row"><span>produtos_custom</span><strong>${escapeHtml(result.counts.produtos_custom)}</strong></div>
+      <div class="diagnostic-row"><span>precos</span><strong>${escapeHtml(result.counts.precos)}</strong></div>
+      <div class="diagnostic-row"><span>carrossel</span><strong>${escapeHtml(result.counts.carrossel)}</strong></div>
+      <div class="diagnostic-row"><span>config</span><strong>${escapeHtml(result.counts.config)}</strong></div>
+      <div class="diagnostic-row"><span>backup/ultimo</span><strong>${escapeHtml(result.counts.backup_ultimo)}</strong></div>
+      <div class="diagnostic-row"><span>backup/diario</span><strong>${escapeHtml(result.counts.backup_diario)}</strong></div>
+      <div class="diagnostic-row"><span>Escrita Firebase</span><strong>não</strong></div>
+    </div>
+    <div class="storage-note">O arquivo foi baixado pelo navegador. Guarde esse JSON antes de qualquer migração definitiva.</div>
   `;
 }
 
 function renderImportResult(container, result) {
   if (!container) return;
-  if (!result.ok) {
-    container.innerHTML = `<div class="diagnostic-warning">${escapeHtml(result.message)}</div><div class="storage-note">Nenhuma escrita foi feita no Firebase.</div>`;
-    return;
-  }
-
+  if (!result.ok) { container.innerHTML = `<div class="diagnostic-warning">${escapeHtml(result.message)}</div><div class="storage-note">Nenhuma escrita foi feita no Firebase.</div>`; return; }
   container.innerHTML = `
     <div class="diagnostic-ok">${escapeHtml(result.message)}</div>
     <div class="diagnostic-table">
@@ -241,12 +231,7 @@ function renderImportResult(container, result) {
       <div class="diagnostic-row"><span>Sem preço</span><strong>${escapeHtml(result.missingPrices)}</strong></div>
       <div class="diagnostic-row"><span>Escrita Firebase</span><strong>${result.firebaseWriteExecuted ? 'sim' : 'não'}</strong></div>
     </div>
-    <details class="diagnostic-details" open>
-      <summary>Amostra importada no LAB</summary>
-      <div class="diagnostic-table">
-        ${result.sample.map((product) => `<div class="diagnostic-row"><span>${escapeHtml(product.name)}<br><small>ID Firebase: ${escapeHtml(product.firebaseId)} · preço: ${escapeHtml(product.price)} · ${escapeHtml(product.priceSource)}</small></span><strong>${escapeHtml(product.category)}</strong></div>`).join('')}
-      </div>
-    </details>
+    <details class="diagnostic-details" open><summary>Amostra importada no LAB</summary><div class="diagnostic-table">${result.sample.map((product) => `<div class="diagnostic-row"><span>${escapeHtml(product.name)}<br><small>ID Firebase: ${escapeHtml(product.firebaseId)} · preço: ${escapeHtml(product.price)} · ${escapeHtml(product.priceSource)}</small></span><strong>${escapeHtml(product.category)}</strong></div>`).join('')}</div></details>
     <div class="storage-note">Atualize/role até “Produtos LAB” para ver os produtos reais importados localmente. O Firebase real não foi alterado.</div>
   `;
 }
@@ -258,6 +243,7 @@ function bindProbePanel() {
   const mapButton = panel.querySelector('[data-map-firebase-real-keys]');
   const previewButton = panel.querySelector('[data-preview-products-prices]');
   const auditButton = panel.querySelector('[data-audit-catalog-completeness]');
+  const exportButton = panel.querySelector('[data-export-firebase-snapshot]');
   const importButton = panel.querySelector('[data-import-firebase-products-lab]');
   const select = panel.querySelector('[data-firebase-probe-path]');
   const resultBox = panel.querySelector('[data-firebase-probe-result]');
@@ -266,76 +252,49 @@ function bindProbePanel() {
     const path = select?.value || '/';
     button.disabled = true;
     resultBox.innerHTML = '<div class="diagnostic-warning">Rodando probe READ-ONLY...</div>';
-    try {
-      const result = await runFirebaseReadonlyProbe(path);
-      renderResult(resultBox, result);
-      logDiagnosticEvent(result.ok ? 'info' : 'error', 'firebase.readonly.probe', result.message, { path, ok: result.ok, error: result.error || null });
-    } catch (error) {
-      renderResult(resultBox, { ok: false, message: String(error?.message || error), error });
-      logDiagnosticEvent('error', 'firebase.readonly.probe', 'Erro inesperado no probe READ-ONLY.', { error: String(error?.message || error) });
-    } finally {
-      button.disabled = false;
-    }
+    try { const result = await runFirebaseReadonlyProbe(path); renderResult(resultBox, result); logDiagnosticEvent(result.ok ? 'info' : 'error', 'firebase.readonly.probe', result.message, { path, ok: result.ok, error: result.error || null }); }
+    catch (error) { renderResult(resultBox, { ok: false, message: String(error?.message || error), error }); logDiagnosticEvent('error', 'firebase.readonly.probe', 'Erro inesperado no probe READ-ONLY.', { error: String(error?.message || error) }); }
+    finally { button.disabled = false; }
   });
 
   mapButton?.addEventListener('click', async () => {
     mapButton.disabled = true;
     resultBox.innerHTML = '<div class="diagnostic-warning">Mapeando chaves reais em READ-ONLY...</div>';
-    try {
-      const result = await runFirebaseRealKeysMapProbe();
-      renderMapResult(resultBox, result);
-      logDiagnosticEvent(result.ok ? 'info' : 'error', 'firebase.real.keys.map', result.message, { ok: result.ok, rows: result.rows || [] });
-    } catch (error) {
-      renderResult(resultBox, { ok: false, message: String(error?.message || error), error });
-      logDiagnosticEvent('error', 'firebase.real.keys.map', 'Erro inesperado ao mapear chaves reais.', { error: String(error?.message || error) });
-    } finally {
-      mapButton.disabled = false;
-    }
+    try { const result = await runFirebaseRealKeysMapProbe(); renderMapResult(resultBox, result); logDiagnosticEvent(result.ok ? 'info' : 'error', 'firebase.real.keys.map', result.message, { ok: result.ok, rows: result.rows || [] }); }
+    catch (error) { renderResult(resultBox, { ok: false, message: String(error?.message || error), error }); logDiagnosticEvent('error', 'firebase.real.keys.map', 'Erro inesperado ao mapear chaves reais.', { error: String(error?.message || error) }); }
+    finally { mapButton.disabled = false; }
   });
 
   previewButton?.addEventListener('click', async () => {
     previewButton.disabled = true;
     resultBox.innerHTML = '<div class="diagnostic-warning">Lendo preview READ-ONLY de produtos e preços...</div>';
-    try {
-      const result = await runFirebaseProductsPricesPreview();
-      renderProductsPricesPreview(resultBox, result);
-      logDiagnosticEvent(result.ok ? 'info' : 'error', 'firebase.products.prices.preview', result.message, { ok: result.ok, productCount: result.productCount, priceCount: result.priceCount, matchedCount: result.matchedCount, error: result.error || null });
-    } catch (error) {
-      renderResult(resultBox, { ok: false, message: String(error?.message || error), error });
-      logDiagnosticEvent('error', 'firebase.products.prices.preview', 'Erro inesperado no preview de produtos/preços.', { error: String(error?.message || error) });
-    } finally {
-      previewButton.disabled = false;
-    }
+    try { const result = await runFirebaseProductsPricesPreview(); renderProductsPricesPreview(resultBox, result); logDiagnosticEvent(result.ok ? 'info' : 'error', 'firebase.products.prices.preview', result.message, { ok: result.ok, productCount: result.productCount, priceCount: result.priceCount, matchedCount: result.matchedCount, error: result.error || null }); }
+    catch (error) { renderResult(resultBox, { ok: false, message: String(error?.message || error), error }); logDiagnosticEvent('error', 'firebase.products.prices.preview', 'Erro inesperado no preview de produtos/preços.', { error: String(error?.message || error) }); }
+    finally { previewButton.disabled = false; }
   });
 
   auditButton?.addEventListener('click', async () => {
     auditButton.disabled = true;
     resultBox.innerHTML = '<div class="diagnostic-warning">Auditando completude do catálogo em READ-ONLY...</div>';
-    try {
-      const result = await runFirebaseCatalogCompletenessAudit();
-      renderAuditResult(resultBox, result);
-      logDiagnosticEvent(result.ok ? 'info' : 'error', 'firebase.catalog.completeness.audit', result.message, { ok: result.ok, counts: result.counts || {}, warnings: result.warnings || [], error: result.error || null });
-    } catch (error) {
-      renderResult(resultBox, { ok: false, message: String(error?.message || error), error });
-      logDiagnosticEvent('error', 'firebase.catalog.completeness.audit', 'Erro inesperado na auditoria de completude.', { error: String(error?.message || error) });
-    } finally {
-      auditButton.disabled = false;
-    }
+    try { const result = await runFirebaseCatalogCompletenessAudit(); renderAuditResult(resultBox, result); logDiagnosticEvent(result.ok ? 'info' : 'error', 'firebase.catalog.completeness.audit', result.message, { ok: result.ok, counts: result.counts || {}, warnings: result.warnings || [], error: result.error || null }); }
+    catch (error) { renderResult(resultBox, { ok: false, message: String(error?.message || error), error }); logDiagnosticEvent('error', 'firebase.catalog.completeness.audit', 'Erro inesperado na auditoria de completude.', { error: String(error?.message || error) }); }
+    finally { auditButton.disabled = false; }
+  });
+
+  exportButton?.addEventListener('click', async () => {
+    exportButton.disabled = true;
+    resultBox.innerHTML = '<div class="diagnostic-warning">Exportando snapshot Firebase READ-ONLY...</div>';
+    try { const result = await exportFirebaseReadonlySnapshotJson(); renderSnapshotExportResult(resultBox, result); logDiagnosticEvent(result.ok ? 'info' : 'error', 'firebase.snapshot.export', result.message, { ok: result.ok, filename: result.filename, counts: result.counts || {}, error: result.error || null }); }
+    catch (error) { renderResult(resultBox, { ok: false, message: String(error?.message || error), error }); logDiagnosticEvent('error', 'firebase.snapshot.export', 'Erro inesperado ao exportar snapshot Firebase.', { error: String(error?.message || error) }); }
+    finally { exportButton.disabled = false; }
   });
 
   importButton?.addEventListener('click', async () => {
     importButton.disabled = true;
     resultBox.innerHTML = '<div class="diagnostic-warning">Importando produtos Firebase para LAB localStorage...</div>';
-    try {
-      const result = await importFirebaseProductsToLabControlled();
-      renderImportResult(resultBox, result);
-      logDiagnosticEvent(result.ok ? 'info' : 'error', 'firebase.products.import.lab', result.message, { ok: result.ok, productCount: result.productCount, withPrice: result.withPrice, withImage: result.withImage });
-    } catch (error) {
-      renderResult(resultBox, { ok: false, message: String(error?.message || error), error });
-      logDiagnosticEvent('error', 'firebase.products.import.lab', 'Erro inesperado na importação Firebase → LAB.', { error: String(error?.message || error) });
-    } finally {
-      importButton.disabled = false;
-    }
+    try { const result = await importFirebaseProductsToLabControlled(); renderImportResult(resultBox, result); logDiagnosticEvent(result.ok ? 'info' : 'error', 'firebase.products.import.lab', result.message, { ok: result.ok, productCount: result.productCount, withPrice: result.withPrice, withImage: result.withImage }); }
+    catch (error) { renderResult(resultBox, { ok: false, message: String(error?.message || error), error }); logDiagnosticEvent('error', 'firebase.products.import.lab', 'Erro inesperado na importação Firebase → LAB.', { error: String(error?.message || error) }); }
+    finally { importButton.disabled = false; }
   });
 }
 
