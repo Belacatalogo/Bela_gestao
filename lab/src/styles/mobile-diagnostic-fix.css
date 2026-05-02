@@ -1,0 +1,50 @@
+.diagnostic-grid,
+.diagnostic-list,
+.diagnostic-table {
+  min-width: 0;
+}
+
+.diagnostic-row {
+  grid-template-columns: minmax(0, 1fr) !important;
+  align-items: start !important;
+  gap: 5px !important;
+}
+
+.diagnostic-row span,
+.diagnostic-row strong {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+.diagnostic-row strong {
+  color: rgba(240, 232, 220, 0.72);
+  font-weight: 500;
+  text-align: left !important;
+  white-space: normal;
+}
+
+.firebase-readonly-panel .diagnostic-row,
+.firebase-config-panel .diagnostic-row {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+.firebase-readonly-panel .diagnostic-row strong,
+.firebase-config-panel .diagnostic-row strong {
+  text-align: left !important;
+  white-space: normal;
+}
+
+@media (min-width: 620px) {
+  .diagnostic-row {
+    grid-template-columns: minmax(0, 1fr) minmax(120px, auto) !important;
+    align-items: center !important;
+    gap: 8px !important;
+  }
+
+  .diagnostic-row strong {
+    text-align: right !important;
+  }
+}
