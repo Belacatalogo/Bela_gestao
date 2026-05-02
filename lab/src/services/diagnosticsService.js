@@ -150,7 +150,7 @@ function getImageDiagnostics(products) {
   };
 }
 
-function getDataWarnings({ products, sales, catalogReport, storage, images }) {
+function getDataWarnings({ products, sales, payments = [], paymentStats = null, catalogReport, storage, images }) {
   const warnings = [];
 
   if (!products.length) warnings.push('Nenhum produto LAB carregado.');
@@ -159,15 +159,17 @@ function getDataWarnings({ products, sales, catalogReport, storage, images }) {
   if (images.heavyCount > 0) warnings.push(`${images.heavyCount} imagem(ns) LAB pesada(s) detectada(s).`);
   if (storage.warnings.length) warnings.push(...storage.warnings);
   if (sales.some((sale) => !sale.clientName || !sale.productId)) warnings.push('Existe venda LAB com dados incompletos.');
+  if (payments.length < sales.length) warnings.push('Existem vendas LAB sem parcela LAB correspondente.');
+  if (paymentStats?.pendingAmount > 0) warnings.push(`Há ${paymentStats.pendingCount} parcela(s) LAB em aberto.`);
 
   return warnings;
 }
 
-export function buildDiagnosticsReport({ appConfig, environment, products, sales, salesStats, catalogReport }) {
+export function buildDiagnosticsReport({ appConfig, environment, products, sales, payments = [], paymentStats = null, salesStats, catalogReport }) {
   const storage = getStorageRows();
   const images = getImageDiagnostics(products);
   const events = readEvents();
-  const warnings = getDataWarnings({ products, sales, catalogReport, storage, images });
+  const warnings = getDataWarnings({ products, sales, payments, paymentStats, catalogReport, storage, images });
 
   return {
     generatedAt: now(),
@@ -192,12 +194,17 @@ export function buildDiagnosticsReport({ appConfig, environment, products, sales
       sales: sales.length,
       paidSales: salesStats.paid,
       pendingSales: salesStats.pending,
+      payments: payments.length,
+      paidPayments: paymentStats?.paidCount || 0,
+      pendingPayments: paymentStats?.pendingCount || 0,
       catalogWarnings: catalogReport.warningProducts,
       catalogInvalid: catalogReport.invalidProducts,
     },
     money: {
       totalSold: salesStats.totalSold,
       totalProfit: salesStats.totalProfit,
+      paidAmount: paymentStats?.paidAmount || 0,
+      pendingAmount: paymentStats?.pendingAmount || 0,
     },
     storage,
     images,
