@@ -3,6 +3,7 @@ import { renderDiagnosticsPanel } from './components/DiagnosticsPanel.js';
 import { renderPaymentsPanel } from './components/PaymentsPanel.js';
 import { renderProductFormModal, buildEmptyProductDraft, productToDraft, readProductForm } from './components/ProductFormModal.js';
 import { renderSalesPanel, readSaleForm } from './components/SalesPanel.js';
+import { renderSettingsBackupPanel } from './components/SettingsBackupPanel.js';
 import { renderWhatsAppPanel } from './components/WhatsAppPanel.js';
 import { APP_CONFIG, CRITICAL_FEATURES } from './config/appConfig.js';
 import { getCatalogSyncReport } from './services/catalogContractService.js';
@@ -10,6 +11,7 @@ import { getDataGatewayStatus, getProduct, listProducts, resetProducts, saveProd
 import { buildDiagnosticsReport, clearDiagnosticEvents, copyDiagnosticsReport, installRuntimeDiagnostics, logDiagnosticEvent } from './services/diagnosticsService.js';
 import { DATA_MODES, setCurrentDataMode } from './services/environmentService.js';
 import { generateLabImageUrl } from './services/imageUploadLabService.js';
+import { clearLabStorageByPrefix, downloadLabBackup, getLabStorageKeys, importLabBackupFromText } from './services/labBackupService.js';
 import { ensurePaymentForSale, getPaymentStats, resetLabPayments, syncPaymentsFromSales, updateLabPaymentStatus } from './services/labPaymentsService.js';
 import { createLabSale, getLabSales, getSalesStats, resetLabSales, updateLabSaleStatus } from './services/labSalesService.js';
 import { filterProducts, getProductCategories, getProductStats, PRODUCT_STATUS_FILTERS } from './services/productFilterService.js';
@@ -239,6 +241,22 @@ function saveSaleFromForm(root, form, products) {
   renderApp(root);
 }
 
+async function importBackupFromInput(root, input) {
+  const file = input.files?.[0];
+  if (!file) return;
+  const text = await file.text();
+  const result = importLabBackupFromText(text);
+  if (!result.ok) {
+    uiState.diagnosticMessage = result.error || 'Falha ao importar backup.';
+    logDiagnosticEvent('error', 'backup.import', 'Falha ao importar backup LAB.', { error: uiState.diagnosticMessage });
+    renderApp(root);
+    return;
+  }
+  uiState.diagnosticMessage = `Backup importado: ${result.importedKeys.length} chave(s).`;
+  logDiagnosticEvent('info', 'backup.import', 'Backup LAB importado.', { keys: result.importedKeys });
+  renderApp(root);
+}
+
 function bindLabActions(root) {
   root.querySelectorAll('[data-mode]').forEach((button) => button.addEventListener('click', () => {
     setCurrentDataMode(button.getAttribute('data-mode'));
@@ -267,6 +285,22 @@ function bindLabActions(root) {
   root.querySelector('[data-reset-lab]')?.addEventListener('click', () => {
     resetProducts(); resetLabSales(); resetLabPayments(); closeModal(); uiState.saleErrors = []; uiState.filters = { query: '', category: 'all', status: PRODUCT_STATUS_FILTERS.ALL };
     logDiagnosticEvent('warn', 'lab.reset', 'Dados teste restaurados pelo usuário.');
+    renderApp(root);
+  });
+
+  root.querySelector('[data-export-backup]')?.addEventListener('click', () => {
+    const result = downloadLabBackup();
+    uiState.diagnosticMessage = result.ok ? 'Backup LAB exportado.' : result.error;
+    logDiagnosticEvent(result.ok ? 'info' : 'error', 'backup.export', result.ok ? 'Backup LAB exportado.' : 'Falha ao exportar backup LAB.', { error: result.error || '' });
+    renderApp(root);
+  });
+
+  root.querySelector('[data-import-backup]')?.addEventListener('change', (event) => importBackupFromInput(root, event.currentTarget));
+
+  root.querySelector('[data-clear-lab-storage]')?.addEventListener('click', () => {
+    const removed = clearLabStorageByPrefix();
+    uiState.diagnosticMessage = `LAB limpo: ${removed.length} chave(s) removida(s).`;
+    logDiagnosticEvent('warn', 'backup.clear', 'Storage LAB limpo pelo usuário.', { removed });
     renderApp(root);
   });
 
@@ -314,13 +348,14 @@ export function renderApp(root) {
       ${renderDashboardPanel({ products: state.products, salesStats: state.salesStats, paymentStats: state.paymentStats, catalogReport: state.catalogReport })}
       ${renderDiagnosticsPanel(state.diagnostics)}
       ${uiState.diagnosticMessage ? `<div class="diagnostic-toast">${uiState.diagnosticMessage}</div>` : ''}
+      ${renderSettingsBackupPanel({ storageKeys: getLabStorageKeys() })}
       ${renderCatalogContractPanel(state.products)}
       ${renderSalesPanel({ products: state.products, sales: state.sales, stats: state.salesStats, errors: uiState.saleErrors, canWrite: isLabMode })}
       ${renderPaymentsPanel({ payments: state.payments, stats: state.paymentStats, canWrite: isLabMode })}
       ${renderWhatsAppPanel({ sales: state.sales, payments: state.payments })}
       ${renderProductsPanel(state.products, state.gateway, isLabMode)}
       <section class="panel-card"><h2>Funções críticas preservadas</h2><p>Nenhum módulo abaixo será removido sem auditoria e teste por bloco.</p><ul class="feature-list">${CRITICAL_FEATURES.map((feature) => `<li>${feature}</li>`).join('')}</ul></section>
-      <section class="panel-card warning-card"><h2>Estado do BLOCO 9</h2><p>Dashboard LAB inicial adicionado com resumo financeiro, produtos publicados, produtos sem foto e alertas principais.</p></section>
+      <section class="panel-card warning-card"><h2>Estado do BLOCO 10A</h2><p>Configurações e Backup LAB adicionados para exportar, importar e limpar dados locais de teste.</p></section>
     </main>
     ${renderProductFormModal({ draft: uiState.modalDraft, errors: uiState.modalErrors, isEditing: Boolean(uiState.modalDraft?.id) })}
   `;
