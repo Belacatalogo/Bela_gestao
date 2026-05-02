@@ -1,7 +1,7 @@
 export const APP_CONFIG = Object.freeze({
   name: 'Bela Gestão LAB',
   branch: 'rewrite-bela-gestao-lab',
-  version: '0.8.1-lab-payments-basic',
+  version: '0.8.2-lab-whatsapp-basic',
   environment: 'lab',
   productionBranch: 'main',
 });
