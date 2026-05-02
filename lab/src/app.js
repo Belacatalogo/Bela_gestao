@@ -1,4 +1,5 @@
 import { renderDiagnosticsPanel } from './components/DiagnosticsPanel.js';
+import { renderPaymentsPanel } from './components/PaymentsPanel.js';
 import { renderProductFormModal, buildEmptyProductDraft, productToDraft, readProductForm } from './components/ProductFormModal.js';
 import { renderSalesPanel, readSaleForm } from './components/SalesPanel.js';
 import { APP_CONFIG, CRITICAL_FEATURES } from './config/appConfig.js';
@@ -7,6 +8,7 @@ import { getDataGatewayStatus, getProduct, listProducts, resetProducts, saveProd
 import { buildDiagnosticsReport, clearDiagnosticEvents, copyDiagnosticsReport, installRuntimeDiagnostics, logDiagnosticEvent } from './services/diagnosticsService.js';
 import { DATA_MODES, setCurrentDataMode } from './services/environmentService.js';
 import { generateLabImageUrl } from './services/imageUploadLabService.js';
+import { ensurePaymentForSale, getLabPayments, getPaymentStats, resetLabPayments, syncPaymentsFromSales, updateLabPaymentStatus } from './services/labPaymentsService.js';
 import { createLabSale, getLabSales, getSalesStats, resetLabSales, updateLabSaleStatus } from './services/labSalesService.js';
 import { filterProducts, getProductCategories, getProductStats, PRODUCT_STATUS_FILTERS } from './services/productFilterService.js';
 import { formatBRL } from './utils/money.js';
@@ -318,7 +320,8 @@ function saveSaleFromForm(root, form, products) {
     return;
   }
 
-  logDiagnosticEvent('info', 'sale.save', 'Venda LAB registrada.', { saleId: result.sale?.id, clientName: result.sale?.clientName });
+  ensurePaymentForSale(result.sale);
+  logDiagnosticEvent('info', 'sale.save', 'Venda LAB registrada e parcela criada.', { saleId: result.sale?.id, clientName: result.sale?.clientName });
   uiState.saleErrors = [];
   form.reset();
   renderApp(root);
@@ -327,6 +330,7 @@ function saveSaleFromForm(root, form, products) {
 function buildCurrentDiagnosticsReport() {
   const gateway = listProducts();
   const sales = getLabSales();
+  const payments = syncPaymentsFromSales(sales);
   const salesStats = getSalesStats(sales);
   const catalogReport = getCatalogSyncReport(gateway.products);
 
@@ -335,6 +339,8 @@ function buildCurrentDiagnosticsReport() {
     environment: getDataGatewayStatus(),
     products: gateway.products,
     sales,
+    payments,
+    paymentStats: getPaymentStats(payments),
     salesStats,
     catalogReport,
   });
@@ -426,6 +432,7 @@ function bindLabActions(root) {
     resetButton.addEventListener('click', () => {
       resetProducts();
       resetLabSales();
+      resetLabPayments();
       closeModal();
       uiState.saleErrors = [];
       uiState.filters = {
@@ -443,6 +450,17 @@ function bindLabActions(root) {
       updateLabSaleStatus(button.getAttribute('data-sale-status'), button.getAttribute('data-next-status'));
       logDiagnosticEvent('info', 'sale.status', 'Status da venda LAB alterado.', {
         saleId: button.getAttribute('data-sale-status'),
+        status: button.getAttribute('data-next-status'),
+      });
+      renderApp(root);
+    });
+  });
+
+  root.querySelectorAll('[data-payment-status]').forEach((button) => {
+    button.addEventListener('click', () => {
+      updateLabPaymentStatus(button.getAttribute('data-payment-status'), button.getAttribute('data-next-status'));
+      logDiagnosticEvent('info', 'payment.status', 'Status da parcela LAB alterado.', {
+        paymentId: button.getAttribute('data-payment-status'),
         status: button.getAttribute('data-next-status'),
       });
       renderApp(root);
@@ -502,13 +520,17 @@ export function renderApp(root) {
   if (!root) return;
   const gateway = listProducts();
   const sales = getLabSales();
+  const payments = syncPaymentsFromSales(sales);
   const salesStats = getSalesStats(sales);
+  const paymentStats = getPaymentStats(payments);
   const catalogReport = getCatalogSyncReport(gateway.products);
   const diagnosticReport = buildDiagnosticsReport({
     appConfig: APP_CONFIG,
     environment: getDataGatewayStatus(),
     products: gateway.products,
     sales,
+    payments,
+    paymentStats,
     salesStats,
     catalogReport,
   });
@@ -550,6 +572,11 @@ export function renderApp(root) {
         errors: uiState.saleErrors,
         canWrite: isLabMode,
       })}
+      ${renderPaymentsPanel({
+        payments,
+        stats: paymentStats,
+        canWrite: isLabMode,
+      })}
       ${renderProductsPanel()}
 
       <section class="panel-card">
@@ -563,10 +590,10 @@ export function renderApp(root) {
       </section>
 
       <section class="panel-card warning-card">
-        <h2>Estado do BLOCO 8A</h2>
+        <h2>Estado do BLOCO 8B</h2>
         <p>
-          Diagnóstico LAB completo adicionado. Ele mostra versão, ambiente, storage, produtos,
-          imagens, vendas, navegador, alertas e eventos de erro para facilitar correções futuras.
+          Pagamentos LAB iniciais adicionados. Toda venda LAB gera uma parcela fictícia,
+          com valor recebido, valor pendente e marcação Pago/Pendente. Nada real foi conectado.
         </p>
       </section>
     </main>
