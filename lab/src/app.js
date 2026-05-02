@@ -14,6 +14,7 @@ import { DATA_MODES, setCurrentDataMode } from './services/environmentService.js
 import { generateLabImageUrl } from './services/imageUploadLabService.js';
 import { clearLabStorageByPrefix, downloadLabBackup, getLabStorageKeys, importLabBackupFromText } from './services/labBackupService.js';
 import { auditLegacyBackupText, summarizeLegacyAudit } from './services/legacyBackupAuditService.js';
+import { importLegacyBackupToLab } from './services/legacyBackupImportService.js';
 import { ensurePaymentForSale, getPaymentStats, resetLabPayments, syncPaymentsFromSales, updateLabPaymentStatus } from './services/labPaymentsService.js';
 import { createLabSale, getLabSales, getSalesStats, resetLabSales, updateLabSaleStatus } from './services/labSalesService.js';
 import { filterProducts, getProductCategories, getProductStats, PRODUCT_STATUS_FILTERS } from './services/productFilterService.js';
@@ -28,6 +29,8 @@ const uiState = {
   saleErrors: [],
   diagnosticMessage: '',
   legacyAuditReport: null,
+  legacyBackupText: '',
+  legacyImportResult: null,
   filters: {
     query: '',
     category: 'all',
@@ -266,9 +269,32 @@ async function auditLegacyBackupFromInput(root, input) {
   const text = await file.text();
   const report = auditLegacyBackupText(text);
   uiState.legacyAuditReport = report;
+  uiState.legacyBackupText = report.ok ? text : '';
+  uiState.legacyImportResult = null;
   uiState.diagnosticMessage = report.ok ? summarizeLegacyAudit(report) : report.error;
   logDiagnosticEvent(report.ok ? 'info' : 'error', 'legacy.audit', report.ok ? 'Backup real auditado.' : 'Falha ao auditar backup real.', {
     summary: report.ok ? summarizeLegacyAudit(report) : report.error,
+  });
+  renderApp(root);
+}
+
+function importLegacyBackup(root, mode) {
+  if (!uiState.legacyBackupText) {
+    uiState.diagnosticMessage = 'Analise um backup real antes de importar.';
+    renderApp(root);
+    return;
+  }
+
+  const result = importLegacyBackupToLab(uiState.legacyBackupText, { anonymize: mode !== 'real' });
+  uiState.legacyImportResult = result;
+  uiState.diagnosticMessage = result.ok
+    ? `Backup real importado para LAB: ${result.counts.products} produtos, ${result.counts.sales} vendas, ${result.counts.payments} parcelas.`
+    : result.error;
+  logDiagnosticEvent(result.ok ? 'info' : 'error', 'legacy.import', result.ok ? 'Backup real importado para LAB.' : 'Falha ao importar backup real para LAB.', {
+    anonymized: mode !== 'real',
+    counts: result.counts || {},
+    skipped: result.skipped || [],
+    error: result.error || '',
   });
   renderApp(root);
 }
@@ -313,6 +339,14 @@ function bindLabActions(root) {
 
   root.querySelector('[data-import-backup]')?.addEventListener('change', (event) => importBackupFromInput(root, event.currentTarget));
   root.querySelector('[data-legacy-backup-audit]')?.addEventListener('change', (event) => auditLegacyBackupFromInput(root, event.currentTarget));
+  root.querySelectorAll('[data-import-legacy-backup]').forEach((button) => button.addEventListener('click', () => importLegacyBackup(root, button.getAttribute('data-import-legacy-backup'))));
+  root.querySelector('[data-clear-legacy-buffer]')?.addEventListener('click', () => {
+    uiState.legacyAuditReport = null;
+    uiState.legacyBackupText = '';
+    uiState.legacyImportResult = null;
+    uiState.diagnosticMessage = 'Análise de backup real limpa.';
+    renderApp(root);
+  });
 
   root.querySelector('[data-clear-lab-storage]')?.addEventListener('click', () => {
     const removed = clearLabStorageByPrefix();
@@ -366,14 +400,14 @@ export function renderApp(root) {
       ${renderDiagnosticsPanel(state.diagnostics)}
       ${uiState.diagnosticMessage ? `<div class="diagnostic-toast">${uiState.diagnosticMessage}</div>` : ''}
       ${renderSettingsBackupPanel({ storageKeys: getLabStorageKeys() })}
-      ${renderLegacyBackupAuditPanel({ report: uiState.legacyAuditReport })}
+      ${renderLegacyBackupAuditPanel({ report: uiState.legacyAuditReport, importResult: uiState.legacyImportResult })}
       ${renderCatalogContractPanel(state.products)}
       ${renderSalesPanel({ products: state.products, sales: state.sales, stats: state.salesStats, errors: uiState.saleErrors, canWrite: isLabMode })}
       ${renderPaymentsPanel({ payments: state.payments, stats: state.paymentStats, canWrite: isLabMode })}
       ${renderWhatsAppPanel({ sales: state.sales, payments: state.payments })}
       ${renderProductsPanel(state.products, state.gateway, isLabMode)}
       <section class="panel-card"><h2>Funções críticas preservadas</h2><p>Nenhum módulo abaixo será removido sem auditoria e teste por bloco.</p><ul class="feature-list">${CRITICAL_FEATURES.map((feature) => `<li>${feature}</li>`).join('')}</ul></section>
-      <section class="panel-card warning-card"><h2>Estado do BLOCO 10B</h2><p>Auditoria de backup real adicionada. O sistema lê formato legado, mostra compatibilidade e não importa automaticamente dados reais.</p></section>
+      <section class="panel-card warning-card"><h2>Estado do BLOCO 10C</h2><p>Importador seguro de backup real para LAB adicionado, com opção anonimizada e opção com dados reais apenas neste navegador.</p></section>
     </main>
     ${renderProductFormModal({ draft: uiState.modalDraft, errors: uiState.modalErrors, isEditing: Boolean(uiState.modalDraft?.id) })}
   `;
