@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="116" fill="#080808"/>
+  <rect x="34" y="34" width="444" height="444" rx="96" fill="none" stroke="#c9a84c" stroke-width="16"/>
+  <circle cx="256" cy="242" r="118" fill="#111111" stroke="#c9a84c" stroke-width="8" opacity="0.95"/>
+  <text x="256" y="250" text-anchor="middle" font-family="Georgia, serif" font-size="146" fill="#f0e8dc">B</text>
+  <text x="256" y="342" text-anchor="middle" font-family="Arial, sans-serif" font-size="44" letter-spacing="12" fill="#c9a84c">LAB</text>
+</svg>
