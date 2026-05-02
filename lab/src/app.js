@@ -12,6 +12,7 @@ import { getCatalogSyncReport } from './services/catalogContractService.js';
 import { getDataGatewayStatus, getProduct, listProducts, resetProducts, saveProduct, toggleProductVisibility } from './services/dataGateway.js';
 import { buildDiagnosticsReport, clearDiagnosticEvents, copyDiagnosticsReport, installRuntimeDiagnostics, logDiagnosticEvent } from './services/diagnosticsService.js';
 import { DATA_MODES, setCurrentDataMode } from './services/environmentService.js';
+import { clearFirebaseLabConfig, getFirebaseLabConfigSummary, saveFirebaseLabConfigText } from './services/firebaseLabConfigService.js';
 import { generateLabImageUrl } from './services/imageUploadLabService.js';
 import { clearLabStorageByPrefix, downloadLabBackup, getLabStorageKeys, importLabBackupFromText } from './services/labBackupService.js';
 import { auditLegacyBackupText, summarizeLegacyAudit } from './services/legacyBackupAuditService.js';
@@ -35,6 +36,8 @@ const uiState = {
   legacyImportResult: null,
   pwaStatus: null,
   pwaStatusLoading: false,
+  firebaseConfigText: '',
+  firebaseConfigErrors: [],
   filters: {
     query: '',
     category: 'all',
@@ -68,6 +71,35 @@ function renderEnvironmentPanel() {
         <strong>Escrita real:</strong> ${status.canWriteRealData ? 'permitida' : 'bloqueada'}<br>
         <strong>Catálogo real:</strong> ${status.affectsRealCatalog ? 'pode ser alterado' : 'não será alterado'}
       </div>
+    </section>
+  `;
+}
+
+function renderFirebaseConfigPanel() {
+  const summary = getFirebaseLabConfigSummary();
+  return `
+    <section class="panel-card firebase-config-panel">
+      <div class="panel-title-row">
+        <div><h2>Config Firebase LAB</h2><p>Cole a configuração Firebase para validar localmente. Não lê nem escreve dados reais neste bloco.</p></div>
+        <span class="safe-pill">localStorage</span>
+      </div>
+      <div class="mini-grid four-stats">
+        <div class="mini-stat"><strong>${summary.hasConfig ? 'sim' : 'não'}</strong><span>config salva</span></div>
+        <div class="mini-stat"><strong>${summary.presentFields.length}</strong><span>campos presentes</span></div>
+        <div class="mini-stat"><strong>${summary.missingFields.length}</strong><span>faltando</span></div>
+        <div class="mini-stat"><strong>sim</strong><span>escrita bloqueada</span></div>
+      </div>
+      <div class="storage-note">${summary.warning}<br><strong>Salvo em:</strong> ${summary.savedAt || 'não salvo'}<br><strong>Chave local:</strong> <code>${summary.storageKey}</code></div>
+      ${uiState.firebaseConfigErrors.length ? `<div class="form-errors">${uiState.firebaseConfigErrors.map((error) => `<div>${error}</div>`).join('')}</div>` : ''}
+      <form class="sale-form" data-firebase-config-form>
+        <label class="form-field full-row"><span>Config Firebase JSON</span><textarea name="firebaseConfig" rows="7" placeholder='{"apiKey":"...","authDomain":"...","projectId":"...","storageBucket":"...","messagingSenderId":"...","appId":"..."}'>${escapeAttr(uiState.firebaseConfigText)}</textarea></label>
+        <div class="lab-actions three-actions">
+          <button class="primary-button" type="submit">Salvar config no LAB</button>
+          <button class="secondary-button" type="button" data-clear-firebase-config>Limpar config LAB</button>
+        </div>
+      </form>
+      ${summary.hasConfig ? `<details class="diagnostic-details"><summary>Config mascarada salva</summary><div class="diagnostic-table">${Object.entries(summary.maskedConfig).map(([key, value]) => `<div class="diagnostic-row"><span>${key}</span><strong>${value}</strong></div>`).join('')}</div></details>` : ''}
+      ${summary.missingFields.length ? `<details class="diagnostic-details" open><summary>Campos ausentes</summary><div class="diagnostic-list">${summary.missingFields.map((field) => `<div class="diagnostic-warning">${field}</div>`).join('')}</div></details>` : '<div class="diagnostic-ok">Config Firebase LAB válida para o próximo bloco de leitura somente leitura.</div>'}
     </section>
   `;
 }
@@ -318,6 +350,34 @@ function importLegacyBackup(root, mode) {
   renderApp(root);
 }
 
+function saveFirebaseConfigFromForm(root, form) {
+  const data = new FormData(form);
+  const text = data.get('firebaseConfig') || '';
+  uiState.firebaseConfigText = String(text);
+  const result = saveFirebaseLabConfigText(text);
+  if (!result.ok) {
+    uiState.firebaseConfigErrors = [result.error || 'Config Firebase inválida.'];
+    uiState.diagnosticMessage = 'Config Firebase LAB inválida.';
+    logDiagnosticEvent('error', 'firebase.config.save', 'Falha ao salvar config Firebase LAB.', { error: result.error });
+    renderApp(root);
+    return;
+  }
+  uiState.firebaseConfigText = '';
+  uiState.firebaseConfigErrors = [];
+  uiState.diagnosticMessage = 'Config Firebase LAB salva e validada no localStorage.';
+  logDiagnosticEvent('info', 'firebase.config.save', 'Config Firebase LAB salva localmente.', { savedAt: result.savedAt });
+  renderApp(root);
+}
+
+function clearFirebaseConfigFromLab(root) {
+  const result = clearFirebaseLabConfig();
+  uiState.firebaseConfigText = '';
+  uiState.firebaseConfigErrors = [];
+  uiState.diagnosticMessage = result.hadConfig ? 'Config Firebase LAB removida.' : 'Não havia config Firebase LAB salva.';
+  logDiagnosticEvent('warn', 'firebase.config.clear', 'Config Firebase LAB removida do localStorage.', { hadConfig: result.hadConfig });
+  renderApp(root);
+}
+
 function bindLabActions(root) {
   root.querySelectorAll('[data-mode]').forEach((button) => button.addEventListener('click', () => {
     setCurrentDataMode(button.getAttribute('data-mode'));
@@ -373,6 +433,9 @@ function bindLabActions(root) {
     logDiagnosticEvent('warn', 'backup.clear', 'Storage LAB limpo pelo usuário.', { removed });
     renderApp(root);
   });
+
+  root.querySelector('[data-firebase-config-form]')?.addEventListener('submit', (event) => { event.preventDefault(); saveFirebaseConfigFromForm(root, event.currentTarget); });
+  root.querySelector('[data-clear-firebase-config]')?.addEventListener('click', () => clearFirebaseConfigFromLab(root));
 
   root.querySelector('[data-pwa-check-update]')?.addEventListener('click', async () => {
     const result = await checkPwaLabUpdate();
@@ -437,6 +500,7 @@ export function renderApp(root, options = {}) {
       ${renderDashboardPanel({ products: state.products, salesStats: state.salesStats, paymentStats: state.paymentStats, catalogReport: state.catalogReport })}
       ${renderDiagnosticsPanel(state.diagnostics)}
       ${uiState.diagnosticMessage ? `<div class="diagnostic-toast">${uiState.diagnosticMessage}</div>` : ''}
+      ${renderFirebaseConfigPanel()}
       ${renderPwaStatusPanel({ pwaStatus: uiState.pwaStatus })}
       ${renderSettingsBackupPanel({ storageKeys: getLabStorageKeys() })}
       ${renderLegacyBackupAuditPanel({ report: uiState.legacyAuditReport, importResult: uiState.legacyImportResult })}
@@ -446,7 +510,7 @@ export function renderApp(root, options = {}) {
       ${renderWhatsAppPanel({ sales: state.sales, payments: state.payments })}
       ${renderProductsPanel(state.products, state.gateway, isLabMode)}
       <section class="panel-card"><h2>Funções críticas preservadas</h2><p>Nenhum módulo abaixo será removido sem auditoria e teste por bloco.</p><ul class="feature-list">${CRITICAL_FEATURES.map((feature) => `<li>${feature}</li>`).join('')}</ul></section>
-      <section class="panel-card warning-card"><h2>Estado do BLOCO 11B</h2><p>Controle de PWA/cache LAB adicionado para verificar atualização, limpar cache e recarregar o app no iPhone.</p></section>
+      <section class="panel-card warning-card"><h2>Estado do BLOCO 13B</h2><p>Entrada segura de configuração Firebase adicionada em modo LAB/localStorage, sem leitura real e sem escrita real.</p></section>
     </main>
     ${renderProductFormModal({ draft: uiState.modalDraft, errors: uiState.modalErrors, isEditing: Boolean(uiState.modalDraft?.id) })}
   `;
