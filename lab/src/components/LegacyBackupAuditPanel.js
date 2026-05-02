@@ -1,12 +1,12 @@
-export function renderLegacyBackupAuditPanel({ report }) {
+export function renderLegacyBackupAuditPanel({ report, importResult }) {
   return `
     <section class="panel-card legacy-audit-panel">
       <div class="panel-title-row">
         <div>
-          <h2>Auditoria de Backup Real</h2>
-          <p>Lê um backup antigo e mostra compatibilidade. Não importa automaticamente e não salva dados reais no repositório.</p>
+          <h2>Auditoria e Importação de Backup Real</h2>
+          <p>Lê backup antigo, mostra compatibilidade e permite importar para o LAB/localStorage.</p>
         </div>
-        <span class="safe-pill">Auditoria</span>
+        <span class="safe-pill">Seguro</span>
       </div>
 
       <label class="secondary-button file-action full-row">
@@ -18,8 +18,41 @@ export function renderLegacyBackupAuditPanel({ report }) {
         Regra final registrada: o backup definitivo do Bela Gestão deverá armazenar literalmente tudo que existir no sistema.
       </div>
 
+      ${report ? renderImportActions(report) : ''}
+      ${importResult ? renderImportResult(importResult) : ''}
       ${report ? renderAuditReport(report) : '<div class="empty-preview">Nenhum backup real analisado nesta sessão.</div>'}
     </section>
+  `;
+}
+
+function renderImportActions(report) {
+  if (!report.ok || !report.compatibility.canImportToLabAfterReview) {
+    return '<div class="diagnostic-warning">Analise um backup compatível antes de importar para o LAB.</div>';
+  }
+
+  return `
+    <div class="lab-actions three-actions">
+      <button class="primary-button" data-import-legacy-backup="anon">Importar anonimizado</button>
+      <button class="secondary-button" data-import-legacy-backup="real">Importar com dados reais</button>
+      <button class="secondary-button" data-clear-legacy-buffer>Limpar análise</button>
+    </div>
+    <div class="storage-note">
+      Importar anonimizado troca telefone/CPF e mascara nomes. Importar com dados reais salva nomes, telefones e CPF apenas neste navegador LAB.
+    </div>
+  `;
+}
+
+function renderImportResult(result) {
+  if (!result.ok) {
+    return `<div class="diagnostic-warning">${result.error || 'Falha ao importar backup real.'}</div>`;
+  }
+
+  return `
+    <div class="diagnostic-ok">
+      Importado para LAB: ${result.counts.products} produtos, ${result.counts.sales} vendas e ${result.counts.payments} parcelas.
+      ${result.anonymized ? 'Dados sensíveis foram anonimizados.' : 'Dados sensíveis foram preservados neste navegador.'}
+    </div>
+    ${result.counts.skipped ? `<div class="diagnostic-warning">${result.counts.skipped} item(ns) ignorado(s). Veja o Diagnóstico LAB.</div>` : ''}
   `;
 }
 
@@ -74,6 +107,6 @@ function renderAuditReport(report) {
           ${report.warnings.map((warning) => `<div class="diagnostic-warning">${warning}</div>`).join('')}
         </div>
       </details>
-    ` : '<div class="diagnostic-ok">Backup real compatível para próximo bloco de importação controlada.</div>'}
+    ` : '<div class="diagnostic-ok">Backup real compatível para importação controlada.</div>'}
   `;
 }
