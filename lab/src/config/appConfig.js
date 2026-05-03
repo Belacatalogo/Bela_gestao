@@ -1,7 +1,7 @@
 export const APP_CONFIG = Object.freeze({
   name: 'Bela Gestão LAB',
   branch: 'rewrite-bela-gestao-lab',
-  version: '0.22.8-lab-derived-clients-probe',
+  version: '0.22.9-lab-rtdb-json-export',
   environment: 'lab',
   productionBranch: 'main',
 });
