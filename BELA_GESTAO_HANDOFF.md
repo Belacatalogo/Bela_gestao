@@ -7,7 +7,7 @@ Branch protegida de produção: `main`
 Versão atual visível:
 
 ```txt
-0.22.3-lab-catalog-backup-receiver
+0.22.4-lab-catalog-gestao-compare
 ```
 
 ## REGRA MÁXIMA ATUAL
@@ -63,11 +63,15 @@ O BLOCO 22D iniciou ajustes pixel-perfect e corrigiu overflow mobile na aba Paga
 
 O BLOCO 22E-A adicionou recepção segura de backup JSON do catálogo real dentro do Gestão LAB.
 
+O BLOCO 22E-B criou uma página de exportação segura no repositório `Belacatalogo/Bela-catalogo`, branch `backup-export-lab`, arquivo `backup-export.html`.
+
+O BLOCO 22E-C adicionou comparação segura entre backup do catálogo e backup real do Gestão.
+
 Entrada atual da LAB:
 
 ```txt
 lab/src/main.js
-  -> lab/src/cleanAppCatalogBackup.js
+  -> lab/src/cleanAppBackupCompare.js
 ```
 
 Camadas visuais atuais:
@@ -82,64 +86,67 @@ lab/src/styles/products-tab.css
 lab/src/styles/settings-tab.css
 lab/src/styles/premium-spec-exact.css
 lab/src/styles/catalog-backup.css
+lab/src/styles/backup-compare.css
 ```
 
-## BLOCO 22E-A — Receber backup do catálogo real no Gestão LAB
+## BLOCO 22E-C — Comparar backup do catálogo + backup real do Gestão
 
 Status: implementado, aguardando teste no iPhone.
 
 Versão esperada na tela:
 
 ```txt
-0.22.3-lab-catalog-backup-receiver
+0.22.4-lab-catalog-gestao-compare
 ```
 
 Arquivos principais:
 
 ```txt
-lab/src/services/catalogBackupLabService.js
-lab/src/cleanAppCatalogBackup.js
-lab/src/styles/catalog-backup.css
+lab/src/services/gestaoBackupCompareService.js
+lab/src/cleanAppBackupCompare.js
+lab/src/styles/backup-compare.css
 lab/src/main.js
 lab/index.html
 lab/src/config/appConfig.js
-docs/bloco-22e-a-catalog-backup-receiver.md
+docs/bloco-22e-c-catalog-gestao-compare.md
 BELA_GESTAO_HANDOFF.md
 ```
 
 O que o bloco faz:
 
-- adiciona em Ajustes/Backup a seção `Backup do catálogo real`;
-- permite selecionar um arquivo JSON do catálogo;
-- analisa produtos, fotos, preços e categorias;
-- mostra amostra dos produtos analisados;
-- salva a análise apenas no LAB/localStorage;
-- permite limpar o backup anexado;
-- fornece um script emergencial para exportar produtos pelo navegador do catálogo;
-- não importa automaticamente para os produtos LAB;
-- não altera o catálogo real;
-- não escreve no Firebase real.
+- adiciona em Ajustes/Backup a seção `Comparação segura`;
+- permite anexar JSON real do Gestão;
+- analisa produtos, preços, vendas, clientes e pagamentos do backup Gestão;
+- compara com o backup do catálogo;
+- mostra produtos iguais nos dois;
+- mostra produtos prontos para unir;
+- mostra possíveis duplicados;
+- mostra produtos só no catálogo;
+- mostra produtos só no Gestão;
+- mostra diferenças de preço;
+- não importa automaticamente;
+- não escreve no Firebase real;
+- não altera catálogo real.
 
-Repositório do catálogo localizado:
+Regra de fonte dos dados:
 
 ```txt
-Belacatalogo/Bela-catalogo
+Catálogo = fotos, visual e categorias/abas
+Gestão = preços, vendas, clientes, pagamentos e histórico
 ```
 
-Observação: o catálogo atual é um `index.html` grande na `main`. Por segurança, o BLOCO 22E-A não alterou esse arquivo.
-
-## Checklist de teste do BLOCO 22E-A
+## Checklist de teste do BLOCO 22E-C
 
 1. Abrir preview Netlify da branch LAB.
-2. Confirmar versão `0.22.3-lab-catalog-backup-receiver`.
+2. Confirmar versão `0.22.4-lab-catalog-gestao-compare`.
 3. Ir em Ajustes/Backup.
-4. Encontrar a seção `Backup do catálogo real`.
-5. Anexar um JSON de backup do catálogo, se houver.
-6. Conferir total de produtos, com foto, com preço e categorias.
-7. Conferir amostra de produtos.
-8. Testar `Limpar backup anexado`.
-9. Conferir o script emergencial de exportação.
-10. Confirmar que nada foi importado automaticamente para Produtos.
+4. Confirmar que o backup do catálogo real já está anexado.
+5. Na seção `Comparação segura`, anexar JSON real do Gestão.
+6. Ver resumo do backup Gestão.
+7. Tocar em `Comparar backups agora`.
+8. Conferir: iguais, prontos, possíveis, só catálogo, só gestão e preço diferente.
+9. Abrir os detalhes de prontos para unir.
+10. Confirmar que nada foi importado automaticamente.
 11. Confirmar que nada real foi alterado.
 
 ## Funções críticas finais que precisam continuar antes da entrega
@@ -164,15 +171,15 @@ Observação: o catálogo atual é um `index.html` grande na `main`. Por seguran
 ## Próximo bloco recomendado
 
 ```txt
-BLOCO 22E-B — Criar botão Exportar backup no catálogo em branch separada
+BLOCO 22E-D — Montar prévia unificada sem importar
 ```
 
 Objetivo:
 
-- criar branch de teste no `Belacatalogo/Bela-catalogo`;
-- adicionar botão visual protegido para exportar JSON completo;
-- não publicar na main até validação.
+- montar uma lista final sugerida combinando foto do catálogo com preço/dados do Gestão;
+- permitir revisão manual;
+- ainda sem gravar nada real.
 
 ## Como continuar em outro chat
 
-"Continue a reconstrução do Bela Gestão. Leia `BELA_GESTAO_HANDOFF.md` antes de qualquer alteração. A branch de trabalho do Gestão é `rewrite-bela-gestao-lab`. Não mexa na `main`, não mexa no sistema antigo ativo da esposa, não escreva no Firebase real, não altere catálogo real. A versão atual é `0.22.3-lab-catalog-backup-receiver`. O BLOCO 22E-A criou `lab/src/services/catalogBackupLabService.js`, `lab/src/cleanAppCatalogBackup.js` e `lab/src/styles/catalog-backup.css`, adicionando recepção segura de backup JSON do catálogo real em Ajustes/Backup. Próximo bloco sugerido: `BLOCO 22E-B — Criar botão Exportar backup no catálogo em branch separada`."
+"Continue a reconstrução do Bela Gestão. Leia `BELA_GESTAO_HANDOFF.md` antes de qualquer alteração. A branch de trabalho do Gestão é `rewrite-bela-gestao-lab`. Não mexa na `main`, não mexa no sistema antigo ativo da esposa, não escreva no Firebase real, não altere catálogo real. A versão atual é `0.22.4-lab-catalog-gestao-compare`. O BLOCO 22E-C criou `lab/src/services/gestaoBackupCompareService.js`, `lab/src/cleanAppBackupCompare.js` e `lab/src/styles/backup-compare.css`, adicionando comparação segura entre backup do catálogo e backup real do Gestão. Próximo bloco sugerido: `BLOCO 22E-D — Montar prévia unificada sem importar`."
