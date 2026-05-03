@@ -23,6 +23,11 @@ function setUploadHint(root, message, tone = '') {
   hint.dataset.tone = tone;
 }
 
+function setUploadPreview(root, html) {
+  const preview = root.querySelector('[data-upload-status]');
+  if (preview) preview.outerHTML = html;
+}
+
 function refreshAiLock(root) {
   const ready = hasImageUrl(root);
   const aiPanel = root.querySelector('[data-ai-panel]');
@@ -35,37 +40,40 @@ function refreshAiLock(root) {
   fillButton?.toggleAttribute('disabled', !ready);
   photoButton?.toggleAttribute('disabled', !ready);
   if (photoButton) photoButton.textContent = ready ? 'Analisar foto' : 'Aguardando URL';
-  if (hint && !ready) hint.textContent = 'Escolha uma foto do celular. Após o upload automático no Cloudinary, a URL aparecerá aqui e a IA será liberada.';
+  if (hint && !ready) hint.textContent = 'Escolha uma foto do celular. O upload começa automaticamente; quando a URL aparecer, a IA será liberada.';
   if (hint && ready) hint.textContent = 'URL pronta. A análise por IA poderá usar esta imagem.';
 }
 
 function bindCloudinaryUpload(root) {
   const fileInput = root.querySelector('[data-cloudinary-file-input]');
-  const uploadButton = root.querySelector('[data-cloudinary-upload]');
   const urlInput = root.querySelector('[data-product-image-url]');
+  const chooseLabel = root.querySelector('.legacy-file-button');
 
   async function uploadSelectedFile() {
     const file = fileInput?.files?.[0];
     if (!file) {
-      setUploadHint(root, 'Selecione uma foto do celular antes de enviar ao Cloudinary.', 'error');
+      setUploadHint(root, 'Selecione uma foto do celular para iniciar o upload automático.', 'error');
       return;
     }
 
-    if (uploadButton) {
-      uploadButton.disabled = true;
-      uploadButton.textContent = 'Enviando...';
+    if (chooseLabel) {
+      chooseLabel.setAttribute('aria-busy', 'true');
+      chooseLabel.classList.add('is-uploading');
     }
-    setUploadHint(root, 'Enviando foto ao Cloudinary...', 'loading');
+
+    setUploadHint(root, 'Enviando ao Cloudinary... não feche esta tela.', 'loading');
+    setUploadPreview(root, '<div class="legacy-uploading-preview" data-upload-status><span class="upload-spinner"></span><strong>Enviando ao Cloudinary...</strong><small>A URL será preenchida automaticamente.</small></div>');
 
     const result = await uploadImageToCloudinaryLab(file);
 
-    if (uploadButton) {
-      uploadButton.disabled = false;
-      uploadButton.textContent = 'Enviar ao Cloudinary';
+    if (chooseLabel) {
+      chooseLabel.removeAttribute('aria-busy');
+      chooseLabel.classList.remove('is-uploading');
     }
 
     if (!result.ok) {
       setUploadHint(root, result.error || 'Não foi possível enviar a imagem.', 'error');
+      setUploadPreview(root, '<div class="legacy-no-photo" data-upload-status>Upload não concluído</div>');
       refreshAiLock(root);
       return;
     }
@@ -75,17 +83,12 @@ function bindCloudinaryUpload(root) {
       urlInput.dispatchEvent(new Event('input', { bubbles: true }));
     }
 
-    const preview = root.querySelector('[data-upload-status]');
-    if (preview) {
-      preview.outerHTML = `<div class="legacy-product-preview" data-upload-status><img src="${result.imageUrl}" alt="Prévia da imagem do produto"><span>URL pronta para IA</span></div>`;
-    }
-
+    setUploadPreview(root, `<div class="legacy-product-preview" data-upload-status><img src="${result.imageUrl}" alt="Prévia da imagem do produto"><span>URL pronta para IA</span></div>`);
     setUploadHint(root, 'Upload concluído. URL preenchida automaticamente e IA liberada.', 'success');
     refreshAiLock(root);
   }
 
   fileInput?.addEventListener('change', uploadSelectedFile);
-  uploadButton?.addEventListener('click', uploadSelectedFile);
   urlInput?.addEventListener('input', () => refreshAiLock(root));
   refreshAiLock(root);
 }
