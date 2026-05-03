@@ -108,6 +108,73 @@ function isObject(value) {
   return value && typeof value === 'object' && !Array.isArray(value);
 }
 
+function valuesOfCollectionLike(value) {
+  if (Array.isArray(value)) return value;
+  if (isObject(value)) return Object.values(value);
+  return [];
+}
+
+function normalizeClientName(value) {
+  return String(value || '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLowerCase();
+}
+
+function getStringField(object, fields) {
+  if (!isObject(object)) return '';
+  for (const field of fields) {
+    if (object[field] !== undefined && object[field] !== null && String(object[field]).trim()) return String(object[field]).trim();
+  }
+  return '';
+}
+
+function extractClientName(record) {
+  if (!isObject(record)) return '';
+  const direct = getStringField(record, [
+    'clientName', 'clienteNome', 'nomeCliente', 'buyerName', 'compradoraNome',
+    'cliente', 'compradora', 'buyer', 'customer', 'customerName', 'nome', 'name',
+  ]);
+  if (direct && !['pago', 'pendente', 'entregue', 'cancelado'].includes(normalizeClientName(direct))) return direct;
+
+  const nestedClient = record.cliente || record.client || record.customer || record.compradora || record.buyer;
+  if (isObject(nestedClient)) {
+    return getStringField(nestedClient, ['nome', 'name', 'displayName', 'cliente', 'compradora']);
+  }
+  return '';
+}
+
+function extractClientNamesFromValue(value) {
+  const names = [];
+  function walk(node, level = 0) {
+    if (level > 5 || node === null || node === undefined) return;
+    if (Array.isArray(node)) {
+      node.slice(0, 800).forEach((item) => walk(item, level + 1));
+      return;
+    }
+    if (!isObject(node)) return;
+
+    const name = extractClientName(node);
+    if (name) names.push(name);
+
+    Object.entries(node).slice(0, 1200).forEach(([key, child]) => {
+      const lower = key.toLowerCase();
+      if (
+        lower.includes('venda') || lower.includes('sale') || lower.includes('pedido') ||
+        lower.includes('pagamento') || lower.includes('payment') || lower.includes('parcela') ||
+        lower.includes('cliente') || lower.includes('compradora') || lower.includes('buyer') ||
+        lower.includes('customer')
+      ) {
+        walk(child, level + 1);
+      } else if (level < 2 && (Array.isArray(child) || isObject(child))) {
+        walk(child, level + 1);
+      }
+    });
+  }
+  walk(value);
+  return unique(names.map(normalizeClientName)).filter((name) => name.length >= 2);
+}
+
 function looksLikeProduct(value = {}) {
   if (!isObject(value)) return false;
   const keys = Object.keys(value).map((key) => key.toLowerCase());
@@ -117,17 +184,19 @@ function looksLikeProduct(value = {}) {
 function looksLikeSale(value = {}) {
   if (!isObject(value)) return false;
   const keys = Object.keys(value).map((key) => key.toLowerCase());
-  return keys.some((key) => ['clientname', 'cliente', 'compradora', 'buyer', 'productid', 'produto', 'status', 'parcelas', 'installments', 'data', 'date'].includes(key));
+  return keys.some((key) => ['clientname', 'clientenome', 'nomecliente', 'cliente', 'compradora', 'buyer', 'customer', 'productid', 'produto', 'status', 'parcelas', 'installments', 'data', 'date'].includes(key));
 }
 
 function summarizeDeepPayload(value, depth = 0) {
-  const summary = { products: 0, sales: 0, payments: 0, clients: 0, settings: 0, backups: 0, keys: [], candidatePaths: [] };
+  const summary = { products: 0, sales: 0, payments: 0, clients: 0, derivedClients: 0, settings: 0, backups: 0, keys: [], clientSamples: [], candidatePaths: [] };
+  const derivedClientNames = [];
 
   function walk(node, path, level) {
     if (level > 4 || node === null || node === undefined) return;
     if (Array.isArray(node)) {
       if (node.some(looksLikeProduct)) summary.products += node.length;
       if (node.some(looksLikeSale)) summary.sales += node.length;
+      derivedClientNames.push(...extractClientNamesFromValue(node));
       node.slice(0, 25).forEach((item, index) => walk(item, `${path}[${index}]`, level + 1));
       return;
     }
@@ -135,6 +204,7 @@ function summarizeDeepPayload(value, depth = 0) {
 
     const keys = Object.keys(node);
     summary.keys.push(...keys.slice(0, 30));
+    derivedClientNames.push(...extractClientNamesFromValue(node));
 
     keys.forEach((key) => {
       const lower = key.toLowerCase();
@@ -147,10 +217,16 @@ function summarizeDeepPayload(value, depth = 0) {
         summary.candidatePaths.push({ type: 'products', path: childPath, count: childCount });
       } else if (['sales', 'vendas', 'sold', 'orders', 'pedidos'].includes(lower)) {
         summary.sales += childCount;
+        const childClients = extractClientNamesFromValue(child);
+        derivedClientNames.push(...childClients);
         summary.candidatePaths.push({ type: 'sales', path: childPath, count: childCount });
+        if (childClients.length) summary.candidatePaths.push({ type: 'derivedClients', path: childPath, count: childClients.length });
       } else if (['payments', 'pagamentos', 'parcelas', 'installments', 'pagmeta', 'precos', 'prices'].includes(lower)) {
         summary.payments += childCount;
+        const childClients = extractClientNamesFromValue(child);
+        derivedClientNames.push(...childClients);
         summary.candidatePaths.push({ type: 'payments', path: childPath, count: childCount });
+        if (childClients.length) summary.candidatePaths.push({ type: 'derivedClients', path: childPath, count: childClients.length });
       } else if (['clients', 'clientes', 'customers', 'compradoras', 'buyers'].includes(lower)) {
         summary.clients += childCount;
         summary.candidatePaths.push({ type: 'clients', path: childPath, count: childCount });
@@ -167,8 +243,12 @@ function summarizeDeepPayload(value, depth = 0) {
   }
 
   walk(value, '', depth);
+  const uniqueDerivedClients = unique(derivedClientNames).filter(Boolean);
+  summary.derivedClients = uniqueDerivedClients.length;
+  summary.clients = Math.max(summary.clients, summary.derivedClients);
+  summary.clientSamples = uniqueDerivedClients.slice(0, 12);
   summary.keys = unique(summary.keys).slice(0, 40);
-  summary.candidatePaths = summary.candidatePaths.slice(0, 40);
+  summary.candidatePaths = summary.candidatePaths.slice(0, 50);
   return summary;
 }
 
@@ -181,15 +261,19 @@ function summarizeLegacyPayload(data = {}) {
     settings: countArrayOrObject(data.settings || data.config || data.preferences),
     keys: Object.keys(data || {}).slice(0, 40),
   };
+  const directClientNames = extractClientNamesFromValue(data);
   const deep = summarizeDeepPayload(data);
+  const derivedClients = unique([...directClientNames, ...(deep.clientSamples || [])]).length;
   return {
     products: Math.max(direct.products, deep.products),
     sales: Math.max(direct.sales, deep.sales),
     payments: Math.max(direct.payments, deep.payments),
-    clients: Math.max(direct.clients, deep.clients),
+    clients: Math.max(direct.clients, deep.clients, derivedClients),
+    derivedClients: Math.max(deep.derivedClients || 0, derivedClients),
     settings: Math.max(direct.settings, deep.settings),
     backups: deep.backups,
     keys: unique([...direct.keys, ...deep.keys]).slice(0, 40),
+    clientSamples: unique([...(deep.clientSamples || []), ...directClientNames]).slice(0, 12),
     candidatePaths: deep.candidatePaths,
   };
 }
@@ -212,6 +296,7 @@ function scoreBackupCandidate(item) {
   score += Number(summary.sales || 0) * 4;
   score += Number(summary.payments || 0) * 3;
   score += Number(summary.clients || 0) * 3;
+  score += Number(summary.derivedClients || 0) * 2;
   score += Number(summary.backups || 0) * 2;
   score += (summary.candidatePaths?.length || 0) * 2;
   if (String(item.path || '').toLowerCase().includes('backup')) score += 12;
@@ -250,12 +335,15 @@ async function tryReadCollection(pathParts, label, limitSize = MAX_COLLECTION_DO
         acc.sales += itemSummary.sales;
         acc.payments += itemSummary.payments;
         acc.clients += itemSummary.clients;
+        acc.derivedClients += itemSummary.derivedClients || 0;
         acc.settings += itemSummary.settings;
         acc.backups += itemSummary.backups;
         acc.keys.push(...itemSummary.keys);
+        acc.clientSamples.push(...(itemSummary.clientSamples || []));
         acc.candidatePaths.push(...itemSummary.candidatePaths.map((candidate) => ({ ...candidate, path: `${item.id}.${candidate.path}` })));
         return acc;
-      }, { products: 0, sales: 0, payments: 0, clients: 0, settings: 0, backups: 0, keys: [], candidatePaths: [] });
+      }, { products: 0, sales: 0, payments: 0, clients: 0, derivedClients: 0, settings: 0, backups: 0, keys: [], clientSamples: [], candidatePaths: [] });
+      summary.clientSamples = unique(summary.clientSamples).slice(0, 12);
       return { label, type: 'firestore-collection', path, ok: true, exists: docs.length > 0, count: docs.length, sampleIds: docs.slice(0, 8).map((item) => item.id), summary, projectId };
     } catch (error) {
       return { label, type: 'firestore-collection', path, ok: false, exists: false, count: 0, error: error?.message || 'Erro ao ler coleção.', projectId };
@@ -327,13 +415,14 @@ export async function discoverFirebaseAutoBackupsAfterLogin() {
     acc.sales += Number(summary.sales || 0);
     acc.payments += Number(summary.payments || 0);
     acc.clients += Number(summary.clients || 0);
+    acc.derivedClients += Number(summary.derivedClients || 0);
     acc.settings += Number(summary.settings || 0);
     acc.backups += Number(summary.backups || 0);
     acc.documents += item.type?.includes('doc') ? 1 : 0;
     acc.collections += item.type?.includes('collection') ? 1 : 0;
     acc.rtdb += item.type === 'rtdb' ? 1 : 0;
     return acc;
-  }, { products: 0, sales: 0, payments: 0, clients: 0, settings: 0, backups: 0, documents: 0, collections: 0, rtdb: 0 });
+  }, { products: 0, sales: 0, payments: 0, clients: 0, derivedClients: 0, settings: 0, backups: 0, documents: 0, collections: 0, rtdb: 0 });
 
   return {
     ok: true,
@@ -364,11 +453,12 @@ export async function readRealDataPreviewAfterLogin() {
     acc.sales += Number(summary.sales || 0);
     acc.payments += Number(summary.payments || 0);
     acc.clients += Number(summary.clients || 0);
+    acc.derivedClients += Number(summary.derivedClients || 0);
     acc.documents += item.type?.includes('doc') ? 1 : 0;
     acc.collections += item.type?.includes('collection') ? 1 : 0;
     acc.rtdb += item.type === 'rtdb' ? 1 : 0;
     return acc;
-  }, { products: 0, sales: 0, payments: 0, clients: 0, documents: 0, collections: 0, rtdb: 0 });
+  }, { products: 0, sales: 0, payments: 0, clients: 0, derivedClients: 0, documents: 0, collections: 0, rtdb: 0 });
 
   return {
     ok: true,
