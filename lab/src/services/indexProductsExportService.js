@@ -1,10 +1,10 @@
 import { getLabProducts } from './labDataService.js';
 
 const INDEX_SOURCES = [
-  { label: 'GitHub lab index.html', url: 'https://raw.githubusercontent.com/Belacatalogo/Bela_gestao/rewrite-bela-gestao-lab/index.html' },
-  { label: 'GitHub main index.html', url: 'https://raw.githubusercontent.com/Belacatalogo/Bela_gestao/main/index.html' },
-  { label: 'same-origin index.html', url: '/index.html' },
-  { label: 'parent index.html', url: '../index.html' },
+  { label: 'Catálogo público GitHub Pages', url: 'https://belacatalogo.github.io/Bela-catalogo/' },
+  { label: 'GitHub Bela-catalogo main index.html', url: 'https://raw.githubusercontent.com/Belacatalogo/Bela-catalogo/main/index.html' },
+  { label: 'GitHub Bela_gestao lab index.html', url: 'https://raw.githubusercontent.com/Belacatalogo/Bela_gestao/rewrite-bela-gestao-lab/index.html' },
+  { label: 'GitHub Bela_gestao main index.html', url: 'https://raw.githubusercontent.com/Belacatalogo/Bela_gestao/main/index.html' },
 ];
 
 function normalizeText(value) {
@@ -77,13 +77,13 @@ function buildProductFromChunk(chunk, index) {
   const price = normalizeMoney(extractField(chunk, ['price', 'preco', 'valor']));
   const cost = normalizeMoney(extractField(chunk, ['cost', 'custo']));
   const imageUrl = extractField(chunk, ['foto', 'imageUrl', 'imagem', 'img', 'url', 'image']);
-  const category = normalizeText(extractField(chunk, ['category', 'categoria', 'sub'])).toLowerCase();
+  const category = normalizeText(extractField(chunk, ['category', 'categoria', 'sub', 'tipo'])).toLowerCase();
   const catalogTabs = Array.from(new Set([
     'todos',
     ...extractArrayField(chunk, ['catalogTabs', 'categories', 'abas']),
-    normalizeText(extractField(chunk, ['catalogTab', 'category', 'categoria', 'sub'])).toLowerCase(),
+    normalizeText(extractField(chunk, ['catalogTab', 'category', 'categoria', 'sub', 'tipo'])).toLowerCase(),
   ].filter(Boolean)));
-  const description = extractField(chunk, ['description', 'descricao', 'desc']);
+  const description = extractField(chunk, ['description', 'descricao', 'desc', 'sub']);
 
   const product = {
     id: normalizeId(id),
@@ -109,11 +109,9 @@ function buildProductFromChunk(chunk, index) {
 function extractProductChunks(text) {
   const source = String(text || '');
   const chunks = [];
-  const objectRegex = /\{[^{}]{0,2200}(?:name|nome|titulo|title|brand|marca|price|preco|valor|foto|fotos|imageUrl|category|catalogTab|catalogTabs)\s*:[^{}]{0,2200}\}/gi;
+  const objectRegex = /\{[^{}]{0,2600}(?:name|nome|titulo|title|brand|marca|price|preco|valor|foto|fotos|imageUrl|category|catalogTab|catalogTabs|sub)\s*:[^{}]{0,2600}\}/gi;
   let match;
-  while ((match = objectRegex.exec(source))) {
-    chunks.push(match[0]);
-  }
+  while ((match = objectRegex.exec(source))) chunks.push(match[0]);
   return chunks;
 }
 
@@ -129,6 +127,18 @@ function dedupeProducts(products) {
     const bNum = Number(String(b.id).replace(/\D/g, '')) || 0;
     return aNum - bNum || a.name.localeCompare(b.name);
   });
+}
+
+function buildTabCounts(products) {
+  const counts = {};
+  products.forEach((product) => {
+    const tabs = product.catalogTabs?.length ? product.catalogTabs : ['sem-aba'];
+    tabs.forEach((tab) => {
+      const key = normalizeText(tab).toLowerCase() || 'sem-aba';
+      counts[key] = (counts[key] || 0) + 1;
+    });
+  });
+  return Object.fromEntries(Object.entries(counts).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])));
 }
 
 function compareWithLab(products) {
@@ -162,6 +172,7 @@ async function extractFromSource(source) {
   const products = dedupeProducts(chunks
     .map((chunk, index) => buildProductFromChunk(chunk, index))
     .filter((product) => product.extraction.score >= 7 && product.name));
+  const tabCounts = buildTabCounts(products);
 
   return {
     ...source,
@@ -170,6 +181,7 @@ async function extractFromSource(source) {
     chunks: chunks.length,
     products,
     productCount: products.length,
+    tabCounts,
     sample: products.slice(0, 12),
   };
 }
@@ -193,7 +205,7 @@ export async function exportIndexEmbeddedProductsJson() {
       const result = await extractFromSource(source);
       attempts.push(result);
     } catch (error) {
-      attempts.push({ ...source, ok: false, error: String(error?.message || error), products: [], productCount: 0 });
+      attempts.push({ ...source, ok: false, error: String(error?.message || error), products: [], productCount: 0, tabCounts: {} });
     }
   }
 
@@ -201,19 +213,14 @@ export async function exportIndexEmbeddedProductsJson() {
   const best = successful.slice().sort((a, b) => b.productCount - a.productCount || b.chunks - a.chunks)[0] || null;
 
   if (!best) {
-    return {
-      ok: false,
-      downloaded: false,
-      attempts,
-      message: 'Não foi possível ler nenhuma fonte index.html para exportar produtos.',
-    };
+    return { ok: false, downloaded: false, attempts, message: 'Não foi possível ler nenhuma fonte index.html para exportar produtos.' };
   }
 
   const comparison = compareWithLab(best.products);
   const payload = {
     meta: {
-      schema: 'bela-gestao-index-embedded-products-export',
-      schemaVersion: 1,
+      schema: 'bela-catalogo-index-embedded-products-export',
+      schemaVersion: 2,
       exportedAt: new Date().toISOString(),
       source: best.label,
       sourceUrl: best.url,
@@ -221,7 +228,7 @@ export async function exportIndexEmbeddedProductsJson() {
       writeBlocked: true,
       firebaseWriteExecuted: false,
       catalogWriteExecuted: false,
-      note: 'Exportação diagnóstica. Não altera catálogo real e não escreve no Firebase.',
+      note: 'Exportação diagnóstica do catálogo público. Não altera catálogo real e não escreve no Firebase.',
     },
     counts: {
       products: best.productCount,
@@ -232,6 +239,7 @@ export async function exportIndexEmbeddedProductsJson() {
       indexOnly: comparison.indexOnlyCount,
       labOnly: comparison.labOnlyCount,
     },
+    tabCounts: best.tabCounts,
     comparison,
     products: best.products,
     attempts: attempts.map((attempt) => ({
@@ -242,19 +250,12 @@ export async function exportIndexEmbeddedProductsJson() {
       bytes: attempt.bytes || 0,
       chunks: attempt.chunks || 0,
       productCount: attempt.productCount || 0,
+      tabCounts: attempt.tabCounts || {},
     })),
   };
 
-  const filename = `bela-gestao-index-products-${safeFileDate()}.json`;
+  const filename = `bela-catalogo-index-products-${safeFileDate()}.json`;
   downloadJson(filename, payload);
 
-  return {
-    ok: true,
-    downloaded: true,
-    filename,
-    best,
-    comparison,
-    attempts,
-    message: 'Produtos embutidos do index.html exportados em JSON. Nenhuma escrita foi feita.',
-  };
+  return { ok: true, downloaded: true, filename, best, comparison, attempts, message: 'Produtos embutidos do catálogo público exportados em JSON. Nenhuma escrita foi feita.' };
 }
