@@ -44,103 +44,115 @@ function refreshAiLock(root) {
   if (hint && ready) hint.textContent = 'URL pronta. A análise por IA poderá usar esta imagem.';
 }
 
-function bindCloudinaryUpload(root) {
-  const fileInput = root.querySelector('[data-cloudinary-file-input]');
-  const urlInput = root.querySelector('[data-product-image-url]');
+async function uploadSelectedFile(root, file) {
   const chooseLabel = root.querySelector('.legacy-file-button');
+  const urlInput = root.querySelector('[data-product-image-url]');
 
-  async function uploadSelectedFile() {
-    const file = fileInput?.files?.[0];
-    if (!file) {
-      setUploadHint(root, 'Selecione uma foto do celular para iniciar o upload automático.', 'error');
-      return;
-    }
-
-    if (chooseLabel) {
-      chooseLabel.setAttribute('aria-busy', 'true');
-      chooseLabel.classList.add('is-uploading');
-    }
-
-    setUploadHint(root, 'Enviando ao Cloudinary... não feche esta tela.', 'loading');
-    setUploadPreview(root, '<div class="legacy-uploading-preview" data-upload-status><span class="upload-spinner"></span><strong>Enviando ao Cloudinary...</strong><small>A URL será preenchida automaticamente.</small></div>');
-
-    const result = await uploadImageToCloudinaryLab(file);
-
-    if (chooseLabel) {
-      chooseLabel.removeAttribute('aria-busy');
-      chooseLabel.classList.remove('is-uploading');
-    }
-
-    if (!result.ok) {
-      setUploadHint(root, result.error || 'Não foi possível enviar a imagem.', 'error');
-      setUploadPreview(root, '<div class="legacy-no-photo" data-upload-status>Upload não concluído</div>');
-      refreshAiLock(root);
-      return;
-    }
-
-    if (urlInput) {
-      urlInput.value = result.imageUrl;
-      urlInput.dispatchEvent(new Event('input', { bubbles: true }));
-    }
-
-    setUploadPreview(root, `<div class="legacy-product-preview" data-upload-status><img src="${result.imageUrl}" alt="Prévia da imagem do produto"><span>URL pronta para IA</span></div>`);
-    setUploadHint(root, 'Upload concluído. URL preenchida automaticamente e IA liberada.', 'success');
-    refreshAiLock(root);
+  if (!file) {
+    setUploadHint(root, 'Selecione uma foto do celular para iniciar o upload automático.', 'error');
+    return;
   }
 
-  fileInput?.addEventListener('change', uploadSelectedFile);
-  urlInput?.addEventListener('input', () => refreshAiLock(root));
+  if (chooseLabel) {
+    chooseLabel.setAttribute('aria-busy', 'true');
+    chooseLabel.classList.add('is-uploading');
+  }
+
+  setUploadHint(root, 'Enviando ao Cloudinary... não feche esta tela.', 'loading');
+  setUploadPreview(root, '<div class="legacy-uploading-preview" data-upload-status><span class="upload-spinner"></span><strong>Enviando ao Cloudinary...</strong><small>A URL será preenchida automaticamente.</small></div>');
+
+  const result = await uploadImageToCloudinaryLab(file);
+
+  if (chooseLabel) {
+    chooseLabel.removeAttribute('aria-busy');
+    chooseLabel.classList.remove('is-uploading');
+  }
+
+  if (!result.ok) {
+    setUploadHint(root, result.error || 'Não foi possível enviar a imagem.', 'error');
+    setUploadPreview(root, '<div class="legacy-no-photo" data-upload-status>Upload não concluído</div>');
+    refreshAiLock(root);
+    return;
+  }
+
+  if (urlInput) {
+    urlInput.value = result.imageUrl;
+    urlInput.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  setUploadPreview(root, `<div class="legacy-product-preview" data-upload-status><img src="${result.imageUrl}" alt="Prévia da imagem do produto"><span>URL pronta para IA</span></div>`);
+  setUploadHint(root, 'Upload concluído. URL preenchida automaticamente e IA liberada.', 'success');
   refreshAiLock(root);
 }
 
-function bindProductAi(root) {
-  root.querySelector('[data-ai-fill-product]')?.addEventListener('click', () => {
-    if (!hasImageUrl(root)) {
-      const hint = root.querySelector('[data-ai-product-hint]');
-      if (hint) hint.textContent = 'A IA só será liberada depois que a URL do Cloudinary aparecer.';
+function bindDelegatedProductEvents(root) {
+  if (root.dataset.productsDelegated === 'true') return;
+  root.dataset.productsDelegated = 'true';
+
+  root.addEventListener('change', (event) => {
+    const target = event.target;
+    if (target?.matches?.('[data-cloudinary-file-input]')) {
+      uploadSelectedFile(root, target.files?.[0]);
       return;
     }
-    fillField(root, 'name', 'Produto sugerido pela IA LAB');
-    fillField(root, 'brand', 'O Boticário');
-    fillField(root, 'description', 'Descrição elegante gerada em modo LAB a partir da URL da foto. A IA real será conectada depois com segurança.');
-    fillField(root, 'price', '99.90');
-    setHidden(root, 'category', 'feminino');
-    setHidden(root, 'catalogTabs', 'todos, coleção');
-    const hint = root.querySelector('[data-ai-product-hint]');
-    if (hint) hint.textContent = 'Sugestão LAB aplicada usando o fluxo correto: foto → Cloudinary → URL → IA.';
-  });
 
-  root.querySelector('[data-ai-photo-hint]')?.addEventListener('click', () => {
-    const hint = root.querySelector('[data-ai-product-hint]');
-    if (!hasImageUrl(root)) {
-      if (hint) hint.textContent = 'A análise da foto está bloqueada até o Cloudinary preencher a URL.';
-      return;
+    if (target?.matches?.('[data-product-image-url]')) {
+      refreshAiLock(root);
     }
-    if (hint) hint.textContent = 'Análise de foto reservada para a integração real da IA. A URL já está pronta para ser enviada ao modelo.';
   });
-}
 
-function bindProductChips(root) {
-  root.querySelectorAll('[data-chip-group]').forEach((group) => {
-    const input = group.querySelector('input[type="hidden"]');
-    const multi = group.getAttribute('data-chip-multi') === 'true';
-    group.querySelectorAll('[data-chip-value]').forEach((button) => button.addEventListener('click', () => {
-      const value = button.getAttribute('data-chip-value') || '';
-      if (!input) return;
+  root.addEventListener('input', (event) => {
+    if (event.target?.matches?.('[data-product-image-url]')) refreshAiLock(root);
+  });
+
+  root.addEventListener('click', (event) => {
+    const chip = event.target?.closest?.('[data-chip-value]');
+    if (chip) {
+      const group = chip.closest('[data-chip-group]');
+      const input = group?.querySelector('input[type="hidden"]');
+      const multi = group?.getAttribute('data-chip-multi') === 'true';
+      const value = chip.getAttribute('data-chip-value') || '';
+      if (!group || !input) return;
 
       if (!multi) {
         group.querySelectorAll('[data-chip-value]').forEach((item) => item.classList.remove('active'));
-        button.classList.add('active');
+        chip.classList.add('active');
         input.value = value;
+      } else {
+        chip.classList.toggle('active');
+        input.value = [...group.querySelectorAll('[data-chip-value].active')]
+          .map((item) => item.getAttribute('data-chip-value'))
+          .filter(Boolean)
+          .join(', ');
+      }
+      return;
+    }
+
+    if (event.target?.closest?.('[data-ai-fill-product]')) {
+      if (!hasImageUrl(root)) {
+        const hint = root.querySelector('[data-ai-product-hint]');
+        if (hint) hint.textContent = 'A IA só será liberada depois que a URL do Cloudinary aparecer.';
         return;
       }
+      fillField(root, 'name', 'Produto sugerido pela IA LAB');
+      fillField(root, 'brand', 'O Boticário');
+      fillField(root, 'description', 'Descrição elegante gerada em modo LAB a partir da URL da foto. A IA real será conectada depois com segurança.');
+      fillField(root, 'price', '99.90');
+      setHidden(root, 'category', 'feminino');
+      setHidden(root, 'catalogTabs', 'todos, coleção');
+      const hint = root.querySelector('[data-ai-product-hint]');
+      if (hint) hint.textContent = 'Sugestão LAB aplicada usando o fluxo correto: foto → Cloudinary → URL → IA.';
+      return;
+    }
 
-      button.classList.toggle('active');
-      const selected = [...group.querySelectorAll('[data-chip-value].active')]
-        .map((item) => item.getAttribute('data-chip-value'))
-        .filter(Boolean);
-      input.value = selected.join(', ');
-    }));
+    if (event.target?.closest?.('[data-ai-photo-hint]')) {
+      const hint = root.querySelector('[data-ai-product-hint]');
+      if (!hasImageUrl(root)) {
+        if (hint) hint.textContent = 'A análise da foto está bloqueada até o Cloudinary preencher a URL.';
+        return;
+      }
+      if (hint) hint.textContent = 'Análise de foto reservada para a integração real da IA. A URL já está pronta para ser enviada ao modelo.';
+    }
   });
 }
 
@@ -215,9 +227,8 @@ function enhanceCloudinarySettings(root) {
 function enhanceProducts(root) {
   enhanceProductLabels(root);
   enhanceCloudinarySettings(root);
-  bindCloudinaryUpload(root);
-  bindProductAi(root);
-  bindProductChips(root);
+  bindDelegatedProductEvents(root);
+  refreshAiLock(root);
 }
 
 export function renderCleanApp(root) {
