@@ -3,6 +3,10 @@ import { APP_CONFIG } from './config/appConfig.js';
 import { getCatalogBackupAnalysis } from './services/catalogBackupLabService.js';
 import { clearGestaoBackupAnalysis, clearLastComparison, compareCatalogAndGestaoBackups, getGestaoBackupAnalysis, getLastComparison, readGestaoBackupFile, saveGestaoBackupAnalysis } from './services/gestaoBackupCompareService.js';
 
+let backupCompareAutoMountInstalled = false;
+let backupCompareObserver = null;
+let backupCompareEnhanceQueued = false;
+
 function esc(value) {
   return String(value ?? '')
     .replaceAll('&', '&amp;')
@@ -164,10 +168,38 @@ function enhanceBackupCompare(root) {
 }
 
 function scheduleEnhanceBackupCompare(root) {
-  enhanceBackupCompare(root);
-  window.setTimeout(() => enhanceBackupCompare(root), 80);
-  window.setTimeout(() => enhanceBackupCompare(root), 250);
-  window.setTimeout(() => enhanceBackupCompare(root), 650);
+  if (!root || backupCompareEnhanceQueued) return;
+  backupCompareEnhanceQueued = true;
+
+  window.setTimeout(() => {
+    backupCompareEnhanceQueued = false;
+    enhanceBackupCompare(root);
+    window.setTimeout(() => enhanceBackupCompare(root), 80);
+    window.setTimeout(() => enhanceBackupCompare(root), 250);
+    window.setTimeout(() => enhanceBackupCompare(root), 650);
+  }, 0);
+}
+
+function installBackupCompareAutoMount(root) {
+  if (!root || backupCompareAutoMountInstalled) return;
+  backupCompareAutoMountInstalled = true;
+
+  root.addEventListener('click', (event) => {
+    if (event.target?.closest?.('[data-clean-tab="ajustes"]')) {
+      scheduleEnhanceBackupCompare(root);
+    }
+  }, true);
+
+  if ('MutationObserver' in window) {
+    backupCompareObserver?.disconnect?.();
+    backupCompareObserver = new MutationObserver(() => {
+      const settingsPage = findSettingsPage(root);
+      if (settingsPage && !settingsPage.querySelector('[data-backup-compare-panel]')) {
+        scheduleEnhanceBackupCompare(root);
+      }
+    });
+    backupCompareObserver.observe(root, { childList: true, subtree: true });
+  }
 }
 
 function replacePanel(root) {
@@ -216,12 +248,8 @@ export function renderCleanApp(root) {
   renderCatalogBackupApp(root);
   if (!root) return;
   root.setAttribute('data-bela-version', APP_CONFIG.version);
-  const activeTab = window.localStorage.getItem('belaGestaoLab.cleanTab');
-  if (activeTab === 'ajustes') scheduleEnhanceBackupCompare(root);
+  installBackupCompareAutoMount(root);
 
-  root.addEventListener('click', (event) => {
-    if (event.target?.closest?.('[data-clean-tab="ajustes"]')) {
-      window.setTimeout(() => scheduleEnhanceBackupCompare(root), 0);
-    }
-  });
+  const activeTab = window.localStorage.getItem('belaGestaoLab.cleanTab');
+  if (activeTab === 'ajustes' || findSettingsPage(root)) scheduleEnhanceBackupCompare(root);
 }
