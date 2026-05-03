@@ -27,6 +27,15 @@ function renderGestaoBackupSummary(record) {
         <article><strong>${analysis.salesCount || 0}</strong><span>Vendas</span></article>
         <article><strong>${analysis.clientsCount || 0}</strong><span>Clientes</span></article>
       </div>
+      ${analysis.detectedPaths ? `
+        <details class="backup-compare-details">
+          <summary>Diagnóstico do backup Gestão</summary>
+          <p>Produtos: ${esc(analysis.detectedPaths.products)}</p>
+          <p>Vendas: ${esc(analysis.detectedPaths.sales)}</p>
+          <p>Clientes: ${esc(analysis.detectedPaths.clients)}</p>
+          <p>Pagamentos: ${esc(analysis.detectedPaths.payments)}</p>
+        </details>
+      ` : ''}
     </div>
   `;
 }
@@ -133,15 +142,32 @@ function findSettingsPage(root) {
 
 function enhanceBackupCompare(root) {
   const settingsPage = findSettingsPage(root);
-  if (!settingsPage || settingsPage.querySelector('[data-backup-compare-panel]')) return;
+  if (!settingsPage) return false;
+  if (settingsPage.querySelector('[data-backup-compare-panel]')) {
+    bindBackupCompare(root);
+    return true;
+  }
 
   const catalogPanel = settingsPage.querySelector('[data-catalog-backup-panel]');
+  const backupTools = settingsPage.querySelector('.legacy-lab-tools');
+
   if (catalogPanel) {
     catalogPanel.insertAdjacentHTML('afterend', renderBackupComparePanel());
+  } else if (backupTools) {
+    backupTools.insertAdjacentHTML('beforebegin', renderBackupComparePanel());
   } else {
     settingsPage.insertAdjacentHTML('beforeend', renderBackupComparePanel());
   }
+
   bindBackupCompare(root);
+  return true;
+}
+
+function scheduleEnhanceBackupCompare(root) {
+  enhanceBackupCompare(root);
+  window.setTimeout(() => enhanceBackupCompare(root), 80);
+  window.setTimeout(() => enhanceBackupCompare(root), 250);
+  window.setTimeout(() => enhanceBackupCompare(root), 650);
 }
 
 function replacePanel(root) {
@@ -159,7 +185,7 @@ function bindBackupCompare(root) {
     if (!result.ok) {
       if (status) {
         status.className = 'backup-compare-empty error';
-        status.textContent = result.error || 'Não foi possível ler o backup do Gestão.';
+        status.innerHTML = `${esc(result.error || 'Não foi possível ler o backup do Gestão.')}${result.analysis?.sourceKeys?.length ? `<br><br>Chaves: ${esc(result.analysis.sourceKeys.join(', '))}` : ''}`;
       }
       return;
     }
@@ -191,9 +217,11 @@ export function renderCleanApp(root) {
   if (!root) return;
   root.setAttribute('data-bela-version', APP_CONFIG.version);
   const activeTab = window.localStorage.getItem('belaGestaoLab.cleanTab');
-  if (activeTab === 'ajustes') enhanceBackupCompare(root);
+  if (activeTab === 'ajustes') scheduleEnhanceBackupCompare(root);
 
-  root.querySelector('[data-clean-tab="ajustes"]')?.addEventListener('click', () => {
-    setTimeout(() => enhanceBackupCompare(root), 0);
+  root.addEventListener('click', (event) => {
+    if (event.target?.closest?.('[data-clean-tab="ajustes"]')) {
+      window.setTimeout(() => scheduleEnhanceBackupCompare(root), 0);
+    }
   });
 }
