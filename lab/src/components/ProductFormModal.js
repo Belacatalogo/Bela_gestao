@@ -60,11 +60,11 @@ function field({ label, name, value, type = 'text', placeholder = '', required =
 }
 
 function imagePreview(draft) {
-  if (!draft.imageUrl) return '<div class="legacy-no-photo">Nenhuma foto adicionada</div>';
+  if (!draft.imageUrl) return '<div class="legacy-no-photo" data-upload-status>Nenhuma foto adicionada</div>';
   return `
-    <div class="legacy-product-preview">
+    <div class="legacy-product-preview" data-upload-status>
       <img src="${escapeAttr(draft.imageUrl)}" alt="Prévia da imagem do produto">
-      <span>Foto principal</span>
+      <span>URL pronta para IA</span>
     </div>
   `;
 }
@@ -84,19 +84,20 @@ function chipGroup({ title, name, current, options, multi = false }) {
   `;
 }
 
-function aiSuggestionBox() {
+function aiSuggestionBox(draft) {
+  const hasUrl = Boolean(String(draft.imageUrl || '').trim());
   return `
-    <section class="legacy-ai-panel">
+    <section class="legacy-ai-panel ${hasUrl ? 'ready' : 'locked'}" data-ai-panel>
       <div>
         <h3>✨ IA do produto</h3>
-        <p>Modo LAB/offline. A IA real será ligada depois com segurança. Aqui você já vê onde a função ficará.</p>
+        <p>A análise da foto só libera depois que o Cloudinary gerar e preencher a URL automaticamente.</p>
       </div>
       <div class="legacy-ai-actions">
-        <button type="button" class="secondary-button" data-ai-fill-product>Preencher com IA LAB</button>
-        <button type="button" class="ghost-button" data-ai-photo-hint>Analisar foto</button>
+        <button type="button" class="secondary-button" data-ai-fill-product ${hasUrl ? '' : 'disabled'}>Preencher com IA LAB</button>
+        <button type="button" class="ghost-button" data-ai-photo-hint ${hasUrl ? '' : 'disabled'}>${hasUrl ? 'Analisar foto' : 'Aguardando URL'}</button>
       </div>
       <div class="legacy-ai-hint" data-ai-product-hint>
-        A IA vai sugerir nome, marca, descrição, categoria e abas do catálogo a partir da foto/dados do produto.
+        ${hasUrl ? 'URL pronta. A análise por IA poderá usar esta imagem.' : 'Escolha uma foto do celular. Após o upload automático no Cloudinary, a URL aparecerá aqui e a IA será liberada.'}
       </div>
     </section>
   `;
@@ -112,7 +113,7 @@ export function renderProductFormModal({ draft, errors = [], isEditing = false }
         <div class="legacy-product-title">
           <div>
             <h2 id="product-modal-title">${isEditing ? 'Editar Produto' : 'Novo Produto'}</h2>
-            <p>Preencha as informações</p>
+            <p>Foto → Cloudinary → URL → IA</p>
           </div>
           <button class="icon-button" data-close-modal aria-label="Fechar">×</button>
         </div>
@@ -123,21 +124,23 @@ export function renderProductFormModal({ draft, errors = [], isEditing = false }
           <input type="hidden" name="id" value="${escapeAttr(draft.id)}">
 
           <section class="legacy-product-section">
-            <h3>Fotos do produto — 1ª foto é a principal</h3>
+            <h3>Fotos do produto — upload automático no Cloudinary</h3>
             ${imagePreview(draft)}
             <div class="legacy-photo-box">
               <label class="legacy-product-field">
-                <span>Adicionar foto</span>
-                <input name="imageUrl" value="${escapeAttr(draft.imageUrl)}" placeholder="https://i.ibb.co/...">
+                <span>URL gerada automaticamente</span>
+                <input name="imageUrl" value="${escapeAttr(draft.imageUrl)}" placeholder="A URL aparecerá aqui após o upload" data-product-image-url>
+                <small>Quando a URL aparecer, a análise com IA será liberada.</small>
               </label>
               <div class="legacy-photo-actions">
-                <label class="secondary-button legacy-file-button">📷 Do celular<input name="imageFile" type="file" accept="image/*" hidden></label>
-                <button type="button" class="secondary-button" data-add-photo-url>+ Adicionar</button>
+                <label class="secondary-button legacy-file-button">📷 Escolher foto<input name="imageFile" type="file" accept="image/*" hidden data-cloudinary-file-input></label>
+                <button type="button" class="secondary-button" data-cloudinary-upload>Enviar ao Cloudinary</button>
               </div>
+              <div class="legacy-upload-hint" data-cloudinary-upload-hint>Selecione uma foto do celular para enviar automaticamente ao Cloudinary.</div>
             </div>
           </section>
 
-          ${aiSuggestionBox()}
+          ${aiSuggestionBox(draft)}
 
           ${field({ label: 'Nome', name: 'name', value: draft.name, placeholder: 'Ex: Glamour Secret Black', required: true })}
           ${field({ label: 'Marca', name: 'brand', value: draft.brand, placeholder: 'Ex: O Boticário', required: true })}
@@ -212,7 +215,7 @@ export function readProductForm(form) {
     price: data.get('price') || '',
     cost: data.get('cost') || '',
     imageUrl: data.get('imageUrl') || '',
-    imageFile: data.get('imageFile') instanceof File && data.get('imageFile').size > 0 ? data.get('imageFile') : null,
+    imageFile: null,
     category: data.get('category') || '',
     catalogTabs: data.get('catalogTabs') || '',
     visibleInCatalog: data.get('visibleInCatalog') === 'on',
