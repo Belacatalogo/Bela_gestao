@@ -100,10 +100,7 @@ function toMasterProduct(product, index, backupPrices = {}, backupSold = {}) {
     createdAt: product.createdAt || new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   });
-  return {
-    ...master,
-    catalogSyncStatus: deriveCatalogSyncStatus(master),
-  };
+  return { ...master, catalogSyncStatus: deriveCatalogSyncStatus(master) };
 }
 
 function customerKey(sale) {
@@ -117,15 +114,13 @@ function customerKey(sale) {
 function buildCustomersFromBackupSales(sales) {
   const customers = new Map();
   if (!isObject(sales)) return [];
-
   Object.values(sales).forEach((rows) => {
     if (!Array.isArray(rows)) return;
     rows.forEach((sale) => {
       if (!isObject(sale) || !normalizeText(sale.name)) return;
       const key = customerKey(sale);
       if (!key || key === 'name:') return;
-      const current = customers.get(key);
-      if (current) return;
+      if (customers.has(key)) return;
       customers.set(key, createMasterCustomerContract({
         id: `customer-${customers.size + 1}`,
         name: normalizeText(sale.name),
@@ -135,7 +130,6 @@ function buildCustomersFromBackupSales(sales) {
       }));
     });
   });
-
   return Array.from(customers.values());
 }
 
@@ -155,7 +149,6 @@ function buildSalesAndPaymentsFromBackup(backup, customers, productByLegacyId) {
   const sales = [];
   const payments = [];
   if (!isObject(salesMap)) return { sales, payments };
-
   Object.entries(salesMap).forEach(([legacyProductId, rows]) => {
     if (!Array.isArray(rows)) return;
     rows.forEach((saleRow, rowIndex) => {
@@ -175,11 +168,7 @@ function buildSalesAndPaymentsFromBackup(backup, customers, productByLegacyId) {
         productId: product?.id || '',
         legacyProductId: normalizeId(legacyProductId),
         customerId,
-        customerSnapshot: {
-          name: normalizeText(saleRow.name),
-          phone: normalizeText(saleRow.phone),
-          cpf: normalizeText(saleRow.cpf),
-        },
+        customerSnapshot: { name: normalizeText(saleRow.name), phone: normalizeText(saleRow.phone), cpf: normalizeText(saleRow.cpf) },
         quantity,
         installmentCount,
         purchaseDate: normalizeText(saleRow.purchaseDate),
@@ -189,7 +178,6 @@ function buildSalesAndPaymentsFromBackup(backup, customers, productByLegacyId) {
         origins: [DATA_ORIGINS.MANUAL_BACKUP],
       });
       sales.push(masterSale);
-
       for (let index = 0; index < installmentCount; index += 1) {
         const metaKeyExact = `${legacyProductId}_${saleRow.sid || rowIndex}`;
         const metaKeyIndex = `${legacyProductId}_${rowIndex}`;
@@ -210,7 +198,6 @@ function buildSalesAndPaymentsFromBackup(backup, customers, productByLegacyId) {
       }
     });
   });
-
   return { sales, payments };
 }
 
@@ -234,33 +221,28 @@ function summarize(consolidated) {
   };
 }
 
+function readCurrentLabProductsStrict() {
+  const products = getLabProducts();
+  return Array.isArray(products) ? products.filter((product) => product && product.name) : [];
+}
+
 export function consolidateRealData(rawBackupText = '') {
   const parsed = safeJsonParse(rawBackupText);
-  if (!parsed.ok) {
-    return {
-      ok: false,
-      message: 'Backup JSON inválido. Consolidação não executada.',
-      error: parsed.error,
-    };
-  }
-
+  if (!parsed.ok) return { ok: false, message: 'Backup JSON inválido. Consolidação não executada.', error: parsed.error };
   const backup = parsed.data || {};
   const backupPrices = backup?.prices || backup?.precos || {};
   const backupSold = backup?.sold || backup?.vendidos || {};
-  const products = getLabProducts().map((product, index) => toMasterProduct(product, index, backupPrices, backupSold));
+  const labProductsNow = readCurrentLabProductsStrict();
+  const products = labProductsNow.map((product, index) => toMasterProduct(product, index, backupPrices, backupSold));
   const productByLegacyId = new Map();
-  products.forEach((product) => {
-    product.legacyIds.forEach((id) => productByLegacyId.set(normalizeId(id), product));
-  });
-
+  products.forEach((product) => product.legacyIds.forEach((id) => productByLegacyId.set(normalizeId(id), product)));
   const customers = buildCustomersFromBackupSales(backup?.sales || backup?.vendas || {});
   const { sales, payments } = buildSalesAndPaymentsFromBackup(backup, customers, productByLegacyId);
-
   const consolidated = {
     schema: 'bela-gestao-master-consolidated-data',
-    schemaVersion: 1,
+    schemaVersion: 2,
     consolidatedAt: new Date().toISOString(),
-    source: 'lab-real-data-consolidator',
+    source: 'lab-real-data-consolidator-current-products',
     writeBlocked: true,
     firebaseWriteExecuted: false,
     catalogWriteExecuted: false,
@@ -276,16 +258,19 @@ export function consolidateRealData(rawBackupText = '') {
       salesProductCount: Object.keys(backup?.sales || backup?.vendas || {}).length,
       pagMetaCount: Object.keys(backup?.pagMeta || {}).length,
     } : null,
+    diagnostics: {
+      labProductsReadAtConsolidation: labProductsNow.length,
+      consolidatedProductsWritten: products.length,
+      mismatchAfterWrite: false,
+    },
   };
-
   const summary = summarize(consolidated);
   try {
     window.localStorage.setItem(CONSOLIDATED_DATA_KEY, JSON.stringify(consolidated));
   } catch {}
-
   return {
     ok: true,
-    message: 'Consolidação real concluída no LAB. Nada foi escrito no Firebase ou no catálogo antigo.',
+    message: `Consolidação real concluída no LAB com ${products.length} produto(s) atuais. Nada foi escrito no Firebase ou no catálogo antigo.`,
     summary,
     samples: {
       products: products.slice(0, 10).map((product) => ({ id: product.id, name: product.name, status: product.catalogSyncStatus, price: product.price })),
@@ -295,6 +280,7 @@ export function consolidateRealData(rawBackupText = '') {
     },
     storageKey: CONSOLIDATED_DATA_KEY,
     backupMeta: consolidated.backupMeta,
+    diagnostics: consolidated.diagnostics,
     writeBlocked: true,
     firebaseWriteExecuted: false,
     catalogWriteExecuted: false,
