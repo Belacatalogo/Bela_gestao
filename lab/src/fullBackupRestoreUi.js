@@ -26,7 +26,7 @@ function renderPanel() {
         <span class="safe-pill">14D</span>
       </div>
       <div class="storage-note">
-        Backup local do LAB: produtos, clientes, vendas, parcelas, metadados e contratos. Não escreve Firebase.
+        Backup local do LAB: produtos, clientes, vendas, parcelas, metadados e contratos. Não escreve Firebase. Painel fixado no topo para teste.
       </div>
       <div class="lab-actions">
         <button class="primary-button full-row" type="button" data-export-full-backup>Exportar backup completo</button>
@@ -47,10 +47,13 @@ function renderPanel() {
 }
 
 function findInsertionPoint() {
-  return document.querySelector('#wife-access-readiness-panel')
+  return document.querySelector('.hero-card')
+    || document.querySelector('.dashboard-hero')
+    || document.querySelector('.app-hero')
+    || document.querySelector('.dashboard-panel')
+    || document.querySelector('#wife-access-readiness-panel')
     || document.querySelector('#real-data-consolidator-panel')
-    || document.querySelector('#master-source-contracts-panel')
-    || document.querySelector('.dashboard-panel');
+    || document.querySelector('#master-source-contracts-panel');
 }
 
 function renderCounts(counts = {}) {
