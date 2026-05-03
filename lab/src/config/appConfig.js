@@ -1,7 +1,7 @@
 export const APP_CONFIG = Object.freeze({
   name: 'Bela Gestão LAB',
   branch: 'rewrite-bela-gestao-lab',
-  version: '0.17.0-lab-legacy-function-map',
+  version: '0.18.0-lab-history-safe-data-model',
   environment: 'lab',
   productionBranch: 'main',
 });
