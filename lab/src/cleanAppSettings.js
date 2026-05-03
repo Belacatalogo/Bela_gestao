@@ -2,6 +2,8 @@ import { renderCleanApp as renderProductsApp } from './cleanAppProducts.js';
 import { APP_CONFIG } from './config/appConfig.js';
 import { listProducts } from './services/dataGateway.js';
 import { clearCloudinaryLabConfig, getCloudinaryLabConfig, saveCloudinaryLabConfig } from './services/cloudinaryLabService.js';
+import { resolveGoogleRedirectLab, signInWithGoogleLab, signOutGoogleLab } from './services/firebaseAuthLabService.js';
+import { clearGoogleLoginGateUser, getGoogleLoginGateState, markRealDataReadAttempt } from './services/googleLoginGateService.js';
 import { clearCarouselSelection, clearGeminiLabKey, getCarouselSelection, getGeminiLabKeyInfo, getLabSettings, saveGeminiLabKey, saveLabSettings, simulatePriceSync, testGeminiLabKey, toggleCarouselProduct } from './services/settingsLabService.js';
 
 function esc(value) {
@@ -11,6 +13,40 @@ function esc(value) {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#039;');
+}
+
+function renderGoogleLoginPanel() {
+  const state = getGoogleLoginGateState();
+  return `
+    <section class="legacy-settings-section real-login-section">
+      <h3>Login Google — dados reais</h3>
+      <div class="legacy-settings-card google-login-card ${state.isSignedIn ? 'signed' : 'locked'}">
+        <h4>🔐 Entrar com a conta da Yasmin</h4>
+        <p>Os dados reais da sua esposa só devem aparecer depois do login Google na conta dela. Antes disso, o sistema continua usando apenas dados LAB/offline.</p>
+        <div class="real-login-status ${state.isSignedIn ? 'ok' : 'locked'}" data-google-login-status>
+          ${state.isSignedIn
+            ? `✓ Login ativo: ${esc(state.displayName || state.email)} · modo leitura seguro`
+            : 'Dados reais bloqueados. Faça login Google para liberar leitura segura.'}
+        </div>
+        ${state.isSignedIn ? `
+          <div class="real-user-card">
+            ${state.photoURL ? `<img src="${esc(state.photoURL)}" alt="Foto do perfil Google">` : '<span>G</span>'}
+            <div><strong>${esc(state.displayName || 'Conta Google')}</strong><small>${esc(state.email)}</small></div>
+          </div>
+        ` : ''}
+        <div class="legacy-settings-actions google-actions">
+          ${state.isSignedIn
+            ? '<button class="secondary-button" type="button" data-read-real-data>Verificar dados reais</button><button class="danger-button" type="button" data-google-logout>Sair</button>'
+            : '<button class="primary-button" type="button" data-google-login>Entrar com Google</button>'}
+        </div>
+        <div class="real-login-note" data-real-data-note>
+          ${state.isSignedIn
+            ? 'Próximo passo: leitura controlada do Firebase real. Nenhuma escrita real automática está liberada.'
+            : 'Importante: os dados reais não serão misturados com dados LAB.'}
+        </div>
+      </div>
+    </section>
+  `;
 }
 
 function renderCloudinaryPanel() {
@@ -114,6 +150,7 @@ function renderSettingsTab(root) {
   page.className = 'clean-section legacy-settings-page';
   page.innerHTML = `
     <div class="clean-section-title"><span>Backup</span><h2>Configurações</h2></div>
+    ${renderGoogleLoginPanel()}
     ${renderCloudinaryPanel()}
     ${renderGeminiPanel()}
     ${renderCatalogSettingsPanel(products)}
@@ -134,6 +171,12 @@ function syncSettingsActiveTab(root) {
   });
 }
 
+function rerenderSettings(root) {
+  renderSettingsTab(root);
+  syncSettingsActiveTab(root);
+  bindSettings(root);
+}
+
 function bindSettings(root) {
   root.querySelector('[data-clean-tab="ajustes"]')?.addEventListener('click', (event) => {
     event.preventDefault();
@@ -141,6 +184,32 @@ function bindSettings(root) {
     window.localStorage.setItem('belaGestaoLab.cleanTab', 'ajustes');
     renderProductsApp(root);
     enhanceSettings(root);
+  });
+
+  root.querySelector('[data-google-login]')?.addEventListener('click', async () => {
+    const status = root.querySelector('[data-google-login-status]');
+    if (status) status.textContent = 'Abrindo login Google...';
+    const result = await signInWithGoogleLab();
+    if (!result.ok) {
+      if (status) {
+        status.className = 'real-login-status locked';
+        status.textContent = result.error || 'Falha ao entrar com Google.';
+      }
+      return;
+    }
+    if (!result.redirectStarted) rerenderSettings(root);
+  });
+
+  root.querySelector('[data-google-logout]')?.addEventListener('click', async () => {
+    await signOutGoogleLab().catch(() => null);
+    clearGoogleLoginGateUser();
+    rerenderSettings(root);
+  });
+
+  root.querySelector('[data-read-real-data]')?.addEventListener('click', () => {
+    markRealDataReadAttempt();
+    const note = root.querySelector('[data-real-data-note]');
+    if (note) note.textContent = 'Login confirmado. Próximo bloco fará leitura controlada do Firebase real, ainda sem escrita automática.';
   });
 
   root.querySelector('[data-cloudinary-settings-form]')?.addEventListener('submit', (event) => {
@@ -165,9 +234,7 @@ function bindSettings(root) {
 
   root.querySelector('[data-clear-cloudinary]')?.addEventListener('click', () => {
     clearCloudinaryLabConfig();
-    renderSettingsTab(root);
-    syncSettingsActiveTab(root);
-    bindSettings(root);
+    rerenderSettings(root);
   });
 
   root.querySelector('[data-gemini-settings-form]')?.addEventListener('submit', (event) => {
@@ -192,17 +259,13 @@ function bindSettings(root) {
 
   root.querySelector('[data-clear-gemini]')?.addEventListener('click', () => {
     clearGeminiLabKey();
-    renderSettingsTab(root);
-    syncSettingsActiveTab(root);
-    bindSettings(root);
+    rerenderSettings(root);
   });
 
   root.querySelector('[data-toggle-catalog-prices]')?.addEventListener('click', () => {
     const settings = getLabSettings();
     saveLabSettings({ showCatalogPrices: !settings.showCatalogPrices });
-    renderSettingsTab(root);
-    syncSettingsActiveTab(root);
-    bindSettings(root);
+    rerenderSettings(root);
   });
 
   root.querySelector('[data-sync-prices-lab]')?.addEventListener('click', () => {
@@ -217,16 +280,12 @@ function bindSettings(root) {
 
   root.querySelectorAll('[data-carousel-product]').forEach((button) => button.addEventListener('click', () => {
     toggleCarouselProduct(button.getAttribute('data-carousel-product'));
-    renderSettingsTab(root);
-    syncSettingsActiveTab(root);
-    bindSettings(root);
+    rerenderSettings(root);
   }));
 
   root.querySelector('[data-clear-carousel]')?.addEventListener('click', () => {
     clearCarouselSelection();
-    renderSettingsTab(root);
-    syncSettingsActiveTab(root);
-    bindSettings(root);
+    rerenderSettings(root);
   });
 
   root.querySelector('[data-save-carousel-lab]')?.addEventListener('click', () => {
@@ -238,7 +297,8 @@ function bindSettings(root) {
   });
 }
 
-function enhanceSettings(root) {
+async function enhanceSettings(root) {
+  await resolveGoogleRedirectLab().catch(() => null);
   const activeTab = window.localStorage.getItem('belaGestaoLab.cleanTab');
   if (activeTab === 'ajustes') {
     renderSettingsTab(root);
