@@ -7,7 +7,7 @@ Branch protegida de produção: `main`
 Versão atual visível:
 
 ```txt
-0.20.0-lab-function-placement-review
+0.21.0-lab-clients-tab-rebuild
 ```
 
 ## REGRA MÁXIMA ATUAL
@@ -42,13 +42,15 @@ O BLOCO 18 criou o modelo de dados com histórico seguro.
 
 O BLOCO 19 importou a identidade visual do sistema antigo por uma camada CSS modular.
 
-O BLOCO 20 organizou a conferência das funções nos lugares corretos, separando uso diário de ferramentas LAB/admin.
+O BLOCO 20 organizou a conferência das funções nos lugares corretos.
+
+O BLOCO 21A reconstruiu a aba Clientes, usando vendas/pagamentos LAB para gerar clientes, ranking, filtros, busca e perfil.
 
 Entrada atual da LAB:
 
 ```txt
 lab/src/main.js
-  -> lab/src/cleanAppPlacement.js
+  -> lab/src/cleanAppClients.js
 ```
 
 Camadas visuais atuais:
@@ -56,93 +58,68 @@ Camadas visuais atuais:
 ```txt
 lab/src/styles/legacy-visual-import.css
 lab/src/styles/function-placement.css
+lab/src/styles/clients-tab.css
 ```
 
-## BLOCO 20 — Conferência das funções nos lugares corretos
+## BLOCO 21A — Reconstrução fiel da aba Clientes
 
 Status: implementado, aguardando teste no iPhone.
 
 Versão esperada na tela:
 
 ```txt
-0.20.0-lab-function-placement-review
+0.21.0-lab-clients-tab-rebuild
 ```
 
 Arquivos principais:
 
 ```txt
-lab/src/services/functionPlacementService.js
-lab/src/cleanAppPlacement.js
-lab/src/styles/function-placement.css
+lab/src/services/clientInsightsService.js
+lab/src/cleanAppClients.js
+lab/src/styles/clients-tab.css
 lab/index.html
 lab/src/main.js
 lab/src/config/appConfig.js
-docs/bloco-20-function-placement-review.md
+docs/bloco-21a-clients-tab-rebuild.md
 BELA_GESTAO_HANDOFF.md
 ```
 
 O que o bloco faz:
 
-- cria um mapa de onde cada função deve ficar;
-- adiciona em Ajustes o card `Conferência das funções nos lugares corretos`;
-- agrupa funções por Produtos, Vendas, Pagamentos, Catálogo e Ajustes;
-- marca funções como No lugar, No lugar LAB, Parcial, Pendente, Bloqueado ou Ferramenta LAB;
-- recolhe Backup, Auditoria, Migração e Mapa antigo dentro de `Ferramentas LAB / Migração`;
-- deixa as funções diárias mais separadas das ferramentas técnicas.
+- adiciona a aba Clientes;
+- calcula clientes a partir das vendas/pagamentos LAB;
+- mostra métricas: clientes, pendentes, VIP, sumidas e aniversariantes;
+- mostra Top 5 compradoras;
+- adiciona filtros: Todas, Pendente, Quitadas, VIP e Fiel;
+- adiciona ordenação: A-Z, Mais gasto, Mais compras, Recentes e Avaliação;
+- adiciona busca;
+- adiciona cards de cliente com avatar/iniciais;
+- adiciona modal/perfil da cliente com total gasto, ticket médio, pendente, produto mais comprado e histórico.
 
-## Organização atual
+Limites conscientes ainda pendentes:
 
-### Produtos
+- edição real de perfil da cliente;
+- aniversário real;
+- avaliação persistente;
+- tags manuais VIP/fiel;
+- dados reais via Firebase.
 
-- adicionar produto;
-- editar produto;
-- enviar foto;
-- publicar/ocultar no catálogo;
-- IA de descrição ainda pendente.
-
-### Vendas
-
-- registrar cliente/compradora;
-- produto vendido;
-- valor final;
-- histórico preservado;
-- lucro parcial.
-
-### Pagamentos
-
-- recebido/pendente;
-- valor da parcela;
-- parcelas múltiplas pendente;
-- WhatsApp pendente;
-- observações/vencimento pendente.
-
-### Catálogo
-
-- prévia fictícia;
-- produtos que iriam ao catálogo;
-- categorias/abas parcial;
-- escrita real bloqueada.
-
-### Ajustes
-
-- backup LAB;
-- migração offline;
-- auditoria de histórico;
-- mapa de funções antigas;
-- login Google/Firebase real bloqueado.
-
-## Checklist de teste do BLOCO 20
+## Checklist de teste do BLOCO 21A
 
 1. Abrir o preview Netlify da branch LAB.
-2. Confirmar versão `0.20.0-lab-function-placement-review`.
-3. Entrar em Ajustes.
-4. Ver o card `Conferência das funções nos lugares corretos`.
-5. Conferir se Produtos, Vendas, Pagamentos, Catálogo e Ajustes aparecem no mapa.
-6. Confirmar se `Ferramentas LAB / Migração` aparece recolhido.
-7. Abrir `Ferramentas LAB / Migração` e confirmar que Backup, Auditoria, Migração e Mapa antigo continuam lá.
-8. Conferir se Produtos/Vendas/Pagamentos continuam funcionando.
-9. Confirmar que nada pediu login Google.
-10. Confirmar que nada real foi alterado.
+2. Confirmar versão `0.21.0-lab-clients-tab-rebuild`.
+3. Ver se a aba `Clientes` aparece na navegação.
+4. Registrar uma venda em Vendas, caso ainda não tenha cliente.
+5. Voltar em Clientes.
+6. Conferir métricas de clientes.
+7. Conferir Top 5 compradoras.
+8. Testar filtros.
+9. Testar ordenação.
+10. Buscar uma cliente.
+11. Tocar em uma cliente.
+12. Confirmar se abre o perfil/modal com total gasto, ticket médio e histórico.
+13. Confirmar que nada pediu login Google.
+14. Confirmar que nada real foi alterado.
 
 ## Funções críticas finais que precisam continuar antes da entrega
 
@@ -166,17 +143,16 @@ O que o bloco faz:
 ## Próximo bloco recomendado
 
 ```txt
-BLOCO 21 — Preparação Firebase/Login/Backup em modo leitura
+BLOCO 21B — Reconstrução fiel da aba Pagamentos
 ```
 
 Objetivo:
 
-- preparar camada de Firebase e Google em modo leitura somente;
-- ainda sem escrita real;
-- validar como os dados reais serão lidos;
-- manter backup antigo intacto;
-- só avançar para escrita depois de backup completo e aprovação.
+- reconstruir indicadores, filtros, busca e cards completos;
+- mostrar vencimento, parcelas, recebido/falta receber;
+- preparar botão Cobrar/WhatsApp em LAB;
+- manter histórico seguro e ainda sem Firebase real.
 
 ## Como continuar em outro chat
 
-"Continue a reconstrução do Bela Gestão. Leia `BELA_GESTAO_HANDOFF.md` antes de qualquer alteração. A branch de trabalho é `rewrite-bela-gestao-lab`. Não mexa na `main`, não mexa no sistema antigo ativo da esposa, não escreva no Firebase real, não altere login Google real e não altere catálogo real. A versão atual é `0.20.0-lab-function-placement-review`. O BLOCO 20 criou `lab/src/services/functionPlacementService.js`, `lab/src/cleanAppPlacement.js` e `lab/src/styles/function-placement.css`, mostrando em Ajustes a conferência das funções nos lugares corretos e recolhendo ferramentas LAB. Próximo bloco sugerido: `BLOCO 21 — Preparação Firebase/Login/Backup em modo leitura`."
+"Continue a reconstrução do Bela Gestão. Leia `BELA_GESTAO_HANDOFF.md` antes de qualquer alteração. A branch de trabalho é `rewrite-bela-gestao-lab`. Não mexa na `main`, não mexa no sistema antigo ativo da esposa, não escreva no Firebase real, não altere login Google real e não altere catálogo real. A versão atual é `0.21.0-lab-clients-tab-rebuild`. O BLOCO 21A criou `lab/src/services/clientInsightsService.js`, `lab/src/cleanAppClients.js` e `lab/src/styles/clients-tab.css`, adicionando a aba Clientes fiel ao sistema antigo. Próximo bloco sugerido: `BLOCO 21B — Reconstrução fiel da aba Pagamentos`."
