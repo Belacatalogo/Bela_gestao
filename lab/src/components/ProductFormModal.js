@@ -2,13 +2,13 @@ export function buildEmptyProductDraft() {
   return {
     id: '',
     name: '',
-    brand: 'Bela LAB',
+    brand: 'O Boticário',
     description: '',
     price: '',
     cost: '',
     imageUrl: '',
-    category: 'perfumes',
-    catalogTabs: 'todos, perfumes',
+    category: 'feminino',
+    catalogTabs: 'todos',
     visibleInCatalog: true,
     badge: '',
     stock: '1',
@@ -44,29 +44,61 @@ function escapeAttr(value) {
     .replaceAll('>', '&gt;');
 }
 
+function isSelected(value, current) {
+  const selected = String(current || '').toLowerCase().split(',').map((item) => item.trim());
+  return selected.includes(String(value).toLowerCase());
+}
+
 function field({ label, name, value, type = 'text', placeholder = '', required = false, hint = '' }) {
   return `
-    <label class="form-field">
+    <label class="legacy-product-field">
       <span>${label}${required ? ' *' : ''}</span>
-      <input
-        name="${name}"
-        type="${type}"
-        value="${escapeAttr(value)}"
-        placeholder="${escapeAttr(placeholder)}"
-        ${required ? 'required' : ''}
-      >
+      <input name="${name}" type="${type}" value="${escapeAttr(value)}" placeholder="${escapeAttr(placeholder)}" ${required ? 'required' : ''}>
       ${hint ? `<small>${hint}</small>` : ''}
     </label>
   `;
 }
 
 function imagePreview(draft) {
-  if (!draft.imageUrl) return '';
+  if (!draft.imageUrl) return '<div class="legacy-no-photo">Nenhuma foto adicionada</div>';
   return `
-    <div class="image-preview-box">
+    <div class="legacy-product-preview">
       <img src="${escapeAttr(draft.imageUrl)}" alt="Prévia da imagem do produto">
-      <small>Prévia da imagem gerada/salva no LAB.</small>
+      <span>Foto principal</span>
     </div>
+  `;
+}
+
+function chipGroup({ title, name, current, options, multi = false }) {
+  return `
+    <div class="legacy-chip-group" data-chip-group="${name}" data-chip-multi="${multi ? 'true' : 'false'}">
+      <span>${title}</span>
+      <div>
+        ${options.map((option) => {
+          const active = multi ? isSelected(option.value, current) : String(current || '').toLowerCase() === String(option.value).toLowerCase();
+          return `<button type="button" class="legacy-choice-chip ${active ? 'active' : ''}" data-chip-value="${escapeAttr(option.value)}">${option.label}</button>`;
+        }).join('')}
+      </div>
+      <input type="hidden" name="${name}" value="${escapeAttr(current)}">
+    </div>
+  `;
+}
+
+function aiSuggestionBox() {
+  return `
+    <section class="legacy-ai-panel">
+      <div>
+        <h3>✨ IA do produto</h3>
+        <p>Modo LAB/offline. A IA real será ligada depois com segurança. Aqui você já vê onde a função ficará.</p>
+      </div>
+      <div class="legacy-ai-actions">
+        <button type="button" class="secondary-button" data-ai-fill-product>Preencher com IA LAB</button>
+        <button type="button" class="ghost-button" data-ai-photo-hint>Analisar foto</button>
+      </div>
+      <div class="legacy-ai-hint" data-ai-product-hint>
+        A IA vai sugerir nome, marca, descrição, categoria e abas do catálogo a partir da foto/dados do produto.
+      </div>
+    </section>
   `;
 }
 
@@ -74,70 +106,94 @@ export function renderProductFormModal({ draft, errors = [], isEditing = false }
   if (!draft) return '';
 
   return `
-    <div class="modal-backdrop" data-modal-backdrop>
-      <section class="product-modal" role="dialog" aria-modal="true" aria-labelledby="product-modal-title">
+    <div class="modal-backdrop legacy-product-backdrop" data-modal-backdrop>
+      <section class="product-modal legacy-product-modal" role="dialog" aria-modal="true" aria-labelledby="product-modal-title">
         <div class="modal-handle"></div>
-        <div class="panel-title-row">
+        <div class="legacy-product-title">
           <div>
-            <h2 id="product-modal-title">${isEditing ? 'Editar produto LAB' : 'Novo produto LAB'}</h2>
-            <p>Produto fictício. Não altera Firebase nem catálogo real.</p>
+            <h2 id="product-modal-title">${isEditing ? 'Editar Produto' : 'Novo Produto'}</h2>
+            <p>Preencha as informações</p>
           </div>
           <button class="icon-button" data-close-modal aria-label="Fechar">×</button>
         </div>
 
-        ${errors.length ? `
-          <div class="form-errors">
-            ${errors.map((error) => `<div>${error}</div>`).join('')}
-          </div>
-        ` : ''}
+        ${errors.length ? `<div class="form-errors">${errors.map((error) => `<div>${error}</div>`).join('')}</div>` : ''}
 
-        <form class="product-form" data-product-form>
+        <form class="product-form legacy-product-form" data-product-form>
           <input type="hidden" name="id" value="${escapeAttr(draft.id)}">
 
-          ${field({ label: 'Nome', name: 'name', value: draft.name, placeholder: 'Ex: Perfume Glamour', required: true })}
-          ${field({ label: 'Marca', name: 'brand', value: draft.brand, placeholder: 'Ex: Avon', required: true })}
-
-          <label class="form-field">
-            <span>Descrição</span>
-            <textarea name="description" rows="3" placeholder="Descrição para aparecer no catálogo">${escapeAttr(draft.description)}</textarea>
-          </label>
-
-          <div class="form-grid-2">
-            ${field({ label: 'Preço', name: 'price', type: 'number', value: draft.price, placeholder: '89.90', required: true })}
-            ${field({ label: 'Custo', name: 'cost', type: 'number', value: draft.cost, placeholder: '50.00' })}
-          </div>
-
-          <div class="image-upload-panel">
-            <label class="form-field">
-              <span>Enviar foto</span>
-              <input name="imageFile" type="file" accept="image/*">
-              <small>No LAB, a foto vira uma URL local automática. No sistema real, vamos trocar pelo serviço externo correto.</small>
-            </label>
-
-            ${field({ label: 'Imagem URL', name: 'imageUrl', value: draft.imageUrl, placeholder: 'opcional no LAB', hint: 'Você pode enviar foto acima ou colar uma URL manualmente.' })}
+          <section class="legacy-product-section">
+            <h3>Fotos do produto — 1ª foto é a principal</h3>
             ${imagePreview(draft)}
+            <div class="legacy-photo-box">
+              <label class="legacy-product-field">
+                <span>Adicionar foto</span>
+                <input name="imageUrl" value="${escapeAttr(draft.imageUrl)}" placeholder="https://i.ibb.co/...">
+              </label>
+              <div class="legacy-photo-actions">
+                <label class="secondary-button legacy-file-button">📷 Do celular<input name="imageFile" type="file" accept="image/*" hidden></label>
+                <button type="button" class="secondary-button" data-add-photo-url>+ Adicionar</button>
+              </div>
+            </div>
+          </section>
+
+          ${aiSuggestionBox()}
+
+          ${field({ label: 'Nome', name: 'name', value: draft.name, placeholder: 'Ex: Glamour Secret Black', required: true })}
+          ${field({ label: 'Marca', name: 'brand', value: draft.brand, placeholder: 'Ex: O Boticário', required: true })}
+          ${field({ label: 'Descrição', name: 'description', value: draft.description, placeholder: 'Ex: Deo Parfum 90ml' })}
+
+          <div class="legacy-price-row">
+            <span>R$</span>
+            ${field({ label: 'Preço de venda (R$)', name: 'price', type: 'number', value: draft.price, placeholder: '0,00', required: true })}
           </div>
 
-          <div class="form-grid-2">
-            ${field({ label: 'Categoria', name: 'category', value: draft.category, placeholder: 'perfumes', required: true })}
+          <div class="legacy-hidden-grid">
+            ${field({ label: 'Custo', name: 'cost', type: 'number', value: draft.cost, placeholder: 'opcional' })}
             ${field({ label: 'Estoque', name: 'stock', type: 'number', value: draft.stock, placeholder: '1' })}
           </div>
 
-          ${field({ label: 'Abas do catálogo', name: 'catalogTabs', value: draft.catalogTabs, placeholder: 'todos, perfumes, destaques' })}
+          ${chipGroup({
+            title: 'Categoria (gestão)',
+            name: 'category',
+            current: draft.category,
+            options: [
+              { value: 'feminino', label: 'Feminino' },
+              { value: 'masculino', label: 'Masculino' },
+              { value: 'kit', label: 'Kit' },
+              { value: 'hidratante', label: 'Hidratante' },
+              { value: 'dia das mães', label: 'Dia das Mães' },
+              { value: 'kids', label: 'Kids' },
+              { value: 'maquiagem', label: 'Maquiagem' },
+            ],
+          })}
 
-          <div class="form-grid-2">
+          ${chipGroup({
+            title: 'Abas no catálogo',
+            name: 'catalogTabs',
+            current: draft.catalogTabs,
+            multi: true,
+            options: [
+              { value: 'todos', label: 'Todos ✓' },
+              { value: 'coleção', label: 'Coleção' },
+              { value: 'dia das mães', label: 'Dia das Mães' },
+              { value: 'beleza & kids', label: 'Beleza & Kids' },
+            ],
+          })}
+
+          <div class="legacy-hidden-grid">
             ${field({ label: 'Selo', name: 'badge', value: draft.badge, placeholder: 'Promoção' })}
             ${field({ label: 'Ordem', name: 'order', type: 'number', value: draft.order, placeholder: '1' })}
           </div>
 
-          <label class="toggle-field">
+          <label class="toggle-field legacy-publish-toggle">
             <input type="checkbox" name="visibleInCatalog" ${draft.visibleInCatalog ? 'checked' : ''}>
-            <span>Publicado no catálogo fictício</span>
+            <span>Salvar e publicar no catálogo fictício</span>
           </label>
 
-          <div class="modal-actions">
-            <button class="primary-button" type="submit">Salvar no LAB</button>
+          <div class="modal-actions legacy-product-actions">
             <button class="secondary-button" type="button" data-close-modal>Cancelar</button>
+            <button class="primary-button" type="submit">Salvar & Publicar</button>
           </div>
         </form>
       </section>
