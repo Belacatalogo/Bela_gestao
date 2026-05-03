@@ -41,51 +41,174 @@ function firstArray(...items) {
   return items.find((item) => Array.isArray(item)) || [];
 }
 
-function extractGestaoProducts(payload) {
-  if (Array.isArray(payload)) return payload;
-  if (!payload || typeof payload !== 'object') return [];
+function objectValues(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return [];
+  return Object.entries(value).map(([id, item]) => (item && typeof item === 'object' ? { id: item.id || id, ...item } : { id, value: item }));
+}
 
-  return firstArray(
-    payload.products,
-    payload.produtos,
-    payload.prices,
-    payload.precos,
-    payload.catalogProducts,
-    payload.data?.products,
-    payload.data?.produtos,
-    payload.data?.prices,
-    payload.backup?.products,
-    payload.backup?.produtos,
-    payload.backup?.prices,
-    payload.lab?.products
+function flattenLocalStorageLike(payload) {
+  if (!payload || typeof payload !== 'object') return payload;
+  const out = { ...payload };
+  Object.entries(payload).forEach(([key, value]) => {
+    if (typeof value === 'string' && (value.trim().startsWith('{') || value.trim().startsWith('['))) {
+      const parsed = safeParse(value, null);
+      if (parsed !== null) out[key] = parsed;
+    }
+  });
+  return out;
+}
+
+function scanContainers(payload, maxDepth = 5) {
+  const root = flattenLocalStorageLike(payload);
+  const containers = [];
+  const seen = new WeakSet();
+
+  function walk(value, path, depth) {
+    if (!value || typeof value !== 'object' || depth > maxDepth) return;
+    if (seen.has(value)) return;
+    seen.add(value);
+    containers.push({ path, value });
+
+    if (Array.isArray(value)) {
+      value.slice(0, 120).forEach((item, index) => walk(item, `${path}[${index}]`, depth + 1));
+      return;
+    }
+
+    Object.entries(value).forEach(([key, child]) => {
+      if (typeof child === 'string' && (child.trim().startsWith('{') || child.trim().startsWith('['))) {
+        const parsed = safeParse(child, null);
+        if (parsed !== null) walk(parsed, `${path}.${key}{json}`, depth + 1);
+        return;
+      }
+      walk(child, `${path}.${key}`, depth + 1);
+    });
+  }
+
+  walk(root, 'root', 0);
+  return containers;
+}
+
+function looksLikeProduct(item = {}) {
+  if (!item || typeof item !== 'object') return false;
+  const keys = Object.keys(item).map(normalizeText).join(' ');
+  const hasName = item.name || item.nome || item.title || item.titulo || item.productName || item.produto || item.item || item.descricao || item.description;
+  const hasProductSignal = /produto|product|preco|price|valor|marca|brand|foto|image|img|categoria|category|estoque|stock/.test(keys);
+  const hasNonClientSignal = !(item.phone || item.telefone || item.whatsapp || item.cliente || item.customerName) || Boolean(item.preco || item.price || item.valor || item.imageUrl || item.foto);
+  return Boolean(hasName && hasProductSignal && hasNonClientSignal);
+}
+
+function looksLikeSale(item = {}) {
+  if (!item || typeof item !== 'object') return false;
+  const keys = Object.keys(item).map(normalizeText).join(' ');
+  return /venda|sale|compr|cliente|total|parcel|pagamento|paid|quitado|data/.test(keys) && Boolean(item.total || item.valor || item.items || item.produtos || item.product || item.produto || item.cliente || item.client);
+}
+
+function looksLikeClient(item = {}) {
+  if (!item || typeof item !== 'object') return false;
+  const keys = Object.keys(item).map(normalizeText).join(' ');
+  return /cliente|client|compradora|customer|telefone|phone|whatsapp|nome|name/.test(keys) && Boolean(item.telefone || item.phone || item.whatsapp || item.nome || item.name || item.cliente);
+}
+
+function looksLikePayment(item = {}) {
+  if (!item || typeof item !== 'object') return false;
+  const keys = Object.keys(item).map(normalizeText).join(' ');
+  return /pagamento|payment|parcela|installment|venc|due|quitado|paid|recebido|pendente/.test(keys) && Boolean(item.valor || item.value || item.amount || item.total || item.vencimento || item.dueDate || item.pago !== undefined || item.paid !== undefined);
+}
+
+function candidateArraysByName(payload, nameMatchers) {
+  const containers = scanContainers(payload);
+  const arrays = [];
+  containers.forEach(({ path, value }) => {
+    const pathName = normalizeText(path);
+    const nameHit = nameMatchers.some((matcher) => matcher.test(pathName));
+    if (!nameHit) return;
+    if (Array.isArray(value)) arrays.push({ path, items: value });
+    else if (value && typeof value === 'object') arrays.push({ path, items: objectValues(value) });
+  });
+  return arrays;
+}
+
+function bestArrayByHeuristic(payload, nameMatchers, predicate) {
+  const named = candidateArraysByName(payload, nameMatchers);
+  const scored = named.map((candidate) => {
+    const items = candidate.items || [];
+    const hits = items.filter((item) => predicate(item)).length;
+    return { ...candidate, hits };
+  }).filter((candidate) => candidate.items.length && candidate.hits > 0);
+
+  if (scored.length) return scored.sort((a, b) => b.hits - a.hits || b.items.length - a.items.length)[0];
+
+  const containers = scanContainers(payload);
+  const generic = containers
+    .filter(({ value }) => Array.isArray(value) || (value && typeof value === 'object' && Object.keys(value).length >= 2))
+    .map(({ path, value }) => {
+      const items = Array.isArray(value) ? value : objectValues(value);
+      const hits = items.filter((item) => predicate(item)).length;
+      return { path, items, hits };
+    })
+    .filter((candidate) => candidate.items.length && candidate.hits >= Math.min(3, candidate.items.length));
+
+  return generic.sort((a, b) => b.hits - a.hits || b.items.length - a.items.length)[0] || { path: '', items: [], hits: 0 };
+}
+
+function extractGestaoProducts(payload) {
+  const direct = firstArray(
+    payload?.products,
+    payload?.produtos,
+    payload?.prices,
+    payload?.precos,
+    payload?.catalogProducts,
+    payload?.data?.products,
+    payload?.data?.produtos,
+    payload?.data?.prices,
+    payload?.backup?.products,
+    payload?.backup?.produtos,
+    payload?.backup?.prices,
+    payload?.lab?.products
   );
+  if (direct.length) return { path: 'direct', items: direct };
+
+  const named = bestArrayByHeuristic(payload, [/produt/, /product/, /preco/, /price/, /catalog/], looksLikeProduct);
+  if (named.items.length) return named;
+
+  const sales = bestArrayByHeuristic(payload, [/venda/, /sale/, /sold/], looksLikeSale);
+  const embedded = [];
+  sales.items.forEach((sale) => {
+    const saleProducts = firstArray(sale.products, sale.produtos, sale.items, sale.itens);
+    saleProducts.forEach((product) => embedded.push(product));
+    if (sale.product || sale.produto || sale.item) embedded.push(sale.product || sale.produto || sale.item);
+  });
+  return { path: `${sales.path}.embeddedProducts`, items: embedded };
 }
 
 function extractGestaoSales(payload) {
-  if (!payload || typeof payload !== 'object') return [];
-  return firstArray(payload.sales, payload.vendas, payload.sold, payload.data?.sales, payload.data?.vendas, payload.backup?.sales, payload.backup?.vendas);
+  const direct = firstArray(payload?.sales, payload?.vendas, payload?.sold, payload?.data?.sales, payload?.data?.vendas, payload?.backup?.sales, payload?.backup?.vendas);
+  if (direct.length) return { path: 'direct', items: direct };
+  return bestArrayByHeuristic(payload, [/venda/, /sale/, /sold/, /compras/], looksLikeSale);
 }
 
 function extractGestaoClients(payload) {
-  if (!payload || typeof payload !== 'object') return [];
-  return firstArray(payload.clients, payload.clientes, payload.customers, payload.compradoras, payload.data?.clients, payload.data?.clientes);
+  const direct = firstArray(payload?.clients, payload?.clientes, payload?.customers, payload?.compradoras, payload?.data?.clients, payload?.data?.clientes);
+  if (direct.length) return { path: 'direct', items: direct };
+  return bestArrayByHeuristic(payload, [/cliente/, /client/, /customer/, /compradora/], looksLikeClient);
 }
 
 function extractGestaoPayments(payload) {
-  if (!payload || typeof payload !== 'object') return [];
-  return firstArray(payload.payments, payload.pagamentos, payload.parcelas, payload.pagMeta, payload.data?.payments, payload.data?.pagamentos);
+  const direct = firstArray(payload?.payments, payload?.pagamentos, payload?.parcelas, payload?.pagMeta, payload?.data?.payments, payload?.data?.pagamentos);
+  if (direct.length) return { path: 'direct', items: direct };
+  return bestArrayByHeuristic(payload, [/pagamento/, /payment/, /parcela/, /installment/, /pagmeta/], looksLikePayment);
 }
 
 function normalizeGestaoProduct(raw, index) {
-  const name = displayText(raw.name || raw.nome || raw.title || raw.titulo || raw.productName || raw.produto || raw.item);
-  const brand = displayText(raw.brand || raw.marca || raw.productBrand || raw.loja);
-  const description = displayText(raw.description || raw.descricao || raw.sub || raw.volume || raw.details || raw.obs);
-  const priceRaw = raw.price ?? raw.preco ?? raw.valor ?? raw.salePrice ?? raw.valorVenda ?? raw.sellPrice ?? '';
-  const imageUrl = displayText(raw.imageUrl || raw.image || raw.img || raw.foto || raw.photo || raw.url || raw.imagem);
+  const name = displayText(raw.name || raw.nome || raw.title || raw.titulo || raw.productName || raw.produtoNome || raw.nomeProduto || raw.produto || raw.item || raw.descricao || raw.description);
+  const brand = displayText(raw.brand || raw.marca || raw.productBrand || raw.loja || raw.categoryBrand);
+  const description = displayText(raw.description || raw.descricao || raw.sub || raw.volume || raw.details || raw.obs || raw.observacao);
+  const priceRaw = raw.price ?? raw.preco ?? raw.preço ?? raw.valor ?? raw.salePrice ?? raw.valorVenda ?? raw.sellPrice ?? raw.precoVenda ?? raw.priceSale ?? '';
+  const imageUrl = displayText(raw.imageUrl || raw.image || raw.img || raw.foto || raw.photo || raw.url || raw.imagem || raw.src);
   const category = displayText(raw.category || raw.categoria || raw.tab || raw.aba || raw.tipo || 'gestao');
 
   return {
-    id: displayText(raw.id || raw.slug || raw.sku || raw.codigo || `gestao-backup-${index + 1}`),
+    id: displayText(raw.id || raw.slug || raw.sku || raw.codigo || raw.code || `gestao-backup-${index + 1}`),
     name,
     brand,
     description,
@@ -138,11 +261,29 @@ function normalizeCatalogProduct(product, index) {
   };
 }
 
+function uniqueProducts(products) {
+  const seen = new Set();
+  return products.filter((product) => {
+    const key = [normalizeText(product.name), normalizeText(product.brand), normalizeText(product.description), String(product.price || '')].join('|');
+    if (!product.name && !product.imageUrl) return false;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 export function analyzeGestaoBackupPayload(payload) {
-  const products = extractGestaoProducts(payload).map(normalizeGestaoProduct).filter((product) => product.name || product.imageUrl);
-  const sales = extractGestaoSales(payload);
-  const clients = extractGestaoClients(payload);
-  const payments = extractGestaoPayments(payload);
+  const normalizedPayload = flattenLocalStorageLike(payload);
+  const productCandidate = extractGestaoProducts(normalizedPayload);
+  const salesCandidate = extractGestaoSales(normalizedPayload);
+  const clientsCandidate = extractGestaoClients(normalizedPayload);
+  const paymentsCandidate = extractGestaoPayments(normalizedPayload);
+
+  const products = uniqueProducts((productCandidate.items || []).map(normalizeGestaoProduct));
+  const sales = salesCandidate.items || [];
+  const clients = clientsCandidate.items || [];
+  const payments = paymentsCandidate.items || [];
+  const containers = scanContainers(normalizedPayload, 3);
 
   return {
     ok: products.length > 0 || sales.length > 0 || clients.length > 0 || payments.length > 0,
@@ -153,7 +294,14 @@ export function analyzeGestaoBackupPayload(payload) {
     salesCount: sales.length,
     clientsCount: clients.length,
     paymentsCount: payments.length,
-    sourceKeys: payload && typeof payload === 'object' && !Array.isArray(payload) ? Object.keys(payload).slice(0, 30) : [],
+    sourceKeys: normalizedPayload && typeof normalizedPayload === 'object' && !Array.isArray(normalizedPayload) ? Object.keys(normalizedPayload).slice(0, 30) : [],
+    detectedPaths: {
+      products: productCandidate.path || 'não encontrado',
+      sales: salesCandidate.path || 'não encontrado',
+      clients: clientsCandidate.path || 'não encontrado',
+      payments: paymentsCandidate.path || 'não encontrado',
+    },
+    scannedPaths: containers.map((item) => item.path).slice(0, 40),
   };
 }
 
@@ -163,7 +311,13 @@ export async function readGestaoBackupFile(file) {
   const payload = safeParse(text, null);
   if (!payload) return { ok: false, error: 'Arquivo inválido. O backup do Gestão precisa ser um JSON válido.' };
   const analysis = analyzeGestaoBackupPayload(payload);
-  if (!analysis.ok) return { ok: false, error: 'JSON lido, mas nenhum dado reconhecido do Gestão foi encontrado.', analysis };
+  if (!analysis.ok) {
+    return {
+      ok: false,
+      error: 'JSON lido, mas nenhum dado reconhecido do Gestão foi encontrado. O diagnóstico foi ampliado; envie print das chaves detectadas se continuar assim.',
+      analysis,
+    };
+  }
   return { ok: true, analysis };
 }
 
