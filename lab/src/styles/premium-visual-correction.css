@@ -1,0 +1,494 @@
+/*
+  BLOCO 14E FIX — Correção visual sem alterar funções
+  Mantém a reconstrução modular e apenas refina aparência, organização visual, blur e hierarquia.
+*/
+
+:root {
+  --bela-bg-0: #030303;
+  --bela-bg-1: #080706;
+  --bela-card: rgba(17, 16, 14, 0.74);
+  --bela-card-strong: rgba(24, 22, 19, 0.86);
+  --bela-line: rgba(232, 201, 122, 0.16);
+  --bela-line-strong: rgba(232, 201, 122, 0.34);
+  --bela-gold: #c9a84c;
+  --bela-gold-soft: #e8c97a;
+  --bela-cream: #f0e8dc;
+  --bela-muted: rgba(240, 232, 220, 0.62);
+  --bela-muted-2: rgba(240, 232, 220, 0.38);
+  --bela-green: #7dd87d;
+  --bela-rose: #e7a7c8;
+  --bela-glass: linear-gradient(145deg, rgba(255,255,255,0.082), rgba(255,255,255,0.025));
+  --bela-gold-gradient: linear-gradient(135deg, #8e6b23 0%, #c9a84c 44%, #ffe8a5 53%, #b98a2c 100%);
+  --bela-shadow: 0 18px 58px rgba(0,0,0,0.42);
+}
+
+html,
+body {
+  background:
+    radial-gradient(circle at 18% -8%, rgba(201,168,76,0.18), transparent 28rem),
+    radial-gradient(circle at 100% 8%, rgba(231,167,200,0.10), transparent 22rem),
+    linear-gradient(180deg, var(--bela-bg-1), var(--bela-bg-0) 62%);
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background:
+    linear-gradient(120deg, transparent, rgba(255,255,255,0.025), transparent 42%),
+    radial-gradient(circle at 50% 0%, rgba(255,232,168,0.06), transparent 32rem);
+}
+
+.lab-page {
+  width: min(100%, 760px);
+  margin: 0 auto;
+  padding: max(18px, env(safe-area-inset-top)) clamp(12px, 3.6vw, 18px) calc(36px + env(safe-area-inset-bottom));
+}
+
+.hero-card {
+  border-radius: 30px;
+  padding: clamp(24px, 7vw, 38px) clamp(18px, 5vw, 30px);
+  margin-bottom: 14px;
+  text-align: center;
+  border: 1px solid rgba(232,201,122,0.20);
+  background:
+    radial-gradient(circle at 50% -16%, rgba(255,232,168,0.19), transparent 18rem),
+    linear-gradient(145deg, rgba(26,23,18,0.88), rgba(7,7,7,0.78));
+  -webkit-backdrop-filter: blur(24px) saturate(1.15);
+  backdrop-filter: blur(24px) saturate(1.15);
+  box-shadow: 0 28px 76px rgba(0,0,0,0.48), inset 0 1px 0 rgba(255,255,255,0.10);
+}
+
+.hero-card h1 {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(2.6rem, 17vw, 5rem);
+  letter-spacing: 0.24em;
+  font-weight: 300;
+  line-height: 0.9;
+  color: var(--bela-cream);
+  margin: 4px 0 10px;
+}
+
+.hero-card h1 span {
+  color: var(--bela-gold-soft);
+}
+
+.hero-text {
+  max-width: 30rem;
+  margin-inline: auto;
+  line-height: 1.55;
+  color: var(--bela-muted);
+}
+
+.eyebrow {
+  width: fit-content;
+  margin: 0 auto 18px;
+  border: 1px solid rgba(232,201,122,0.24);
+  background: rgba(0,0,0,0.26);
+  color: var(--bela-gold-soft);
+  letter-spacing: 0.24em;
+}
+
+.panel-card,
+.product-filters,
+.lab-product-card,
+.sale-card,
+.product-modal,
+.diagnostic-details,
+.storage-note,
+.image-upload-panel,
+.feature-list li,
+.status-card,
+.mini-stat,
+.contract-ok,
+.contract-issue-card {
+  border: 1px solid var(--bela-line);
+  border-radius: 24px;
+  background:
+    linear-gradient(145deg, rgba(255,255,255,0.072), rgba(255,255,255,0.022)),
+    radial-gradient(circle at 0 0, rgba(232,201,122,0.055), transparent 16rem);
+  -webkit-backdrop-filter: blur(22px) saturate(1.16);
+  backdrop-filter: blur(22px) saturate(1.16);
+  box-shadow: var(--bela-shadow), inset 0 1px 0 rgba(255,255,255,0.07);
+}
+
+.panel-card {
+  padding: clamp(17px, 5vw, 24px);
+  margin-bottom: 12px;
+}
+
+.panel-card + .panel-card {
+  margin-top: 12px;
+}
+
+.panel-title-row {
+  align-items: flex-start;
+  gap: 12px;
+  padding-bottom: 4px;
+}
+
+.panel-title-row h2 {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(1.7rem, 8vw, 2.65rem);
+  line-height: 1.02;
+  font-weight: 300;
+  color: var(--bela-gold-soft);
+  margin-bottom: 8px;
+}
+
+.panel-title-row p,
+.panel-card p {
+  color: var(--bela-muted);
+  line-height: 1.55;
+}
+
+.safe-pill,
+.mini-badge,
+.pag-status-badge,
+.muted-badge {
+  border-radius: 999px;
+  border: 1px solid rgba(232,201,122,0.24);
+  background: rgba(0,0,0,0.24);
+  color: var(--bela-gold-soft);
+  letter-spacing: 0.18em;
+  white-space: nowrap;
+}
+
+.status-grid,
+.mini-grid.four-stats,
+.mini-grid,
+.dashboard,
+#pag-dashboard {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  background: transparent;
+}
+
+.status-card,
+.mini-stat,
+.dash-card {
+  min-height: 106px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  text-align: center;
+  border-radius: 19px;
+  padding: 14px 10px;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(255,255,255,0.09), transparent 7rem),
+    linear-gradient(145deg, rgba(255,255,255,0.08), rgba(255,255,255,0.025));
+}
+
+.status-card strong,
+.mini-stat strong,
+.dash-val {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(1.9rem, 10vw, 2.75rem);
+  font-weight: 300;
+  line-height: 1;
+  color: #ffe49b;
+}
+
+.status-card span,
+.mini-stat span,
+.dash-lbl {
+  margin-top: 8px;
+  color: var(--bela-muted-2);
+  font-size: 0.58rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.product-filters {
+  padding: 13px;
+  display: grid;
+  gap: 10px;
+}
+
+.compact-field,
+.form-field {
+  display: grid;
+  gap: 6px;
+}
+
+.compact-field span,
+.form-field span,
+.modal-field-lbl,
+.cfg-section-title,
+.count-info,
+.pag-count {
+  color: rgba(232,201,122,0.58);
+  font-size: 0.58rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+}
+
+.compact-field input,
+.compact-field select,
+.form-field input,
+.form-field textarea,
+.form-field select,
+.search-input,
+#pag-search input,
+.modal-input,
+.pag-obs textarea {
+  min-height: 48px;
+  border-radius: 18px;
+  border: 1px solid rgba(232,201,122,0.18);
+  background: rgba(0,0,0,0.28);
+  color: var(--bela-cream);
+  font-size: 16px;
+  outline: none;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+}
+
+.compact-field input:focus,
+.compact-field select:focus,
+.form-field input:focus,
+.form-field textarea:focus,
+.form-field select:focus,
+.search-input:focus,
+#pag-search input:focus,
+.modal-input:focus {
+  border-color: rgba(255,232,168,0.62);
+  box-shadow: 0 0 0 3px rgba(201,168,76,0.11), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+
+.filter-bar,
+.pag-filters,
+.pag-sort-bar,
+.lab-actions,
+.product-actions,
+.diagnostic-actions,
+.sale-form,
+.sales-list,
+.lab-product-list {
+  gap: 8px;
+}
+
+.filter-btn,
+.pag-filter-btn,
+.pag-sort-btn,
+.mode-button,
+.secondary-button,
+.ghost-button,
+.icon-button,
+.cfg-btn,
+.parc-sel-btn {
+  border-radius: 999px;
+  border: 1px solid rgba(232,201,122,0.18);
+  background: rgba(255,255,255,0.035);
+  color: var(--bela-muted);
+}
+
+.filter-btn.active,
+.pag-filter-btn.active,
+.pag-sort-btn.active,
+.mode-button.active,
+.primary-button,
+.modal-btn-save,
+.cfg-btn-gold {
+  border-color: rgba(255,232,168,0.45);
+  background: var(--bela-gold-gradient);
+  color: #080807;
+  font-weight: 700;
+  box-shadow: 0 14px 34px rgba(201,168,76,0.18), inset 0 1px 0 rgba(255,255,255,0.32);
+}
+
+.lab-product-card,
+.sale-card,
+.pag-card,
+.cfg-card,
+.carr-item {
+  border-radius: 22px;
+  border: 1px solid rgba(232,201,122,0.14);
+  background:
+    linear-gradient(145deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02)),
+    radial-gradient(circle at 100% 0, rgba(231,167,200,0.075), transparent 14rem);
+  overflow: hidden;
+}
+
+.lab-product-card h3,
+.sale-card h3,
+.pag-name,
+.prod-name,
+.cfg-card-title,
+.modal-title {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-weight: 300;
+  color: var(--bela-cream);
+}
+
+.lab-product-card h3,
+.sale-card h3 {
+  font-size: clamp(1.35rem, 7vw, 2rem);
+}
+
+.price-input {
+  min-height: 44px;
+  border-radius: 12px;
+  border-color: rgba(232,201,122,0.22);
+}
+
+.pbox,
+.spill,
+.pmeta,
+.pag-parc-dot,
+.detail-row {
+  border: 1px solid rgba(232,201,122,0.12);
+  background: rgba(0,0,0,0.22);
+  border-radius: 14px;
+}
+
+.pbox-val,
+.spill-val,
+.pag-parc-dot-val,
+.pmeta-val {
+  color: var(--bela-gold-soft);
+}
+
+.diagnostic-details {
+  padding: 0;
+  overflow: hidden;
+}
+
+.diagnostic-details summary {
+  min-height: 50px;
+  padding: 0 14px;
+  border-bottom: 1px solid rgba(232,201,122,0.08);
+}
+
+.diagnostic-table,
+.diagnostic-list,
+.diagnostic-grid {
+  padding: 10px;
+}
+
+.diagnostic-row,
+.diagnostic-event,
+.diagnostic-warning,
+.diagnostic-ok,
+.diagnostic-user-agent,
+.contract-issue-card,
+.contract-ok,
+.storage-note {
+  border: 1px solid rgba(255,255,255,0.065);
+  background: rgba(0,0,0,0.22);
+  color: var(--bela-muted);
+}
+
+.diagnostic-warning,
+.danger-row,
+.form-errors,
+.pag-alert {
+  border-color: rgba(255,122,122,0.24);
+  background: linear-gradient(135deg, rgba(255,122,122,0.12), rgba(255,255,255,0.025));
+}
+
+.diagnostic-ok,
+.contract-ok,
+.cfg-btn-green {
+  border-color: rgba(125,216,125,0.28);
+  background: linear-gradient(135deg, rgba(125,216,125,0.12), rgba(255,255,255,0.025));
+}
+
+.modal-backdrop {
+  -webkit-backdrop-filter: blur(18px) saturate(1.1);
+  backdrop-filter: blur(18px) saturate(1.1);
+}
+
+.product-modal,
+.modal-sheet {
+  border-radius: 28px 28px 0 0;
+  border: 1px solid rgba(232,201,122,0.22);
+  background:
+    radial-gradient(circle at 50% -8%, rgba(255,232,168,0.14), transparent 16rem),
+    linear-gradient(145deg, rgba(23,20,17,0.98), rgba(6,6,6,0.96));
+}
+
+.image-preview-box img,
+.carr-item-img {
+  border-radius: 16px;
+}
+
+.wife-controlled-access-panel,
+.firebase-readiness-panel,
+.firebase-readonly-panel,
+.real-contract-panel,
+.source-compat-panel,
+.catalog-upload-map-panel,
+.ai-functions-map-panel,
+.master-backup-schema-panel,
+.full-backup-restore-panel,
+.diagnostics-panel {
+  border-left-color: rgba(232,201,122,0.26);
+}
+
+.wife-controlled-access-panel .panel-title-row h2,
+.firebase-readiness-panel .panel-title-row h2,
+.firebase-readonly-panel .panel-title-row h2,
+.real-contract-panel .panel-title-row h2,
+.source-compat-panel .panel-title-row h2,
+.catalog-upload-map-panel .panel-title-row h2,
+.ai-functions-map-panel .panel-title-row h2,
+.master-backup-schema-panel .panel-title-row h2,
+.full-backup-restore-panel .panel-title-row h2,
+.diagnostics-panel .panel-title-row h2 {
+  font-size: clamp(1.35rem, 6.5vw, 2.1rem);
+}
+
+button:active,
+.filter-btn:active,
+.pag-filter-btn:active,
+.carr-item:active,
+.buyer-chip:active {
+  transform: scale(0.985);
+}
+
+@media (max-width: 430px) {
+  .lab-page {
+    padding-inline: 11px;
+  }
+
+  .hero-card {
+    padding-top: 28px;
+    padding-bottom: 30px;
+  }
+
+  .panel-title-row {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .status-grid,
+  .mini-grid.four-stats,
+  .mini-grid,
+  .dashboard,
+  #pag-dashboard {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .status-card,
+  .mini-stat,
+  .dash-card {
+    min-height: 104px;
+  }
+
+  .lab-actions.two-columns,
+  .modal-actions,
+  .three-actions {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 700px) {
+  .status-grid,
+  .mini-grid.four-stats,
+  .dashboard,
+  #pag-dashboard {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
