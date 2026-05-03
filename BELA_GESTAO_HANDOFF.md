@@ -7,7 +7,7 @@ Branch protegida de produção: `main`
 Versão atual visível:
 
 ```txt
-0.22.2-lab-premium-spec-exact-ui
+0.22.3-lab-catalog-backup-receiver
 ```
 
 ## REGRA MÁXIMA ATUAL
@@ -59,11 +59,15 @@ O BLOCO 22B adicionou leitura controlada de dados reais em modo somente leitura 
 
 O BLOCO 22C aplicou a camada visual Premium UI exata baseada no arquivo `Bela Gestão — Spec Handoff Premium UI` enviado pelo usuário.
 
+O BLOCO 22D iniciou ajustes pixel-perfect e corrigiu overflow mobile na aba Pagamentos.
+
+O BLOCO 22E-A adicionou recepção segura de backup JSON do catálogo real dentro do Gestão LAB.
+
 Entrada atual da LAB:
 
 ```txt
 lab/src/main.js
-  -> lab/src/cleanAppSettings.js
+  -> lab/src/cleanAppCatalogBackup.js
 ```
 
 Camadas visuais atuais:
@@ -77,68 +81,66 @@ lab/src/styles/report-tab.css
 lab/src/styles/products-tab.css
 lab/src/styles/settings-tab.css
 lab/src/styles/premium-spec-exact.css
+lab/src/styles/catalog-backup.css
 ```
 
-## BLOCO 22C — Premium UI exata pelo Spec Handoff
+## BLOCO 22E-A — Receber backup do catálogo real no Gestão LAB
 
 Status: implementado, aguardando teste no iPhone.
 
 Versão esperada na tela:
 
 ```txt
-0.22.2-lab-premium-spec-exact-ui
+0.22.3-lab-catalog-backup-receiver
 ```
 
 Arquivos principais:
 
 ```txt
-lab/src/styles/premium-spec-exact.css
+lab/src/services/catalogBackupLabService.js
+lab/src/cleanAppCatalogBackup.js
+lab/src/styles/catalog-backup.css
+lab/src/main.js
 lab/index.html
 lab/src/config/appConfig.js
-docs/bloco-22c-premium-spec-exact-ui.md
+docs/bloco-22e-a-catalog-backup-receiver.md
 BELA_GESTAO_HANDOFF.md
 ```
 
 O que o bloco faz:
 
-- aplica fundo `#06050a` com halos dourado/violeta;
-- aplica fontes `Cormorant Garamond` e `Montserrat`;
-- aplica shell mobile-first `max-width: 480px`;
-- aplica tab nav sticky com aba ativa em gradiente dourado;
-- aplica cards glass com borda dourada e brilho interno;
-- aplica botões pílula e chips com gradiente dourado ativo;
-- aplica estilo de modal bottom sheet;
-- aplica animações `fadeIn` e `slideUp`;
-- aplica estados gold/green/danger;
-- preserva as funções já feitas.
+- adiciona em Ajustes/Backup a seção `Backup do catálogo real`;
+- permite selecionar um arquivo JSON do catálogo;
+- analisa produtos, fotos, preços e categorias;
+- mostra amostra dos produtos analisados;
+- salva a análise apenas no LAB/localStorage;
+- permite limpar o backup anexado;
+- fornece um script emergencial para exportar produtos pelo navegador do catálogo;
+- não importa automaticamente para os produtos LAB;
+- não altera o catálogo real;
+- não escreve no Firebase real.
 
-Regras mantidas:
+Repositório do catálogo localizado:
 
-- não escreve no Firebase real;
-- não altera login Google real além do portão já criado;
-- não altera catálogo público real;
-- não interrompe backup automático atual;
-- não mistura dados reais com LAB;
-- não usa DOM injection;
-- não usa bundle patch.
+```txt
+Belacatalogo/Bela-catalogo
+```
 
-## Checklist de teste do BLOCO 22C
+Observação: o catálogo atual é um `index.html` grande na `main`. Por segurança, o BLOCO 22E-A não alterou esse arquivo.
 
-1. Abrir preview Netlify.
-2. Confirmar versão `0.22.2-lab-premium-spec-exact-ui`.
-3. Conferir fundo escuro profundo com halo dourado.
-4. Conferir fonte Cormorant nos títulos.
-5. Conferir tab nav sticky com aba ativa em gradiente dourado.
-6. Conferir cards glass arredondados.
-7. Conferir Produtos.
-8. Conferir Clientes.
-9. Conferir Pagamentos.
-10. Conferir Relatório.
-11. Conferir Ajustes.
-12. Abrir Novo Produto e conferir modal bottom sheet.
-13. Testar upload Cloudinary automático.
-14. Testar login Google protegido.
-15. Confirmar que nenhuma função real foi alterada.
+## Checklist de teste do BLOCO 22E-A
+
+1. Abrir preview Netlify da branch LAB.
+2. Confirmar versão `0.22.3-lab-catalog-backup-receiver`.
+3. Ir em Ajustes/Backup.
+4. Encontrar a seção `Backup do catálogo real`.
+5. Anexar um JSON de backup do catálogo, se houver.
+6. Conferir total de produtos, com foto, com preço e categorias.
+7. Conferir amostra de produtos.
+8. Testar `Limpar backup anexado`.
+9. Conferir o script emergencial de exportação.
+10. Confirmar que nada foi importado automaticamente para Produtos.
+11. Confirmar que nada real foi alterado.
 
 ## Funções críticas finais que precisam continuar antes da entrega
 
@@ -162,15 +164,15 @@ Regras mantidas:
 ## Próximo bloco recomendado
 
 ```txt
-BLOCO 22D — Ajustes finos pixel-perfect pós-teste iPhone
+BLOCO 22E-B — Criar botão Exportar backup no catálogo em branch separada
 ```
 
 Objetivo:
 
-- corrigir diferenças visuais percebidas no iPhone;
-- ajustar espaçamentos, altura de cards, botões e abas;
-- corrigir qualquer conflito da camada CSS com funções antigas.
+- criar branch de teste no `Belacatalogo/Bela-catalogo`;
+- adicionar botão visual protegido para exportar JSON completo;
+- não publicar na main até validação.
 
 ## Como continuar em outro chat
 
-"Continue a reconstrução do Bela Gestão. Leia `BELA_GESTAO_HANDOFF.md` antes de qualquer alteração. A branch de trabalho é `rewrite-bela-gestao-lab`. Não mexa na `main`, não mexa no sistema antigo ativo da esposa, não escreva no Firebase real, não altere catálogo real. A versão atual é `0.22.2-lab-premium-spec-exact-ui`. O BLOCO 22C criou `lab/src/styles/premium-spec-exact.css`, carregado por último em `lab/index.html`, aplicando o visual Premium UI do spec enviado. Próximo bloco sugerido: `BLOCO 22D — Ajustes finos pixel-perfect pós-teste iPhone`."
+"Continue a reconstrução do Bela Gestão. Leia `BELA_GESTAO_HANDOFF.md` antes de qualquer alteração. A branch de trabalho do Gestão é `rewrite-bela-gestao-lab`. Não mexa na `main`, não mexa no sistema antigo ativo da esposa, não escreva no Firebase real, não altere catálogo real. A versão atual é `0.22.3-lab-catalog-backup-receiver`. O BLOCO 22E-A criou `lab/src/services/catalogBackupLabService.js`, `lab/src/cleanAppCatalogBackup.js` e `lab/src/styles/catalog-backup.css`, adicionando recepção segura de backup JSON do catálogo real em Ajustes/Backup. Próximo bloco sugerido: `BLOCO 22E-B — Criar botão Exportar backup no catálogo em branch separada`."
