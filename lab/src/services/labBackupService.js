@@ -22,6 +22,15 @@ function safeParse(value, fallback = null) {
   }
 }
 
+function looksLikeLegacyBackup(backup) {
+  return Boolean(
+    backup &&
+    typeof backup === 'object' &&
+    (backup.prices || backup.sales || backup.pagMeta || backup.sold) &&
+    backup.type !== 'bela-gestao-lab-backup'
+  );
+}
+
 export function getLabStorageKeys() {
   if (!canUseStorage()) return [];
   const rows = [];
@@ -96,10 +105,19 @@ export function importLabBackupFromText(text) {
   }
 
   const backup = safeParse(text);
+  if (looksLikeLegacyBackup(backup)) {
+    return {
+      ok: false,
+      kind: 'legacy-backup-detected',
+      error: 'Esse parece ser backup do sistema antigo. Use o botão “Analisar backup antigo” em Migração offline do sistema antigo, não “Importar backup LAB”.',
+    };
+  }
+
   if (!backup || backup.type !== 'bela-gestao-lab-backup' || !backup.data || typeof backup.data !== 'object') {
     return {
       ok: false,
-      error: 'Arquivo de backup LAB inválido.',
+      kind: 'invalid-lab-backup',
+      error: 'Arquivo não reconhecido como backup LAB. Para backup da sua esposa/sistema antigo, use “Analisar backup antigo”.',
     };
   }
 
