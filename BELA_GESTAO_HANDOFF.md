@@ -7,7 +7,7 @@ Branch protegida de produção: `main`
 Versão atual visível:
 
 ```txt
-0.21.0-lab-clients-tab-rebuild
+0.21.1-lab-payments-tab-rebuild
 ```
 
 ## REGRA MÁXIMA ATUAL
@@ -44,13 +44,15 @@ O BLOCO 19 importou a identidade visual do sistema antigo por uma camada CSS mod
 
 O BLOCO 20 organizou a conferência das funções nos lugares corretos.
 
-O BLOCO 21A reconstruiu a aba Clientes, usando vendas/pagamentos LAB para gerar clientes, ranking, filtros, busca e perfil.
+O BLOCO 21A reconstruiu a aba Clientes.
+
+O BLOCO 21B reconstruiu a aba Pagamentos no estilo do sistema antigo.
 
 Entrada atual da LAB:
 
 ```txt
 lab/src/main.js
-  -> lab/src/cleanAppClients.js
+  -> lab/src/cleanAppPayments.js
 ```
 
 Camadas visuais atuais:
@@ -59,67 +61,71 @@ Camadas visuais atuais:
 lab/src/styles/legacy-visual-import.css
 lab/src/styles/function-placement.css
 lab/src/styles/clients-tab.css
+lab/src/styles/payments-tab.css
 ```
 
-## BLOCO 21A — Reconstrução fiel da aba Clientes
+## BLOCO 21B — Reconstrução fiel da aba Pagamentos
 
 Status: implementado, aguardando teste no iPhone.
 
 Versão esperada na tela:
 
 ```txt
-0.21.0-lab-clients-tab-rebuild
+0.21.1-lab-payments-tab-rebuild
 ```
 
 Arquivos principais:
 
 ```txt
-lab/src/services/clientInsightsService.js
-lab/src/cleanAppClients.js
-lab/src/styles/clients-tab.css
+lab/src/services/paymentInsightsService.js
+lab/src/cleanAppPayments.js
+lab/src/styles/payments-tab.css
 lab/index.html
 lab/src/main.js
 lab/src/config/appConfig.js
-docs/bloco-21a-clients-tab-rebuild.md
+docs/bloco-21b-payments-tab-rebuild.md
 BELA_GESTAO_HANDOFF.md
 ```
 
 O que o bloco faz:
 
-- adiciona a aba Clientes;
-- calcula clientes a partir das vendas/pagamentos LAB;
-- mostra métricas: clientes, pendentes, VIP, sumidas e aniversariantes;
-- mostra Top 5 compradoras;
-- adiciona filtros: Todas, Pendente, Quitadas, VIP e Fiel;
-- adiciona ordenação: A-Z, Mais gasto, Mais compras, Recentes e Avaliação;
-- adiciona busca;
-- adiciona cards de cliente com avatar/iniciais;
-- adiciona modal/perfil da cliente com total gasto, ticket médio, pendente, produto mais comprado e histórico.
+- reconstrói a aba Pagamentos com aparência mais próxima do sistema antigo;
+- adiciona alerta de vencimento da semana;
+- adiciona métricas: clientes, em atraso, vencem 7 dias, a receber e recebido;
+- adiciona filtros: Todos, Pendentes, Em atraso, Vence 7 dias, Parceladas e Quitadas;
+- adiciona ordenação: Vencimento, Maior atraso, Maior valor e Nome A-Z;
+- adiciona busca por nome/produto;
+- adiciona cards completos com vencimento, progresso, total da venda, recebido, falta receber, compra, próximo vencimento e telefone;
+- adiciona parcelas tocáveis para marcar recebido/pendente;
+- adiciona botão Cobrar abrindo WhatsApp em modo LAB;
+- adiciona métodos de pagamento visuais;
+- adiciona observações visuais;
+- adiciona barra inferior com pendentes, recebido e a receber.
 
 Limites conscientes ainda pendentes:
 
-- edição real de perfil da cliente;
-- aniversário real;
-- avaliação persistente;
-- tags manuais VIP/fiel;
+- vencimento real editável;
+- persistência de observações;
+- persistência de método de pagamento;
+- múltiplas parcelas reais completas;
+- WhatsApp com templates finais;
 - dados reais via Firebase.
 
-## Checklist de teste do BLOCO 21A
+## Checklist de teste do BLOCO 21B
 
 1. Abrir o preview Netlify da branch LAB.
-2. Confirmar versão `0.21.0-lab-clients-tab-rebuild`.
-3. Ver se a aba `Clientes` aparece na navegação.
-4. Registrar uma venda em Vendas, caso ainda não tenha cliente.
-5. Voltar em Clientes.
-6. Conferir métricas de clientes.
-7. Conferir Top 5 compradoras.
-8. Testar filtros.
-9. Testar ordenação.
-10. Buscar uma cliente.
-11. Tocar em uma cliente.
-12. Confirmar se abre o perfil/modal com total gasto, ticket médio e histórico.
-13. Confirmar que nada pediu login Google.
-14. Confirmar que nada real foi alterado.
+2. Confirmar versão `0.21.1-lab-payments-tab-rebuild`.
+3. Registrar uma venda em Vendas, caso ainda não tenha pagamento.
+4. Entrar em Pagamentos.
+5. Conferir métricas do topo.
+6. Testar filtros.
+7. Testar ordenação.
+8. Buscar por nome/produto.
+9. Tocar em uma parcela para marcar recebida/pendente.
+10. Testar botão Cobrar.
+11. Conferir barra inferior.
+12. Confirmar que nada pediu login Google.
+13. Confirmar que nada real foi alterado.
 
 ## Funções críticas finais que precisam continuar antes da entrega
 
@@ -143,16 +149,18 @@ Limites conscientes ainda pendentes:
 ## Próximo bloco recomendado
 
 ```txt
-BLOCO 21B — Reconstrução fiel da aba Pagamentos
+BLOCO 21C — Reconstrução fiel da aba Relatório
 ```
 
 Objetivo:
 
-- reconstruir indicadores, filtros, busca e cards completos;
-- mostrar vencimento, parcelas, recebido/falta receber;
-- preparar botão Cobrar/WhatsApp em LAB;
-- manter histórico seguro e ainda sem Firebase real.
+- relatório mensal;
+- navegação por mês;
+- recebido, a receber, lucro;
+- parcelas recebidas no mês;
+- cobranças por urgência;
+- ainda sem Firebase real.
 
 ## Como continuar em outro chat
 
-"Continue a reconstrução do Bela Gestão. Leia `BELA_GESTAO_HANDOFF.md` antes de qualquer alteração. A branch de trabalho é `rewrite-bela-gestao-lab`. Não mexa na `main`, não mexa no sistema antigo ativo da esposa, não escreva no Firebase real, não altere login Google real e não altere catálogo real. A versão atual é `0.21.0-lab-clients-tab-rebuild`. O BLOCO 21A criou `lab/src/services/clientInsightsService.js`, `lab/src/cleanAppClients.js` e `lab/src/styles/clients-tab.css`, adicionando a aba Clientes fiel ao sistema antigo. Próximo bloco sugerido: `BLOCO 21B — Reconstrução fiel da aba Pagamentos`."
+"Continue a reconstrução do Bela Gestão. Leia `BELA_GESTAO_HANDOFF.md` antes de qualquer alteração. A branch de trabalho é `rewrite-bela-gestao-lab`. Não mexa na `main`, não mexa no sistema antigo ativo da esposa, não escreva no Firebase real, não altere login Google real e não altere catálogo real. A versão atual é `0.21.1-lab-payments-tab-rebuild`. O BLOCO 21B criou `lab/src/services/paymentInsightsService.js`, `lab/src/cleanAppPayments.js` e `lab/src/styles/payments-tab.css`, reconstruindo a aba Pagamentos fiel ao sistema antigo. Próximo bloco sugerido: `BLOCO 21C — Reconstrução fiel da aba Relatório`."
