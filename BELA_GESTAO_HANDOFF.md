@@ -7,7 +7,7 @@ Branch protegida de produção: `main`
 Versão atual visível:
 
 ```txt
-0.17.0-lab-legacy-function-map
+0.18.0-lab-history-safe-data-model
 ```
 
 ## REGRA MÁXIMA ATUAL
@@ -32,59 +32,74 @@ Não transformar o novo sistema em outro `index.html` gigante.
 
 ## Estado atual
 
-O BLOCO 15 limpou a experiência principal da LAB, escondendo ferramentas técnicas da tela normal.
+O BLOCO 15 limpou a experiência principal da LAB.
 
-O BLOCO 16 criou uma ponte de migração offline segura para preparar a futura transição do sistema antigo para o novo sistema sem tocar no ambiente ativo.
+O BLOCO 16 criou uma ponte de migração offline segura.
 
-O BLOCO 17 criou o mapa real de funções antigas, para visualizar o que já está confirmado, parcial ou pendente antes da entrega final.
+O BLOCO 17 criou o mapa real de funções antigas.
+
+O BLOCO 18 criou o modelo de dados com histórico seguro, para impedir que venda/parcela/cliente dependam da existência do produto.
 
 Entrada atual da LAB:
 
 ```txt
 lab/src/main.js
-  -> lab/src/cleanAppFunctionMap.js
+  -> lab/src/cleanAppHistory.js
 ```
 
-## BLOCO 17 — Mapa real de funções do sistema antigo
+## BLOCO 18 — Modelo final de dados preservando histórico
 
 Status: implementado, aguardando teste no iPhone.
 
 Versão esperada na tela:
 
 ```txt
-0.17.0-lab-legacy-function-map
+0.18.0-lab-history-safe-data-model
 ```
 
 Arquivos principais:
 
 ```txt
-lab/src/services/legacyFunctionMapService.js
-lab/src/cleanAppFunctionMap.js
-lab/src/styles/clean-app.css
+lab/src/services/labSalesService.js
+lab/src/services/labPaymentsService.js
+lab/src/services/historyIntegrityService.js
+lab/src/cleanAppHistory.js
+lab/src/main.js
 lab/src/config/appConfig.js
-docs/bloco-17-legacy-function-map.md
+docs/bloco-18-history-safe-data-model.md
 BELA_GESTAO_HANDOFF.md
 ```
 
 O que o bloco faz:
 
-- registra as funções antigas que precisam ser preservadas;
-- classifica cada função como confirmada, parcial ou pendente de validação;
-- mostra o mapa na aba Ajustes;
-- deixa claro que isso é apenas mapeamento, sem conexão real;
-- reforça que a entrega final depende de validar Firebase, login Google, catálogo, IA, upload real, WhatsApp, PWA e backup automático.
+- venda agora guarda snapshot de cliente e produto;
+- pagamento agora guarda snapshot da venda;
+- valor da venda fica salvo na própria venda;
+- valor da parcela fica salvo no próprio pagamento;
+- histórico não depende da lista atual de produtos;
+- dados antigos do LAB são normalizados ao ler;
+- Ajustes mostra o card `Auditoria de histórico`.
 
-Funções mapeadas:
+Garantia principal:
 
-- Produtos;
-- Ligação Gestão ↔ Catálogo;
-- Upload de foto / URL automática;
-- Vendas e compradores;
-- Pagamentos e parcelas;
-- Firebase, login Google e backup automático;
-- IA na criação de produto;
-- WhatsApp;
-- PWA/iPhone.
+```txt
+Apagar, ocultar ou alterar produto não deve remover valor/histórico de cliente, venda ou parcela.
+```
+
+## Checklist de teste do BLOCO 18
+
+1. Abrir o preview Netlify da branch LAB.
+2. Confirmar versão `0.18.0-lab-history-safe-data-model`.
+3. Criar um produto de teste.
+4. Registrar uma venda com esse produto.
+5. Ir em Vendas e confirmar que aparece `Snapshot: produto preservado`.
+6. Ir em Pagamentos e confirmar que aparece `Snapshot da venda: preservado`.
+7. Ir em Ajustes.
+8. Conferir o card `Auditoria de histórico`.
+9. Confirmar se `Alertas` está em 0.
+10. Ocultar o produto em Produtos.
+11. Conferir se a venda e o pagamento continuam com nome/valor do produto.
+12. Exportar backup LAB e confirmar que a operação continua funcionando.
 
 ## Funções críticas finais que precisam continuar antes da entrega
 
@@ -105,31 +120,19 @@ Funções mapeadas:
 - funções de IA na criação/descrição de produto;
 - histórico preservado mesmo se produto for removido.
 
-## Checklist de teste do BLOCO 17
-
-1. Abrir o preview Netlify da branch LAB.
-2. Confirmar versão `0.17.0-lab-legacy-function-map`.
-3. Entrar em Ajustes.
-4. Ver o card `Mapa real de funções antigas`.
-5. Abrir alguns itens do mapa.
-6. Confirmar que há status como Confirmado, Parcial e Validar.
-7. Confirmar que a tela não tenta login Google.
-8. Confirmar que nada real foi alterado.
-9. Confirmar se o mapa está legível no iPhone.
-
 ## Próximo bloco recomendado
 
 ```txt
-BLOCO 18 — Modelo final de dados preservando histórico
+BLOCO 19 — Importação visual definitiva do sistema antigo
 ```
 
 Objetivo:
 
-- separar definitivamente Product, Sale, Customer e Payment;
-- garantir que venda/parcela/cliente não dependam da existência do produto;
-- impedir novamente o erro onde apagar produto remove valor/histórico da ficha da cliente;
-- manter tudo offline/LAB ainda.
+- aproximar a LAB da aparência real do sistema antigo;
+- manter a nova estrutura modular;
+- deixar cada função no visual familiar da esposa;
+- ainda sem Firebase real.
 
 ## Como continuar em outro chat
 
-"Continue a reconstrução do Bela Gestão. Leia `BELA_GESTAO_HANDOFF.md` antes de qualquer alteração. A branch de trabalho é `rewrite-bela-gestao-lab`. Não mexa na `main`, não mexa no sistema antigo ativo da esposa, não escreva no Firebase real, não altere login Google real e não altere catálogo real. A versão atual é `0.17.0-lab-legacy-function-map`. O BLOCO 17 criou `lab/src/services/legacyFunctionMapService.js` e `lab/src/cleanAppFunctionMap.js`, mostrando em Ajustes o mapa real de funções antigas. Próximo bloco sugerido: `BLOCO 18 — Modelo final de dados preservando histórico`, para separar Product, Sale, Customer e Payment e impedir que apagar produto remova valores/histórico de cliente."
+"Continue a reconstrução do Bela Gestão. Leia `BELA_GESTAO_HANDOFF.md` antes de qualquer alteração. A branch de trabalho é `rewrite-bela-gestao-lab`. Não mexa na `main`, não mexa no sistema antigo ativo da esposa, não escreva no Firebase real, não altere login Google real e não altere catálogo real. A versão atual é `0.18.0-lab-history-safe-data-model`. O BLOCO 18 criou histórico seguro em `lab/src/services/labSalesService.js`, `lab/src/services/labPaymentsService.js`, `lab/src/services/historyIntegrityService.js` e `lab/src/cleanAppHistory.js`. Próximo bloco sugerido: `BLOCO 19 — Importação visual definitiva do sistema antigo`."
