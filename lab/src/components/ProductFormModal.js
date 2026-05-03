@@ -97,7 +97,7 @@ function aiSuggestionBox(draft) {
         <button type="button" class="ghost-button" data-ai-photo-hint ${hasUrl ? '' : 'disabled'}>${hasUrl ? 'Analisar foto' : 'Aguardando URL'}</button>
       </div>
       <div class="legacy-ai-hint" data-ai-product-hint>
-        ${hasUrl ? 'URL pronta. A análise por IA poderá usar esta imagem.' : 'Escolha uma foto do celular. Após o upload automático no Cloudinary, a URL aparecerá aqui e a IA será liberada.'}
+        ${hasUrl ? 'URL pronta. A análise por IA poderá usar esta imagem.' : 'Escolha uma foto do celular. O upload começa automaticamente; quando a URL aparecer, a IA será liberada.'}
       </div>
     </section>
   `;
@@ -132,11 +132,10 @@ export function renderProductFormModal({ draft, errors = [], isEditing = false }
                 <input name="imageUrl" value="${escapeAttr(draft.imageUrl)}" placeholder="A URL aparecerá aqui após o upload" data-product-image-url>
                 <small>Quando a URL aparecer, a análise com IA será liberada.</small>
               </label>
-              <div class="legacy-photo-actions">
+              <div class="legacy-photo-actions auto-only">
                 <label class="secondary-button legacy-file-button">📷 Escolher foto<input name="imageFile" type="file" accept="image/*" hidden data-cloudinary-file-input></label>
-                <button type="button" class="secondary-button" data-cloudinary-upload>Enviar ao Cloudinary</button>
               </div>
-              <div class="legacy-upload-hint" data-cloudinary-upload-hint>Selecione uma foto do celular para enviar automaticamente ao Cloudinary.</div>
+              <div class="legacy-upload-hint" data-cloudinary-upload-hint>Toque em Escolher foto. O envio ao Cloudinary começa automaticamente.</div>
             </div>
           </section>
 
