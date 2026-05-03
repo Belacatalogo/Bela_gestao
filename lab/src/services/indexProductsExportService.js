@@ -1,20 +1,14 @@
 import { getLabProducts } from './labDataService.js';
 
 const INDEX_SOURCES = [
-  { label: 'Catálogo público GitHub Pages', url: 'https://belacatalogo.github.io/Bela-catalogo/' },
-  { label: 'GitHub Bela-catalogo main index.html', url: 'https://raw.githubusercontent.com/Belacatalogo/Bela-catalogo/main/index.html' },
-  { label: 'GitHub Bela_gestao lab index.html', url: 'https://raw.githubusercontent.com/Belacatalogo/Bela_gestao/rewrite-bela-gestao-lab/index.html' },
-  { label: 'GitHub Bela_gestao main index.html', url: 'https://raw.githubusercontent.com/Belacatalogo/Bela_gestao/main/index.html' },
+  { label: 'Catálogo público GitHub Pages', url: 'https://belacatalogo.github.io/Bela-catalogo/', priority: 100 },
+  { label: 'GitHub Bela-catalogo main index.html', url: 'https://raw.githubusercontent.com/Belacatalogo/Bela-catalogo/main/index.html', priority: 90 },
+  { label: 'GitHub Bela_gestao lab index.html', url: 'https://raw.githubusercontent.com/Belacatalogo/Bela_gestao/rewrite-bela-gestao-lab/index.html', priority: 10 },
+  { label: 'GitHub Bela_gestao main index.html', url: 'https://raw.githubusercontent.com/Belacatalogo/Bela_gestao/main/index.html', priority: 5 },
 ];
 
-function normalizeText(value) {
-  return String(value ?? '').trim();
-}
-
-function normalizeId(value) {
-  return normalizeText(value);
-}
-
+function normalizeText(value) { return String(value ?? '').trim(); }
+function normalizeId(value) { return normalizeText(value); }
 function normalizeMoney(value) {
   if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
   if (typeof value === 'string') {
@@ -23,11 +17,7 @@ function normalizeMoney(value) {
   }
   return 0;
 }
-
-function safeFileDate() {
-  return new Date().toISOString().replaceAll(':', '-').replaceAll('.', '-');
-}
-
+function safeFileDate() { return new Date().toISOString().replaceAll(':', '-').replaceAll('.', '-'); }
 function unquote(value) {
   const text = normalizeText(value);
   if ((text.startsWith('"') && text.endsWith('"')) || (text.startsWith("'") && text.endsWith("'"))) {
@@ -35,7 +25,6 @@ function unquote(value) {
   }
   return text;
 }
-
 function extractField(chunk, names) {
   for (const name of names) {
     const regex = new RegExp(`(?:^|[,\\s])${name}\\s*:\\s*("(?:\\\\.|[^"])*"|'(?:\\\\.|[^'])*'|[0-9]+(?:[,.][0-9]+)?|true|false|null)`, 'i');
@@ -44,21 +33,15 @@ function extractField(chunk, names) {
   }
   return '';
 }
-
 function extractArrayField(chunk, names) {
   for (const name of names) {
     const regex = new RegExp(`(?:^|[,\\s])${name}\\s*:\\s*\\[([^\\]]*)\\]`, 'i');
     const match = chunk.match(regex);
     if (!match) continue;
-    return match[1]
-      .split(',')
-      .map((item) => unquote(item))
-      .map((item) => normalizeText(item).toLowerCase())
-      .filter(Boolean);
+    return match[1].split(',').map((item) => unquote(item)).map((item) => normalizeText(item).toLowerCase()).filter(Boolean);
   }
   return [];
 }
-
 function productScore(product) {
   let score = 0;
   if (product.name) score += 5;
@@ -69,7 +52,6 @@ function productScore(product) {
   if (product.catalogTabs.length) score += 1;
   return score;
 }
-
 function buildProductFromChunk(chunk, index) {
   const id = extractField(chunk, ['id', 'codigo', 'code', 'key']) || `index-${index + 1}`;
   const name = extractField(chunk, ['name', 'nome', 'titulo', 'title', 'produto']);
@@ -78,34 +60,12 @@ function buildProductFromChunk(chunk, index) {
   const cost = normalizeMoney(extractField(chunk, ['cost', 'custo']));
   const imageUrl = extractField(chunk, ['foto', 'imageUrl', 'imagem', 'img', 'url', 'image']);
   const category = normalizeText(extractField(chunk, ['category', 'categoria', 'sub', 'tipo'])).toLowerCase();
-  const catalogTabs = Array.from(new Set([
-    'todos',
-    ...extractArrayField(chunk, ['catalogTabs', 'categories', 'abas']),
-    normalizeText(extractField(chunk, ['catalogTab', 'category', 'categoria', 'sub', 'tipo'])).toLowerCase(),
-  ].filter(Boolean)));
+  const catalogTabs = Array.from(new Set(['todos', ...extractArrayField(chunk, ['catalogTabs', 'categories', 'abas']), normalizeText(extractField(chunk, ['catalogTab', 'category', 'categoria', 'sub', 'tipo'])).toLowerCase()].filter(Boolean)));
   const description = extractField(chunk, ['description', 'descricao', 'desc', 'sub']);
-
-  const product = {
-    id: normalizeId(id),
-    name: normalizeText(name),
-    brand: normalizeText(brand),
-    description: normalizeText(description),
-    price,
-    cost,
-    imageUrl: normalizeText(imageUrl),
-    category,
-    catalogTabs,
-    source: 'index-html-embedded',
-    extraction: {
-      method: 'object-literal-regex',
-      score: 0,
-      chunkPreview: chunk.slice(0, 280),
-    },
-  };
+  const product = { id: normalizeId(id), name: normalizeText(name), brand: normalizeText(brand), description: normalizeText(description), price, cost, imageUrl: normalizeText(imageUrl), category, catalogTabs, source: 'index-html-embedded', extraction: { method: 'object-literal-regex', score: 0, chunkPreview: chunk.slice(0, 280) } };
   product.extraction.score = productScore(product);
   return product;
 }
-
 function extractProductChunks(text) {
   const source = String(text || '');
   const chunks = [];
@@ -114,7 +74,6 @@ function extractProductChunks(text) {
   while ((match = objectRegex.exec(source))) chunks.push(match[0]);
   return chunks;
 }
-
 function dedupeProducts(products) {
   const byKey = new Map();
   products.forEach((product) => {
@@ -128,7 +87,6 @@ function dedupeProducts(products) {
     return aNum - bNum || a.name.localeCompare(b.name);
   });
 }
-
 function buildTabCounts(products) {
   const counts = {};
   products.forEach((product) => {
@@ -140,7 +98,6 @@ function buildTabCounts(products) {
   });
   return Object.fromEntries(Object.entries(counts).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])));
 }
-
 function compareWithLab(products) {
   const labProducts = getLabProducts();
   const labIds = new Set(labProducts.map((product) => normalizeText(product.firebaseId || product.id).replace(/^firebase-(recovered-)?/, '')));
@@ -148,44 +105,25 @@ function compareWithLab(products) {
   const indexOnly = products.filter((product) => !labIds.has(normalizeText(product.id))).map((product) => product.id).slice(0, 80);
   const labOnly = labProducts.filter((product) => !indexIds.has(normalizeText(product.firebaseId || product.id).replace(/^firebase-(recovered-)?/, ''))).map((product) => product.firebaseId || product.id).slice(0, 80);
   const overlap = products.filter((product) => labIds.has(normalizeText(product.id))).length;
-
-  return {
-    labCount: labProducts.length,
-    indexCount: products.length,
-    overlap,
-    indexOnlyCount: Math.max(0, products.length - overlap),
-    labOnlyCount: Math.max(0, labProducts.length - overlap),
-    indexOnly,
-    labOnly,
-  };
+  return { labCount: labProducts.length, indexCount: products.length, overlap, indexOnlyCount: Math.max(0, products.length - overlap), labOnlyCount: Math.max(0, labProducts.length - overlap), indexOnly, labOnly };
 }
-
 async function fetchText(url) {
   const response = await fetch(url, { cache: 'no-store' });
   if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
   return response.text();
 }
-
 async function extractFromSource(source) {
   const text = await fetchText(source.url);
   const chunks = extractProductChunks(text);
-  const products = dedupeProducts(chunks
-    .map((chunk, index) => buildProductFromChunk(chunk, index))
-    .filter((product) => product.extraction.score >= 7 && product.name));
-  const tabCounts = buildTabCounts(products);
-
-  return {
-    ...source,
-    ok: true,
-    bytes: text.length,
-    chunks: chunks.length,
-    products,
-    productCount: products.length,
-    tabCounts,
-    sample: products.slice(0, 12),
-  };
+  const products = dedupeProducts(chunks.map((chunk, index) => buildProductFromChunk(chunk, index)).filter((product) => product.extraction.score >= 7 && product.name));
+  return { ...source, ok: true, bytes: text.length, chunks: chunks.length, products, productCount: products.length, tabCounts: buildTabCounts(products), sample: products.slice(0, 12) };
 }
-
+function chooseBestSource(attempts) {
+  const successful = attempts.filter((attempt) => attempt.ok);
+  const catalogSources = successful.filter((attempt) => /Bela-catalogo|Catálogo público/i.test(attempt.label) && attempt.productCount > 0);
+  if (catalogSources.length) return catalogSources.sort((a, b) => b.priority - a.priority || b.productCount - a.productCount || b.chunks - a.chunks)[0];
+  return successful.sort((a, b) => b.productCount - a.productCount || b.chunks - a.chunks)[0] || null;
+}
 function downloadJson(filename, payload) {
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
   const url = URL.createObjectURL(blob);
@@ -197,65 +135,24 @@ function downloadJson(filename, payload) {
   link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1500);
 }
-
 export async function exportIndexEmbeddedProductsJson() {
   const attempts = [];
   for (const source of INDEX_SOURCES) {
-    try {
-      const result = await extractFromSource(source);
-      attempts.push(result);
-    } catch (error) {
-      attempts.push({ ...source, ok: false, error: String(error?.message || error), products: [], productCount: 0, tabCounts: {} });
-    }
+    try { attempts.push(await extractFromSource(source)); }
+    catch (error) { attempts.push({ ...source, ok: false, error: String(error?.message || error), products: [], productCount: 0, tabCounts: {} }); }
   }
-
-  const successful = attempts.filter((attempt) => attempt.ok);
-  const best = successful.slice().sort((a, b) => b.productCount - a.productCount || b.chunks - a.chunks)[0] || null;
-
-  if (!best) {
-    return { ok: false, downloaded: false, attempts, message: 'Não foi possível ler nenhuma fonte index.html para exportar produtos.' };
-  }
-
+  const best = chooseBestSource(attempts);
+  if (!best) return { ok: false, downloaded: false, attempts, message: 'Não foi possível ler nenhuma fonte index.html para exportar produtos.' };
   const comparison = compareWithLab(best.products);
   const payload = {
-    meta: {
-      schema: 'bela-catalogo-index-embedded-products-export',
-      schemaVersion: 2,
-      exportedAt: new Date().toISOString(),
-      source: best.label,
-      sourceUrl: best.url,
-      method: 'index-html-embedded-regex-extraction',
-      writeBlocked: true,
-      firebaseWriteExecuted: false,
-      catalogWriteExecuted: false,
-      note: 'Exportação diagnóstica do catálogo público. Não altera catálogo real e não escreve no Firebase.',
-    },
-    counts: {
-      products: best.productCount,
-      chunks: best.chunks,
-      bytes: best.bytes,
-      labProducts: comparison.labCount,
-      overlapWithLab: comparison.overlap,
-      indexOnly: comparison.indexOnlyCount,
-      labOnly: comparison.labOnlyCount,
-    },
+    meta: { schema: 'bela-catalogo-index-embedded-products-export', schemaVersion: 3, exportedAt: new Date().toISOString(), source: best.label, sourceUrl: best.url, method: 'forced-public-catalog-first-regex-extraction', writeBlocked: true, firebaseWriteExecuted: false, catalogWriteExecuted: false, note: 'Exportação diagnóstica do catálogo público com prioridade forçada. Não altera catálogo real e não escreve no Firebase.' },
+    counts: { products: best.productCount, chunks: best.chunks, bytes: best.bytes, labProducts: comparison.labCount, overlapWithLab: comparison.overlap, indexOnly: comparison.indexOnlyCount, labOnly: comparison.labOnlyCount },
     tabCounts: best.tabCounts,
     comparison,
     products: best.products,
-    attempts: attempts.map((attempt) => ({
-      label: attempt.label,
-      url: attempt.url,
-      ok: attempt.ok,
-      error: attempt.error || '',
-      bytes: attempt.bytes || 0,
-      chunks: attempt.chunks || 0,
-      productCount: attempt.productCount || 0,
-      tabCounts: attempt.tabCounts || {},
-    })),
+    attempts: attempts.map((attempt) => ({ label: attempt.label, url: attempt.url, ok: attempt.ok, error: attempt.error || '', bytes: attempt.bytes || 0, chunks: attempt.chunks || 0, productCount: attempt.productCount || 0, tabCounts: attempt.tabCounts || {} })),
   };
-
-  const filename = `bela-catalogo-index-products-${safeFileDate()}.json`;
+  const filename = `bela-catalogo-public-products-${safeFileDate()}.json`;
   downloadJson(filename, payload);
-
-  return { ok: true, downloaded: true, filename, best, comparison, attempts, message: 'Produtos embutidos do catálogo público exportados em JSON. Nenhuma escrita foi feita.' };
+  return { ok: true, downloaded: true, filename, best, comparison, attempts, message: 'Produtos do catálogo público exportados em JSON com prioridade forçada. Nenhuma escrita foi feita.' };
 }
