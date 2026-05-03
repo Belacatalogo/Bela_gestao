@@ -1919,7 +1919,10 @@ function exportarDados(){
     prices:S.prices,
     sold:S.sold,
     sales:S.sales,
-    pagMeta:S.pagMeta||{}
+    pagMeta:S.pagMeta||{},
+    customProducts:S.customProducts||[],
+    clients:S.clients||{},
+    filters:S.filters||[]
   };
   var json=JSON.stringify(data,null,2);
   var blob=new Blob([json],{type:'application/json'});
@@ -1956,6 +1959,9 @@ function importarDados(input){
       if(data.sold)S.sold=data.sold;
       if(data.sales)S.sales=data.sales;
       if(data.pagMeta)S.pagMeta=data.pagMeta;
+      if(data.customProducts)S.customProducts=data.customProducts;
+      if(data.clients)S.clients=data.clients;
+      if(data.filters)S.filters=data.filters;
       save();
       renderAll();
       toastMsg('✓ Dados restaurados!');
@@ -1970,7 +1976,7 @@ function importarDados(input){
 
 // ── BACKUP AUTOMÁTICO NA NUVEM (FIREBASE) ─────────────────────────────────
 function _backupPayload(){
-  return {version:4,exportedAt:new Date().toISOString(),prices:S.prices,sold:S.sold,sales:S.sales,pagMeta:S.pagMeta||{}};
+  return {version:4,exportedAt:new Date().toISOString(),prices:S.prices,sold:S.sold,sales:S.sales,pagMeta:S.pagMeta||{},customProducts:S.customProducts||[],clients:S.clients||{},filters:S.filters||[]};
 }
 function fazerBackupNuvem(manual){
   var db=window._fbdb;
@@ -2004,6 +2010,9 @@ function restaurarBackupNuvem(){
       if(data.sold)S.sold=data.sold;
       if(data.sales)S.sales=data.sales;
       if(data.pagMeta)S.pagMeta=data.pagMeta;
+      if(data.customProducts)S.customProducts=data.customProducts;
+      if(data.clients)S.clients=data.clients;
+      if(data.filters)S.filters=data.filters;
       save();renderAll();toastMsg('✓ Dados restaurados do backup de '+dataFmt+'!');renderConfig();
     });
   });
