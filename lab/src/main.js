@@ -1,4 +1,4 @@
-import { renderCleanApp } from './cleanAppPayments.js';
+import { renderCleanApp } from './cleanAppReport.js';
 
 const root = document.getElementById('app');
 
