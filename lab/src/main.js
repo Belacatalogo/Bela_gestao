@@ -1,4 +1,4 @@
-import { renderCleanApp } from './cleanAppBackupCompare.js';
+import { renderCleanApp } from './cleanAppRtdbExport.js';
 
 const root = document.getElementById('app');
 
