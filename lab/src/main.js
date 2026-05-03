@@ -1,4 +1,4 @@
-import { renderCleanApp } from './cleanAppSettings.js';
+import { renderCleanApp } from './cleanAppCatalogBackup.js';
 
 const root = document.getElementById('app');
 
