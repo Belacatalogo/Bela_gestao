@@ -568,7 +568,8 @@ input,select{font-family:'Montserrat',sans-serif}
 
 <div id="header" style="background:linear-gradient(160deg,#100c04 0%,#0d0d0d 60%,#0d060a 100%);border-bottom:1px solid rgba(201,168,76,0.25);padding:28px 20px 20px;text-align:center;">
   <div id="logo-tap" onclick="_devTap()" style="font-family:'Cormorant Garamond',serif;font-size:clamp(2.6rem,10vw,4.2rem);font-weight:300;letter-spacing:0.35em;color:#f0e8dc;line-height:1;text-shadow:0 0 60px rgba(201,168,76,0.2);cursor:default;user-select:none;">Bela</div>
-  <div style="font-size:0.53rem;letter-spacing:0.55em;text-transform:uppercase;color:#C9A84C;margin-top:8px;">Gestão de Vendas · Yasmim Andrade</div>
+  <div style="font-size:0.38rem;letter-spacing:0.28em;text-transform:uppercase;color:rgba(201,168,76,0.35);margin-top:4px;">v3.1</div>
+  <div style="font-size:0.53rem;letter-spacing:0.55em;text-transform:uppercase;color:#C9A84C;margin-top:6px;">Gestão de Vendas · Yasmim Andrade</div>
   <div id="fb-status" style="margin-top:8px;display:inline-flex;align-items:center;gap:5px;font-size:0.42rem;letter-spacing:0.2em;text-transform:uppercase;color:rgba(240,232,220,0.3);background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:3px 10px;">
     <span id="fb-dot" style="width:6px;height:6px;border-radius:50%;background:rgba(240,232,220,0.2);display:inline-block;"></span>
     <span id="fb-label">Firebase aguardando...</span>
@@ -1511,6 +1512,23 @@ function gp(id){var r=S.prices[id];if(!r&&r!==0)return 0;var v=parseFloat(String
 function ini(name){return name.trim().split(' ').map(function(w){return w[0]||'';}).slice(0,2).join('').toUpperCase();}
 function getSales(id){return S.sales[id]||[];}
 function getAllProducts(){return PRODUCTS.concat(S.customProducts||[]);}
+
+// Retorna getAllProducts() + produtos "fantasma" para vendas cujo produto foi deletado
+function getAllProductsWithOrphans(){
+  var base=getAllProducts();
+  var knownIds={};
+  base.forEach(function(p){knownIds[p.id]=true;});
+  Object.keys(S.sales||{}).forEach(function(idStr){
+    var id=Number(idStr);
+    if(knownIds[id])return;
+    var arr=S.sales[idStr];
+    if(!arr||!arr.length)return;
+    var snap=arr[0];
+    base.push({id:id,name:snap._prodName||'(produto removido)',brand:snap._prodBrand||'—',category:'feminino',categories:['feminino'],sub:'',custom:true,deleted:true});
+    knownIds[id]=true;
+  });
+  return base;
+}
 
 function ci(price,sale){
   var qty=(sale&&sale.qty&&sale.qty>1)?sale.qty:1;
@@ -2584,7 +2602,7 @@ function setPagSort(s){PAG_SORT=s;renderPag();}
 function getAllPagSales(){
   var result=[];
   var today=new Date();today.setHours(0,0,0,0);
-  getAllProducts().forEach(function(p){
+  getAllProductsWithOrphans().forEach(function(p){
     var price=gp(p.id);
     (S.sales[p.id]||[]).forEach(function(sale,idx){
       var key=p.id+'_'+(sale.sid||idx);
@@ -2946,7 +2964,7 @@ function cliKey(name){return name.trim().toLowerCase().replace(/\s+/g,'_');}
 
 function buildClientIndex(){
   var map={};
-  getAllProducts().forEach(function(p){
+  getAllProductsWithOrphans().forEach(function(p){
     var price=gp(p.id);
     getSales(p.id).forEach(function(sale,idx){
       var k=cliKey(sale.name);
@@ -3880,9 +3898,18 @@ function renderProdTab(){
 }
 
 function removeCustomProd(id){
-  if(!confirm('Remover este produto? As vendas registradas nele serao perdidas.'))return;
-  S.customProducts=(S.customProducts||[]).filter(function(p){return p.id!==id;});
-  delete S.prices[id];delete S.sold[id];delete S.sales[id];
+  if(!confirm('Remover este produto? As vendas registradas nele serão mantidas no histórico de pagamentos e clientes.'))return;
+  // Salva nome/marca em cada venda antes de remover o produto
+  var p=(S.customProducts||[]).find(function(x){return x.id===id;});
+  if(p&&S.sales[id]){
+    S.sales[id].forEach(function(sale){
+      if(!sale._prodName)sale._prodName=p.name;
+      if(!sale._prodBrand)sale._prodBrand=p.brand;
+    });
+  }
+  S.customProducts=(S.customProducts||[]).filter(function(x){return x.id!==id;});
+  delete S.prices[id];delete S.sold[id];
+  // S.sales[id] é mantido para preservar o histórico
   save();renderAll();renderProdTab();
   // Remove do Firebase (produto E preço)
   try{
@@ -4308,8 +4335,17 @@ function confirmarApagarProduto(){
 function executarApagarProduto(){
   if(_epId===null) return;
   var id = _epId;
+  // Salva nome/marca em cada venda antes de remover o produto
+  var p=(S.customProducts||[]).find(function(x){return x.id===id;});
+  if(p&&S.sales[id]){
+    S.sales[id].forEach(function(sale){
+      if(!sale._prodName)sale._prodName=p.name;
+      if(!sale._prodBrand)sale._prodBrand=p.brand;
+    });
+  }
   S.customProducts = (S.customProducts||[]).filter(function(p){ return p.id!==id; });
   delete S.prices[id];
+  // S.sales[id] é mantido para preservar o histórico
   try{
     if(window._fbdb){
       window._fbdb.ref('produtos_custom/'+id).remove();
