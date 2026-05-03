@@ -1,7 +1,7 @@
 export const APP_CONFIG = Object.freeze({
   name: 'Bela Gestão LAB',
   branch: 'rewrite-bela-gestao-lab',
-  version: '0.22.4-lab-catalog-gestao-compare',
+  version: '0.22.5-lab-firebase-auto-backup-discovery',
   environment: 'lab',
   productionBranch: 'main',
 });
