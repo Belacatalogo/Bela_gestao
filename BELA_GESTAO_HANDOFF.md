@@ -7,7 +7,7 @@ Branch protegida de produção: `main`
 Versão atual visível:
 
 ```txt
-0.21.2-lab-report-tab-rebuild
+0.21.3-lab-products-ai-modal-rebuild
 ```
 
 ## REGRA MÁXIMA ATUAL
@@ -48,13 +48,15 @@ O BLOCO 21A reconstruiu a aba Clientes.
 
 O BLOCO 21B reconstruiu a aba Pagamentos.
 
-O BLOCO 21C reconstruiu a aba Relatório no estilo do sistema antigo.
+O BLOCO 21C reconstruiu a aba Relatório.
+
+O BLOCO 21D reconstruiu o modal de Novo Produto com área de IA em modo LAB.
 
 Entrada atual da LAB:
 
 ```txt
 lab/src/main.js
-  -> lab/src/cleanAppReport.js
+  -> lab/src/cleanAppProducts.js
 ```
 
 Camadas visuais atuais:
@@ -65,67 +67,73 @@ lab/src/styles/function-placement.css
 lab/src/styles/clients-tab.css
 lab/src/styles/payments-tab.css
 lab/src/styles/report-tab.css
+lab/src/styles/products-tab.css
 ```
 
-## BLOCO 21C — Reconstrução fiel da aba Relatório
+## BLOCO 21D — Reconstrução fiel da aba Produtos + Novo Produto com IA
 
 Status: implementado, aguardando teste no iPhone.
 
 Versão esperada na tela:
 
 ```txt
-0.21.2-lab-report-tab-rebuild
+0.21.3-lab-products-ai-modal-rebuild
 ```
 
 Arquivos principais:
 
 ```txt
-lab/src/services/reportInsightsService.js
-lab/src/cleanAppReport.js
-lab/src/styles/report-tab.css
+lab/src/components/ProductFormModal.js
+lab/src/cleanAppProducts.js
+lab/src/styles/products-tab.css
 lab/index.html
 lab/src/main.js
 lab/src/config/appConfig.js
-docs/bloco-21c-report-tab-rebuild.md
+docs/bloco-21d-products-ai-modal-rebuild.md
 BELA_GESTAO_HANDOFF.md
 ```
 
 O que o bloco faz:
 
-- adiciona a aba Relatório;
-- adiciona navegação por mês anterior/próximo;
-- mostra vendas no mês;
-- mostra recebido no mês;
-- mostra a receber no mês;
-- mostra lucro;
-- mostra vendas por categoria;
-- mostra parcelas recebidas este mês;
-- mostra cobranças por urgência;
-- mantém botão Cobrar em WhatsApp modo LAB.
+- reconstrói o modal de Novo Produto para ficar mais próximo do sistema antigo;
+- adiciona área de fotos;
+- mantém foto por URL;
+- mantém foto do celular no fluxo LAB;
+- adiciona seção `IA do produto`;
+- adiciona botão `Preencher com IA LAB`;
+- adiciona botão `Analisar foto` em modo LAB;
+- adiciona chips de categoria;
+- adiciona chips de abas do catálogo;
+- mantém salvar/publicar em LAB/localStorage;
+- mantém Firebase, login Google, catálogo real e IA real bloqueados.
 
 Limites conscientes ainda pendentes:
 
-- gráficos visuais mais avançados;
-- exportação do relatório;
-- datas reais editáveis;
-- filtros por período customizado;
-- dados reais via Firebase.
+- IA real Gemini na criação do produto;
+- análise real da foto;
+- upload real Cloudinary/serviço final;
+- múltiplas fotos reais;
+- carrossel real;
+- sincronização real com catálogo/Firebase.
 
-## Checklist de teste do BLOCO 21C
+## Checklist de teste do BLOCO 21D
 
 1. Abrir o preview Netlify da branch LAB.
-2. Confirmar versão `0.21.2-lab-report-tab-rebuild`.
-3. Ver se a aba `Relatório` aparece na navegação.
-4. Registrar venda/pagamento em LAB se necessário.
-5. Entrar em Relatório.
-6. Testar mês anterior e próximo.
-7. Conferir métricas do mês.
-8. Conferir vendas por categoria.
-9. Conferir parcelas recebidas do mês.
-10. Conferir cobranças por urgência.
-11. Testar botão Cobrar.
-12. Confirmar que nada pediu login Google.
-13. Confirmar que nada real foi alterado.
+2. Confirmar versão `0.21.3-lab-products-ai-modal-rebuild`.
+3. Entrar em Produtos.
+4. Tocar em `Novo produto`.
+5. Confirmar que abre tela/modal grande.
+6. Ver área de fotos.
+7. Ver botão `Do celular`.
+8. Ver seção `IA do produto`.
+9. Tocar em `Preencher com IA LAB`.
+10. Confirmar que campos são preenchidos.
+11. Testar chips de categoria.
+12. Testar chips de abas do catálogo.
+13. Salvar produto.
+14. Confirmar que aparece na lista de produtos.
+15. Confirmar que nada pediu login Google.
+16. Confirmar que nada real foi alterado.
 
 ## Funções críticas finais que precisam continuar antes da entrega
 
@@ -149,17 +157,18 @@ Limites conscientes ainda pendentes:
 ## Próximo bloco recomendado
 
 ```txt
-BLOCO 21D — Reconstrução fiel da aba Produtos + Novo Produto com IA
+BLOCO 21E — Reconstrução fiel da aba Backup/Configurações
 ```
 
 Objetivo:
 
-- reconstruir Produtos igual ao sistema antigo;
-- Novo Produto em tela/modal grande;
-- adicionar foto por URL e celular;
-- incluir seção IA no formulário;
-- manter tudo LAB/offline até integrar IA real depois.
+- upload automático/Cloudinary em modo seguro;
+- chave Gemini em modo seguro;
+- mostrar/ocultar preços;
+- sincronizar preços com catálogo;
+- carrossel da coleção;
+- ainda sem escrita real até etapa controlada.
 
 ## Como continuar em outro chat
 
-"Continue a reconstrução do Bela Gestão. Leia `BELA_GESTAO_HANDOFF.md` antes de qualquer alteração. A branch de trabalho é `rewrite-bela-gestao-lab`. Não mexa na `main`, não mexa no sistema antigo ativo da esposa, não escreva no Firebase real, não altere login Google real e não altere catálogo real. A versão atual é `0.21.2-lab-report-tab-rebuild`. O BLOCO 21C criou `lab/src/services/reportInsightsService.js`, `lab/src/cleanAppReport.js` e `lab/src/styles/report-tab.css`, reconstruindo a aba Relatório fiel ao sistema antigo. Próximo bloco sugerido: `BLOCO 21D — Reconstrução fiel da aba Produtos + Novo Produto com IA`."
+"Continue a reconstrução do Bela Gestão. Leia `BELA_GESTAO_HANDOFF.md` antes de qualquer alteração. A branch de trabalho é `rewrite-bela-gestao-lab`. Não mexa na `main`, não mexa no sistema antigo ativo da esposa, não escreva no Firebase real, não altere login Google real e não altere catálogo real. A versão atual é `0.21.3-lab-products-ai-modal-rebuild`. O BLOCO 21D alterou `lab/src/components/ProductFormModal.js`, criou `lab/src/cleanAppProducts.js` e `lab/src/styles/products-tab.css`, reconstruindo Novo Produto com seção de IA LAB. Próximo bloco sugerido: `BLOCO 21E — Reconstrução fiel da aba Backup/Configurações`."
