@@ -7,7 +7,7 @@ Branch protegida de produção: `main`
 Versão atual visível:
 
 ```txt
-0.22.4-lab-catalog-gestao-compare
+0.22.5-lab-firebase-auto-backup-discovery
 ```
 
 ## REGRA MÁXIMA ATUAL
@@ -67,6 +67,10 @@ O BLOCO 22E-B criou uma página de exportação segura no repositório `Belacata
 
 O BLOCO 22E-C adicionou comparação segura entre backup do catálogo e backup real do Gestão.
 
+HOTFIX 22E-C.1 corrigiu a montagem automática do painel de comparação de backup na aba Ajustes/Backup.
+
+O BLOCO 22E-D adicionou descoberta segura do backup automático Firebase em modo somente leitura.
+
 Entrada atual da LAB:
 
 ```txt
@@ -89,65 +93,55 @@ lab/src/styles/catalog-backup.css
 lab/src/styles/backup-compare.css
 ```
 
-## BLOCO 22E-C — Comparar backup do catálogo + backup real do Gestão
+## BLOCO 22E-D — Firebase Auto Backup Discovery LAB
 
 Status: implementado, aguardando teste no iPhone.
 
 Versão esperada na tela:
 
 ```txt
-0.22.4-lab-catalog-gestao-compare
+0.22.5-lab-firebase-auto-backup-discovery
 ```
 
 Arquivos principais:
 
 ```txt
-lab/src/services/gestaoBackupCompareService.js
-lab/src/cleanAppBackupCompare.js
-lab/src/styles/backup-compare.css
-lab/src/main.js
-lab/index.html
+lab/src/services/firebaseAuthLabService.js
+lab/src/services/realDataReadOnlyService.js
+lab/src/cleanAppSettings.js
 lab/src/config/appConfig.js
-docs/bloco-22e-c-catalog-gestao-compare.md
+docs/bloco-22e-d-firebase-auto-backup-discovery.md
 BELA_GESTAO_HANDOFF.md
 ```
 
 O que o bloco faz:
 
-- adiciona em Ajustes/Backup a seção `Comparação segura`;
-- permite anexar JSON real do Gestão;
-- analisa produtos, preços, vendas, clientes e pagamentos do backup Gestão;
-- compara com o backup do catálogo;
-- mostra produtos iguais nos dois;
-- mostra produtos prontos para unir;
-- mostra possíveis duplicados;
-- mostra produtos só no catálogo;
-- mostra produtos só no Gestão;
-- mostra diferenças de preço;
+- faz login Google usando a configuração Firebase salva no LAB/localStorage;
+- remove dependência de config Firebase hardcoded antiga para login/leitura real;
+- adiciona o botão `Descobrir backup automático` na seção `Login Google — dados reais`;
+- procura backups automáticos em caminhos prováveis do Firestore;
+- testa caminhos como `users/{uid}/backup/latest`, `backups/{uid}`, `backup/ultimo`, `dailyBackups`, `users/{uid}/autoBackups` e variações;
+- calcula um score para o melhor candidato;
+- mostra totais encontrados de produtos, vendas, clientes, pagamentos e configurações;
+- mostra estrutura interna provável do backup;
+- lista todos os caminhos testados;
 - não importa automaticamente;
 - não escreve no Firebase real;
 - não altera catálogo real.
 
-Regra de fonte dos dados:
+## Checklist de teste do BLOCO 22E-D
 
-```txt
-Catálogo = fotos, visual e categorias/abas
-Gestão = preços, vendas, clientes, pagamentos e histórico
-```
-
-## Checklist de teste do BLOCO 22E-C
-
-1. Abrir preview Netlify da branch LAB.
-2. Confirmar versão `0.22.4-lab-catalog-gestao-compare`.
-3. Ir em Ajustes/Backup.
-4. Confirmar que o backup do catálogo real já está anexado.
-5. Na seção `Comparação segura`, anexar JSON real do Gestão.
-6. Ver resumo do backup Gestão.
-7. Tocar em `Comparar backups agora`.
-8. Conferir: iguais, prontos, possíveis, só catálogo, só gestão e preço diferente.
-9. Abrir os detalhes de prontos para unir.
-10. Confirmar que nada foi importado automaticamente.
-11. Confirmar que nada real foi alterado.
+1. Abrir preview da branch LAB.
+2. Confirmar versão `0.22.5-lab-firebase-auto-backup-discovery`.
+3. Ir na área `Config Firebase LAB`.
+4. Colar a configuração Firebase correta do Bela Gestão.
+5. Salvar config no LAB.
+6. Ir em Ajustes/Backup.
+7. Fazer login Google com a conta da esposa.
+8. Tocar em `Descobrir backup automático`.
+9. Conferir se aparece um melhor caminho provável.
+10. Conferir totais de produtos, vendas, clientes, pagamentos e estrutura interna.
+11. Confirmar que a tela informa que nenhuma importação/escrita foi feita.
 
 ## Funções críticas finais que precisam continuar antes da entrega
 
@@ -171,15 +165,15 @@ Gestão = preços, vendas, clientes, pagamentos e histórico
 ## Próximo bloco recomendado
 
 ```txt
-BLOCO 22E-D — Montar prévia unificada sem importar
+BLOCO 22E-E — Exportar backup automático encontrado como JSON local
 ```
 
 Objetivo:
 
-- montar uma lista final sugerida combinando foto do catálogo com preço/dados do Gestão;
-- permitir revisão manual;
-- ainda sem gravar nada real.
+- depois de descobrir o melhor caminho, permitir baixar uma cópia local JSON do backup automático encontrado;
+- continuar sem escrever no Firebase;
+- usar esse JSON na comparação segura Catálogo x Gestão.
 
 ## Como continuar em outro chat
 
-"Continue a reconstrução do Bela Gestão. Leia `BELA_GESTAO_HANDOFF.md` antes de qualquer alteração. A branch de trabalho do Gestão é `rewrite-bela-gestao-lab`. Não mexa na `main`, não mexa no sistema antigo ativo da esposa, não escreva no Firebase real, não altere catálogo real. A versão atual é `0.22.4-lab-catalog-gestao-compare`. O BLOCO 22E-C criou `lab/src/services/gestaoBackupCompareService.js`, `lab/src/cleanAppBackupCompare.js` e `lab/src/styles/backup-compare.css`, adicionando comparação segura entre backup do catálogo e backup real do Gestão. Próximo bloco sugerido: `BLOCO 22E-D — Montar prévia unificada sem importar`."
+"Continue a reconstrução do Bela Gestão. Leia `BELA_GESTAO_HANDOFF.md` antes de qualquer alteração. A branch de trabalho do Gestão é `rewrite-bela-gestao-lab`. Não mexa na `main`, não mexa no sistema antigo ativo da esposa, não escreva no Firebase real, não altere catálogo real. A versão atual é `0.22.5-lab-firebase-auto-backup-discovery`. O BLOCO 22E-D adicionou descoberta segura do backup automático Firebase em modo somente leitura. Próximo bloco sugerido: `BLOCO 22E-E — Exportar backup automático encontrado como JSON local`."
