@@ -1,6 +1,6 @@
 import { renderCleanApp as renderReportApp } from './cleanAppReport.js';
 import { APP_CONFIG } from './config/appConfig.js';
-import { uploadImageToCloudinaryLab } from './services/cloudinaryLabService.js';
+import { clearCloudinaryLabConfig, getCloudinaryLabConfig, saveCloudinaryLabConfig, uploadImageToCloudinaryLab } from './services/cloudinaryLabService.js';
 
 function fillField(root, name, value) {
   const field = root.querySelector(`[name="${name}"]`);
@@ -150,8 +150,68 @@ function enhanceProductLabels(root) {
   }
 }
 
+function cloudinarySettingsCard() {
+  const config = getCloudinaryLabConfig();
+  return `
+    <div class="clean-card cloudinary-settings-card" data-cloudinary-settings-card>
+      <h3>Cloudinary — upload automático</h3>
+      <p>Usado no Novo Produto: foto do celular → upload automático → URL preenchida → IA liberada. Configuração salva só neste LAB/localStorage.</p>
+      <form class="cloudinary-settings-form" data-cloudinary-settings-form>
+        <label><span>Cloud name</span><input name="cloudName" value="${config.cloudName}" placeholder="ex: sua-cloud"></label>
+        <label><span>Upload preset unsigned</span><input name="uploadPreset" value="${config.uploadPreset}" placeholder="ex: bela_unsigned"></label>
+        <label><span>Pasta</span><input name="folder" value="${config.folder}" placeholder="bela-gestao-lab"></label>
+        <div class="cloudinary-settings-actions">
+          <button class="primary-button" type="submit">Salvar Cloudinary</button>
+          <button class="secondary-button" type="button" data-clear-cloudinary>Limpar</button>
+        </div>
+      </form>
+      <div class="cloudinary-status ${config.configured ? 'ok' : 'warn'}" data-cloudinary-status>
+        ${config.configured ? 'Cloudinary configurado. Upload automático liberado.' : 'Cloudinary ainda não configurado. Upload automático ficará bloqueado.'}
+      </div>
+    </div>
+  `;
+}
+
+function enhanceCloudinarySettings(root) {
+  const settingsSection = [...root.querySelectorAll('.clean-section')]
+    .find((section) => section.textContent.includes('Funções e ferramentas') || section.textContent.includes('Backup, segurança'));
+  if (!settingsSection || settingsSection.querySelector('[data-cloudinary-settings-card]')) return;
+
+  const title = settingsSection.querySelector('.clean-section-title');
+  if (title) title.insertAdjacentHTML('afterend', cloudinarySettingsCard());
+
+  const form = settingsSection.querySelector('[data-cloudinary-settings-form]');
+  form?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const data = new FormData(form);
+    const result = saveCloudinaryLabConfig({
+      cloudName: data.get('cloudName'),
+      uploadPreset: data.get('uploadPreset'),
+      folder: data.get('folder'),
+    });
+    const status = settingsSection.querySelector('[data-cloudinary-status]');
+    if (status) {
+      status.className = `cloudinary-status ${result.ok && result.config.configured ? 'ok' : 'warn'}`;
+      status.textContent = result.ok && result.config.configured
+        ? 'Cloudinary configurado. Upload automático liberado.'
+        : (result.error || 'Preencha Cloud name e Upload preset unsigned.');
+    }
+  });
+
+  settingsSection.querySelector('[data-clear-cloudinary]')?.addEventListener('click', () => {
+    clearCloudinaryLabConfig();
+    const status = settingsSection.querySelector('[data-cloudinary-status]');
+    if (status) {
+      status.className = 'cloudinary-status warn';
+      status.textContent = 'Cloudinary limpo. Upload automático bloqueado.';
+    }
+    form?.reset();
+  });
+}
+
 function enhanceProducts(root) {
   enhanceProductLabels(root);
+  enhanceCloudinarySettings(root);
   bindCloudinaryUpload(root);
   bindProductAi(root);
   bindProductChips(root);
