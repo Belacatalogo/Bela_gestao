@@ -4,10 +4,11 @@ import { listProducts } from './services/dataGateway.js';
 import { clearCloudinaryLabConfig, getCloudinaryLabConfig, saveCloudinaryLabConfig } from './services/cloudinaryLabService.js';
 import { resolveGoogleRedirectLab, signInWithGoogleLab, signOutGoogleLab } from './services/firebaseAuthLabService.js';
 import { clearGoogleLoginGateUser, getGoogleLoginGateState } from './services/googleLoginGateService.js';
-import { readRealDataPreviewAfterLogin } from './services/realDataReadOnlyService.js';
+import { discoverFirebaseAutoBackupsAfterLogin, readRealDataPreviewAfterLogin } from './services/realDataReadOnlyService.js';
 import { clearCarouselSelection, clearGeminiLabKey, getCarouselSelection, getGeminiLabKeyInfo, getLabSettings, saveGeminiLabKey, saveLabSettings, simulatePriceSync, testGeminiLabKey, toggleCarouselProduct } from './services/settingsLabService.js';
 
 let REAL_PREVIEW_RESULT = null;
+let AUTO_BACKUP_DISCOVERY_RESULT = null;
 
 function esc(value) {
   return String(value ?? '')
@@ -16,6 +17,78 @@ function esc(value) {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#039;');
+}
+
+function renderCandidatePaths(item) {
+  const paths = item?.summary?.candidatePaths || [];
+  if (!paths.length) return '';
+  return `
+    <details class="real-path-details">
+      <summary>Estrutura provável do backup (${paths.length})</summary>
+      ${paths.slice(0, 14).map((candidate) => `
+        <div class="real-path-row neutral">
+          <strong>${esc(candidate.type)}</strong>
+          <small>${esc(candidate.path)} · ${candidate.count || 0} item(ns)</small>
+        </div>
+      `).join('')}
+    </details>
+  `;
+}
+
+function renderAutoBackupDiscoveryPanel() {
+  const result = AUTO_BACKUP_DISCOVERY_RESULT;
+  if (!result) return '';
+
+  if (!result.ok) {
+    return `
+      <div class="real-preview-card error" data-auto-backup-discovery-card>
+        <h4>Backup automático Firebase</h4>
+        <p>${esc(result.message || 'Não foi possível descobrir o backup automático.')}</p>
+      </div>
+    `;
+  }
+
+  const totals = result.totals || {};
+  return `
+    <div class="real-preview-card" data-auto-backup-discovery-card>
+      <h4>Backup automático Firebase — somente leitura</h4>
+      <p>${esc(result.message)}</p>
+      <div class="real-preview-grid">
+        <article><strong>${totals.products || 0}</strong><span>Produtos</span></article>
+        <article><strong>${totals.sales || 0}</strong><span>Vendas</span></article>
+        <article><strong>${totals.clients || 0}</strong><span>Clientes</span></article>
+        <article><strong>${totals.payments || 0}</strong><span>Pagamentos</span></article>
+      </div>
+      ${result.best ? `
+        <div class="real-login-note">
+          <strong>Melhor fonte encontrada:</strong><br>
+          ${esc(result.best.label)}<br>
+          <code>${esc(result.best.path)}</code><br>
+          Score: ${esc(result.best.backupScore || 0)} · Projeto: ${esc(result.projectId || result.best.projectId || '')}
+        </div>
+        ${renderCandidatePaths(result.best)}
+      ` : '<div class="real-login-note">Nenhum backup automático provável foi encontrado nos caminhos testados.</div>'}
+      <details class="real-path-details" open>
+        <summary>Candidatos encontrados (${result.found?.length || 0})</summary>
+        ${(result.found || []).map((item) => `
+          <div class="real-path-row ok">
+            <strong>${esc(item.label)}</strong>
+            <small>${esc(item.path)} · ${item.type} · score ${item.backupScore || 0} · ${item.count || 0} item(ns)</small>
+          </div>
+        `).join('') || '<p>Nenhum candidato com dados retornou.</p>'}
+      </details>
+      <details class="real-path-details">
+        <summary>Todos os caminhos verificados (${result.checked?.length || 0})</summary>
+        ${(result.checked || []).map((item) => `
+          <div class="real-path-row ${item.ok ? 'neutral' : 'error'}">
+            <strong>${esc(item.label)}</strong>
+            <small>${esc(item.path)} · ${item.ok ? (item.exists ? 'encontrado' : 'vazio/não existe') : esc(item.error)}</small>
+          </div>
+        `).join('')}
+      </details>
+      <div class="real-login-note">Nenhuma importação foi executada e nenhuma escrita foi feita no Firebase.</div>
+    </div>
+  `;
 }
 
 function renderRealPreviewPanel() {
@@ -86,7 +159,7 @@ function renderGoogleLoginPanel() {
         ` : ''}
         <div class="legacy-settings-actions google-actions">
           ${state.isSignedIn
-            ? '<button class="secondary-button" type="button" data-read-real-data>Ler dados reais agora</button><button class="danger-button" type="button" data-google-logout>Sair</button>'
+            ? '<button class="secondary-button" type="button" data-read-real-data>Ler dados reais agora</button><button class="secondary-button" type="button" data-discover-auto-backup>Descobrir backup automático</button><button class="danger-button" type="button" data-google-logout>Sair</button>'
             : '<button class="primary-button" type="button" data-google-login>Entrar com Google</button>'}
         </div>
         <div class="real-login-note" data-real-data-note>
@@ -94,6 +167,7 @@ function renderGoogleLoginPanel() {
             ? 'Modo leitura: permitido verificar dados reais separados da LAB. Escrita real continua bloqueada.'
             : 'Importante: os dados reais não serão misturados com dados LAB.'}
         </div>
+        ${renderAutoBackupDiscoveryPanel()}
         ${renderRealPreviewPanel()}
       </div>
     </section>
@@ -255,6 +329,7 @@ function bindSettings(root) {
     await signOutGoogleLab().catch(() => null);
     clearGoogleLoginGateUser();
     REAL_PREVIEW_RESULT = null;
+    AUTO_BACKUP_DISCOVERY_RESULT = null;
     rerenderSettings(root);
   });
 
@@ -262,6 +337,13 @@ function bindSettings(root) {
     const note = root.querySelector('[data-real-data-note]');
     if (note) note.textContent = 'Lendo dados reais em modo somente leitura...';
     REAL_PREVIEW_RESULT = await readRealDataPreviewAfterLogin();
+    rerenderSettings(root);
+  });
+
+  root.querySelector('[data-discover-auto-backup]')?.addEventListener('click', async () => {
+    const note = root.querySelector('[data-real-data-note]');
+    if (note) note.textContent = 'Procurando backup automático Firebase em modo somente leitura...';
+    AUTO_BACKUP_DISCOVERY_RESULT = await discoverFirebaseAutoBackupsAfterLogin();
     rerenderSettings(root);
   });
 
