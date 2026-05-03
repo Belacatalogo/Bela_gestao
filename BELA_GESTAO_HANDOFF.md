@@ -7,7 +7,7 @@ Branch protegida de produção: `main`
 Versão atual visível:
 
 ```txt
-0.22.1-lab-real-readonly-preview
+0.22.2-lab-premium-spec-exact-ui
 ```
 
 ## REGRA MÁXIMA ATUAL
@@ -57,6 +57,8 @@ O BLOCO 22A adicionou o portão de login Google protegido.
 
 O BLOCO 22B adicionou leitura controlada de dados reais em modo somente leitura após login.
 
+O BLOCO 22C aplicou a camada visual Premium UI exata baseada no arquivo `Bela Gestão — Spec Handoff Premium UI` enviado pelo usuário.
+
 Entrada atual da LAB:
 
 ```txt
@@ -74,62 +76,69 @@ lab/src/styles/payments-tab.css
 lab/src/styles/report-tab.css
 lab/src/styles/products-tab.css
 lab/src/styles/settings-tab.css
+lab/src/styles/premium-spec-exact.css
 ```
 
-## BLOCO 22B — Leitura controlada dos dados reais após login
+## BLOCO 22C — Premium UI exata pelo Spec Handoff
 
 Status: implementado, aguardando teste no iPhone.
 
 Versão esperada na tela:
 
 ```txt
-0.22.1-lab-real-readonly-preview
+0.22.2-lab-premium-spec-exact-ui
 ```
 
 Arquivos principais:
 
 ```txt
-lab/src/services/realDataReadOnlyService.js
-lab/src/cleanAppSettings.js
-lab/src/styles/settings-tab.css
+lab/src/styles/premium-spec-exact.css
+lab/index.html
 lab/src/config/appConfig.js
-docs/bloco-22b-real-readonly-preview.md
+docs/bloco-22c-premium-spec-exact-ui.md
 BELA_GESTAO_HANDOFF.md
 ```
 
 O que o bloco faz:
 
-- mantém dados reais bloqueados antes do login Google;
-- depois do login, permite tocar em `Ler dados reais agora`;
-- tenta ler caminhos candidatos do Firestore em modo leitura;
-- mostra totais encontrados de produtos, vendas, clientes e pagamentos;
-- mostra caminhos encontrados;
-- mostra diagnóstico de caminhos vazios/bloqueados;
-- não importa nada para LAB;
-- não altera nada no Firebase real;
-- não altera catálogo real.
+- aplica fundo `#06050a` com halos dourado/violeta;
+- aplica fontes `Cormorant Garamond` e `Montserrat`;
+- aplica shell mobile-first `max-width: 480px`;
+- aplica tab nav sticky com aba ativa em gradiente dourado;
+- aplica cards glass com borda dourada e brilho interno;
+- aplica botões pílula e chips com gradiente dourado ativo;
+- aplica estilo de modal bottom sheet;
+- aplica animações `fadeIn` e `slideUp`;
+- aplica estados gold/green/danger;
+- preserva as funções já feitas.
 
 Regras mantidas:
 
-- dados reais só aparecem depois do login Google;
-- dados reais não substituem dados LAB;
-- dados reais não são misturados automaticamente;
-- escrita real continua bloqueada;
-- sistema ativo da esposa não foi alterado.
+- não escreve no Firebase real;
+- não altera login Google real além do portão já criado;
+- não altera catálogo público real;
+- não interrompe backup automático atual;
+- não mistura dados reais com LAB;
+- não usa DOM injection;
+- não usa bundle patch.
 
-## Checklist de teste do BLOCO 22B
+## Checklist de teste do BLOCO 22C
 
 1. Abrir preview Netlify.
-2. Confirmar versão `0.22.1-lab-real-readonly-preview`.
-3. Ir em Ajustes/Backup.
-4. Fazer login Google com a conta da esposa.
-5. Tocar em `Ler dados reais agora`.
-6. Conferir se aparece `Prévia dos dados reais — somente leitura`.
-7. Conferir produtos/vendas/clientes/pagamentos encontrados.
-8. Abrir `Caminhos encontrados`.
-9. Abrir `Diagnóstico de caminhos verificados`.
-10. Confirmar que Produtos/Vendas/Pagamentos da LAB não foram substituídos.
-11. Confirmar que nada real foi alterado.
+2. Confirmar versão `0.22.2-lab-premium-spec-exact-ui`.
+3. Conferir fundo escuro profundo com halo dourado.
+4. Conferir fonte Cormorant nos títulos.
+5. Conferir tab nav sticky com aba ativa em gradiente dourado.
+6. Conferir cards glass arredondados.
+7. Conferir Produtos.
+8. Conferir Clientes.
+9. Conferir Pagamentos.
+10. Conferir Relatório.
+11. Conferir Ajustes.
+12. Abrir Novo Produto e conferir modal bottom sheet.
+13. Testar upload Cloudinary automático.
+14. Testar login Google protegido.
+15. Confirmar que nenhuma função real foi alterada.
 
 ## Funções críticas finais que precisam continuar antes da entrega
 
@@ -153,15 +162,15 @@ Regras mantidas:
 ## Próximo bloco recomendado
 
 ```txt
-BLOCO 22C — Identificar caminho real correto e mapear dados reais
+BLOCO 22D — Ajustes finos pixel-perfect pós-teste iPhone
 ```
 
 Objetivo:
 
-- usar o diagnóstico do 22B para descobrir onde estão os dados reais;
-- mapear estrutura real;
-- preparar importação controlada somente depois de backup completo.
+- corrigir diferenças visuais percebidas no iPhone;
+- ajustar espaçamentos, altura de cards, botões e abas;
+- corrigir qualquer conflito da camada CSS com funções antigas.
 
 ## Como continuar em outro chat
 
-"Continue a reconstrução do Bela Gestão. Leia `BELA_GESTAO_HANDOFF.md` antes de qualquer alteração. A branch de trabalho é `rewrite-bela-gestao-lab`. Não mexa na `main`, não mexa no sistema antigo ativo da esposa, não escreva no Firebase real, não altere catálogo real. A versão atual é `0.22.1-lab-real-readonly-preview`. O BLOCO 22B criou `lab/src/services/realDataReadOnlyService.js` e conectou em Ajustes o botão `Ler dados reais agora`, mostrando prévia separada e diagnóstico. Próximo bloco sugerido: `BLOCO 22C — Identificar caminho real correto e mapear dados reais`."
+"Continue a reconstrução do Bela Gestão. Leia `BELA_GESTAO_HANDOFF.md` antes de qualquer alteração. A branch de trabalho é `rewrite-bela-gestao-lab`. Não mexa na `main`, não mexa no sistema antigo ativo da esposa, não escreva no Firebase real, não altere catálogo real. A versão atual é `0.22.2-lab-premium-spec-exact-ui`. O BLOCO 22C criou `lab/src/styles/premium-spec-exact.css`, carregado por último em `lab/index.html`, aplicando o visual Premium UI do spec enviado. Próximo bloco sugerido: `BLOCO 22D — Ajustes finos pixel-perfect pós-teste iPhone`."
