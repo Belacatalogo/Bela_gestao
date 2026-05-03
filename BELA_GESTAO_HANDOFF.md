@@ -7,7 +7,7 @@ Branch protegida de produção: `main`
 Versão atual visível:
 
 ```txt
-0.16.0-lab-offline-migration-bridge
+0.17.0-lab-legacy-function-map
 ```
 
 ## REGRA MÁXIMA ATUAL
@@ -36,50 +36,55 @@ O BLOCO 15 limpou a experiência principal da LAB, escondendo ferramentas técni
 
 O BLOCO 16 criou uma ponte de migração offline segura para preparar a futura transição do sistema antigo para o novo sistema sem tocar no ambiente ativo.
 
+O BLOCO 17 criou o mapa real de funções antigas, para visualizar o que já está confirmado, parcial ou pendente antes da entrega final.
+
 Entrada atual da LAB:
 
 ```txt
 lab/src/main.js
-  -> lab/src/cleanAppMigration.js
+  -> lab/src/cleanAppFunctionMap.js
 ```
 
-## BLOCO 16 — Ponte de migração offline segura
+## BLOCO 17 — Mapa real de funções do sistema antigo
 
 Status: implementado, aguardando teste no iPhone.
 
 Versão esperada na tela:
 
 ```txt
-0.16.0-lab-offline-migration-bridge
+0.17.0-lab-legacy-function-map
 ```
 
 Arquivos principais:
 
 ```txt
-lab/src/services/offlineMigrationService.js
-lab/src/cleanAppMigration.js
+lab/src/services/legacyFunctionMapService.js
+lab/src/cleanAppFunctionMap.js
+lab/src/styles/clean-app.css
 lab/src/config/appConfig.js
-docs/bloco-16-offline-migration-bridge.md
+docs/bloco-17-legacy-function-map.md
 BELA_GESTAO_HANDOFF.md
 ```
 
 O que o bloco faz:
 
-- adiciona um serviço de migração offline;
-- adiciona, na aba Ajustes, o card `Migração offline do sistema antigo`;
-- permite analisar um backup/export antigo JSON;
-- permite importar dados apenas para LAB/localStorage;
-- mostra explicitamente que Firebase real, login Google real, catálogo real e sistema ativo estão bloqueados;
-- prepara a futura entrega final sem mexer no sistema ativo da esposa.
+- registra as funções antigas que precisam ser preservadas;
+- classifica cada função como confirmada, parcial ou pendente de validação;
+- mostra o mapa na aba Ajustes;
+- deixa claro que isso é apenas mapeamento, sem conexão real;
+- reforça que a entrega final depende de validar Firebase, login Google, catálogo, IA, upload real, WhatsApp, PWA e backup automático.
 
-O que NÃO faz:
+Funções mapeadas:
 
-- não escreve no Firebase real;
-- não pede login Google;
-- não altera catálogo real;
-- não altera backup automático atual;
-- não substitui o sistema antigo;
-- não ativa IA real ainda.
+- Produtos;
+- Ligação Gestão ↔ Catálogo;
+- Upload de foto / URL automática;
+- Vendas e compradores;
+- Pagamentos e parcelas;
+- Firebase, login Google e backup automático;
+- IA na criação de produto;
+- WhatsApp;
+- PWA/iPhone.
 
 ## Funções críticas finais que precisam continuar antes da entrega
 
@@ -100,33 +105,31 @@ O que NÃO faz:
 - funções de IA na criação/descrição de produto;
 - histórico preservado mesmo se produto for removido.
 
-## Checklist de teste do BLOCO 16
+## Checklist de teste do BLOCO 17
 
 1. Abrir o preview Netlify da branch LAB.
-2. Confirmar versão `0.16.0-lab-offline-migration-bridge`.
+2. Confirmar versão `0.17.0-lab-legacy-function-map`.
 3. Entrar em Ajustes.
-4. Ver o card `Migração offline do sistema antigo`.
-5. Confirmar que os alvos reais aparecem como bloqueados.
-6. Selecionar um backup/export antigo `.json`, se disponível.
-7. Conferir se a análise mostra preços, vendas e parcelas.
-8. Tocar em `Importar para LAB` somente se a análise estiver OK.
-9. Conferir Produtos, Vendas e Pagamentos após importar.
-10. Confirmar que nenhum login Google foi pedido.
-11. Confirmar que nenhum Firebase real foi alterado.
-12. Confirmar que o catálogo real não foi alterado.
+4. Ver o card `Mapa real de funções antigas`.
+5. Abrir alguns itens do mapa.
+6. Confirmar que há status como Confirmado, Parcial e Validar.
+7. Confirmar que a tela não tenta login Google.
+8. Confirmar que nada real foi alterado.
+9. Confirmar se o mapa está legível no iPhone.
 
 ## Próximo bloco recomendado
 
 ```txt
-BLOCO 17 — Mapa real de funções do sistema antigo
+BLOCO 18 — Modelo final de dados preservando histórico
 ```
 
 Objetivo:
 
-- mapear no `index.html` antigo as funções reais de produto, catálogo, IA, foto, Firebase, Google Login e backup;
-- criar uma lista objetiva do que falta portar para o novo sistema;
-- não mexer ainda em produção.
+- separar definitivamente Product, Sale, Customer e Payment;
+- garantir que venda/parcela/cliente não dependam da existência do produto;
+- impedir novamente o erro onde apagar produto remove valor/histórico da ficha da cliente;
+- manter tudo offline/LAB ainda.
 
 ## Como continuar em outro chat
 
-"Continue a reconstrução do Bela Gestão. Leia `BELA_GESTAO_HANDOFF.md` antes de qualquer alteração. A branch de trabalho é `rewrite-bela-gestao-lab`. Não mexa na `main`, não mexa no sistema antigo ativo da esposa, não escreva no Firebase real, não altere login Google real e não altere catálogo real. A versão atual é `0.16.0-lab-offline-migration-bridge`. O BLOCO 16 criou a ponte de migração offline segura em `lab/src/services/offlineMigrationService.js` e `lab/src/cleanAppMigration.js`. A aba Ajustes permite analisar backup antigo e importar somente para LAB/localStorage. Próximo bloco sugerido: `BLOCO 17 — Mapa real de funções do sistema antigo`, para mapear produto, catálogo, IA, foto, Firebase, Google Login e backup antes de qualquer conexão real."
+"Continue a reconstrução do Bela Gestão. Leia `BELA_GESTAO_HANDOFF.md` antes de qualquer alteração. A branch de trabalho é `rewrite-bela-gestao-lab`. Não mexa na `main`, não mexa no sistema antigo ativo da esposa, não escreva no Firebase real, não altere login Google real e não altere catálogo real. A versão atual é `0.17.0-lab-legacy-function-map`. O BLOCO 17 criou `lab/src/services/legacyFunctionMapService.js` e `lab/src/cleanAppFunctionMap.js`, mostrando em Ajustes o mapa real de funções antigas. Próximo bloco sugerido: `BLOCO 18 — Modelo final de dados preservando histórico`, para separar Product, Sale, Customer e Payment e impedir que apagar produto remova valores/histórico de cliente."
