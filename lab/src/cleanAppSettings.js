@@ -3,8 +3,11 @@ import { APP_CONFIG } from './config/appConfig.js';
 import { listProducts } from './services/dataGateway.js';
 import { clearCloudinaryLabConfig, getCloudinaryLabConfig, saveCloudinaryLabConfig } from './services/cloudinaryLabService.js';
 import { resolveGoogleRedirectLab, signInWithGoogleLab, signOutGoogleLab } from './services/firebaseAuthLabService.js';
-import { clearGoogleLoginGateUser, getGoogleLoginGateState, markRealDataReadAttempt } from './services/googleLoginGateService.js';
+import { clearGoogleLoginGateUser, getGoogleLoginGateState } from './services/googleLoginGateService.js';
+import { readRealDataPreviewAfterLogin } from './services/realDataReadOnlyService.js';
 import { clearCarouselSelection, clearGeminiLabKey, getCarouselSelection, getGeminiLabKeyInfo, getLabSettings, saveGeminiLabKey, saveLabSettings, simulatePriceSync, testGeminiLabKey, toggleCarouselProduct } from './services/settingsLabService.js';
+
+let REAL_PREVIEW_RESULT = null;
 
 function esc(value) {
   return String(value ?? '')
@@ -13,6 +16,53 @@ function esc(value) {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#039;');
+}
+
+function renderRealPreviewPanel() {
+  const result = REAL_PREVIEW_RESULT;
+  if (!result) return '';
+
+  if (!result.ok) {
+    return `
+      <div class="real-preview-card error" data-real-preview-card>
+        <h4>Prévia dos dados reais</h4>
+        <p>${esc(result.message || 'Não foi possível ler os dados reais.')}</p>
+      </div>
+    `;
+  }
+
+  const totals = result.totals || {};
+  return `
+    <div class="real-preview-card" data-real-preview-card>
+      <h4>Prévia dos dados reais — somente leitura</h4>
+      <p>${esc(result.message)}</p>
+      <div class="real-preview-grid">
+        <article><strong>${totals.products || 0}</strong><span>Produtos</span></article>
+        <article><strong>${totals.sales || 0}</strong><span>Vendas</span></article>
+        <article><strong>${totals.clients || 0}</strong><span>Clientes</span></article>
+        <article><strong>${totals.payments || 0}</strong><span>Pagamentos</span></article>
+      </div>
+      <details class="real-path-details">
+        <summary>Caminhos encontrados (${result.found?.length || 0})</summary>
+        ${(result.found || []).map((item) => `
+          <div class="real-path-row ok">
+            <strong>${esc(item.label)}</strong>
+            <small>${esc(item.path)} · ${item.type} · ${item.count || 0} item(ns)</small>
+          </div>
+        `).join('') || '<p>Nenhum caminho conhecido retornou dados.</p>'}
+      </details>
+      <details class="real-path-details">
+        <summary>Diagnóstico de caminhos verificados</summary>
+        ${(result.checked || []).map((item) => `
+          <div class="real-path-row ${item.ok ? 'neutral' : 'error'}">
+            <strong>${esc(item.label)}</strong>
+            <small>${esc(item.path)} · ${item.ok ? (item.exists ? 'encontrado' : 'vazio/não existe') : esc(item.error)}</small>
+          </div>
+        `).join('')}
+      </details>
+      <div class="real-login-note">Esses dados NÃO foram importados para a LAB e NÃO foram alterados. Esta é apenas uma prévia de leitura.</div>
+    </div>
+  `;
 }
 
 function renderGoogleLoginPanel() {
@@ -36,14 +86,15 @@ function renderGoogleLoginPanel() {
         ` : ''}
         <div class="legacy-settings-actions google-actions">
           ${state.isSignedIn
-            ? '<button class="secondary-button" type="button" data-read-real-data>Verificar dados reais</button><button class="danger-button" type="button" data-google-logout>Sair</button>'
+            ? '<button class="secondary-button" type="button" data-read-real-data>Ler dados reais agora</button><button class="danger-button" type="button" data-google-logout>Sair</button>'
             : '<button class="primary-button" type="button" data-google-login>Entrar com Google</button>'}
         </div>
         <div class="real-login-note" data-real-data-note>
           ${state.isSignedIn
-            ? 'Próximo passo: leitura controlada do Firebase real. Nenhuma escrita real automática está liberada.'
+            ? 'Modo leitura: permitido verificar dados reais separados da LAB. Escrita real continua bloqueada.'
             : 'Importante: os dados reais não serão misturados com dados LAB.'}
         </div>
+        ${renderRealPreviewPanel()}
       </div>
     </section>
   `;
@@ -203,13 +254,15 @@ function bindSettings(root) {
   root.querySelector('[data-google-logout]')?.addEventListener('click', async () => {
     await signOutGoogleLab().catch(() => null);
     clearGoogleLoginGateUser();
+    REAL_PREVIEW_RESULT = null;
     rerenderSettings(root);
   });
 
-  root.querySelector('[data-read-real-data]')?.addEventListener('click', () => {
-    markRealDataReadAttempt();
+  root.querySelector('[data-read-real-data]')?.addEventListener('click', async () => {
     const note = root.querySelector('[data-real-data-note]');
-    if (note) note.textContent = 'Login confirmado. Próximo bloco fará leitura controlada do Firebase real, ainda sem escrita automática.';
+    if (note) note.textContent = 'Lendo dados reais em modo somente leitura...';
+    REAL_PREVIEW_RESULT = await readRealDataPreviewAfterLogin();
+    rerenderSettings(root);
   });
 
   root.querySelector('[data-cloudinary-settings-form]')?.addEventListener('submit', (event) => {
