@@ -1,0 +1,147 @@
+import { renderProductFormModal, buildEmptyProductDraft, productToDraft, readProductForm } from './components/ProductFormModal.js';
+import { APP_CONFIG, CRITICAL_FEATURES } from './config/appConfig.js';
+import { getCatalogSyncReport } from './services/catalogContractService.js';
+import { getDataGatewayStatus, getProduct, listProducts, resetProducts, saveProduct, toggleProductVisibility } from './services/dataGateway.js';
+import { generateLabImageUrl } from './services/imageUploadLabService.js';
+import { downloadLabBackup, importLabBackupFromText } from './services/labBackupService.js';
+import { ensurePaymentForSale, getPaymentStats, syncPaymentsFromSales, updateLabPaymentStatus } from './services/labPaymentsService.js';
+import { createLabSale, getLabSales, getSalesStats, updateLabSaleStatus } from './services/labSalesService.js';
+import { filterProducts, getProductCategories, getProductStats, PRODUCT_STATUS_FILTERS } from './services/productFilterService.js';
+import { formatBRL } from './utils/money.js';
+
+const uiState = {
+  activeTab: window.localStorage.getItem('belaGestaoLab.cleanTab') || 'produtos',
+  modalDraft: null,
+  modalErrors: [],
+  saleErrors: [],
+  notice: '',
+  filters: { query: '', category: 'all', status: PRODUCT_STATUS_FILTERS.ALL },
+};
+
+function esc(value) {
+  return String(value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;');
+}
+
+function notice(message) { uiState.notice = message; }
+
+function state() {
+  const gateway = listProducts();
+  const products = gateway.products;
+  const sales = getLabSales();
+  const payments = syncPaymentsFromSales(sales);
+  return {
+    gateway,
+    products,
+    sales,
+    payments,
+    salesStats: getSalesStats(sales),
+    paymentStats: getPaymentStats(payments),
+    productStats: getProductStats(products),
+    catalogReport: getCatalogSyncReport(products),
+    environment: getDataGatewayStatus(),
+  };
+}
+
+function metric(label, value, hint = '') {
+  return `<article class="clean-metric"><strong>${value}</strong><span>${label}</span>${hint ? `<small>${hint}</small>` : ''}</article>`;
+}
+
+function hero(s) {
+  return `<section class="clean-hero"><div class="clean-hero-mark">BELA</div><h1>Gestão de Vendas</h1><p>Nova base modular, com a experiência visual do sistema antigo e somente funções úteis na tela principal.</p><div class="clean-version-row"><span>${APP_CONFIG.version}</span><span>${APP_CONFIG.branch}</span><span>${s.environment.canWriteRealData ? 'real' : 'LAB seguro'}</span></div></section>`;
+}
+
+function nav() {
+  const tabs = [['dashboard', 'Resumo'], ['produtos', 'Produtos'], ['vendas', 'Vendas'], ['pagamentos', 'Pagamentos'], ['catalogo', 'Catálogo'], ['ajustes', 'Ajustes']];
+  return `<nav class="clean-tab-nav" aria-label="Navegação principal">${tabs.map(([id, label]) => `<button class="clean-tab-btn ${uiState.activeTab === id ? 'active' : ''}" data-clean-tab="${id}">${label}</button>`).join('')}</nav>`;
+}
+
+function dashboard(s) {
+  return `<section class="clean-section"><div class="clean-section-title"><span>Visão geral</span><h2>Resumo do negócio</h2></div><div class="clean-metric-grid">${metric('Produtos', s.productStats.total)}${metric('Publicados', s.productStats.visible)}${metric('Vendas', s.salesStats.count, formatBRL(s.salesStats.totalSold))}${metric('Lucro estimado', formatBRL(s.salesStats.totalProfit))}${metric('A receber', formatBRL(s.paymentStats.pendingAmount), `${s.paymentStats.pendingCount} pendência(s)`)}${metric('Recebido', formatBRL(s.paymentStats.paidAmount), `${s.paymentStats.paidCount} pago(s)`)}</div><div class="clean-card clean-warning-card"><h3>Estado seguro da reconstrução</h3><p>A tela principal agora está enxuta. Ferramentas técnicas de migração não carregam mais como parte da experiência normal.</p></div></section>`;
+}
+
+function filters(products) {
+  const categories = getProductCategories(products);
+  return `<div class="clean-filter-card"><input data-filter-query type="search" value="${esc(uiState.filters.query)}" placeholder="Buscar produto, marca ou categoria"><button class="secondary-button" data-apply-search>Buscar</button><select data-filter-category><option value="all" ${uiState.filters.category === 'all' ? 'selected' : ''}>Todas as categorias</option>${categories.map((category) => `<option value="${esc(category)}" ${uiState.filters.category === category ? 'selected' : ''}>${esc(category)}</option>`).join('')}</select><select data-filter-status><option value="all" ${uiState.filters.status === PRODUCT_STATUS_FILTERS.ALL ? 'selected' : ''}>Todos</option><option value="visible" ${uiState.filters.status === PRODUCT_STATUS_FILTERS.VISIBLE ? 'selected' : ''}>Publicados</option><option value="hidden" ${uiState.filters.status === PRODUCT_STATUS_FILTERS.HIDDEN ? 'selected' : ''}>Ocultos</option><option value="no-image" ${uiState.filters.status === PRODUCT_STATUS_FILTERS.NO_IMAGE ? 'selected' : ''}>Sem foto real</option></select><button class="secondary-button" data-clear-filters>Limpar</button></div>`;
+}
+
+function productCard(product) {
+  const hasLabPhoto = String(product.imageUrl || '').startsWith('data:image/') && !String(product.imageUrl || '').startsWith('data:image/svg+xml');
+  const hasPlaceholder = String(product.imageUrl || '').startsWith('data:image/svg+xml');
+  return `<article class="clean-product-card"><div class="clean-product-thumb"><img src="${esc(product.imageUrl || '')}" alt="${esc(product.name)}"></div><div class="clean-product-body"><div class="clean-badge-row"><span>${esc(product.category || 'sem categoria')}</span>${product.visibleInCatalog ? '<span>Publicado</span>' : '<span>Oculto</span>'}${hasLabPhoto ? '<span>foto LAB</span>' : ''}${hasPlaceholder ? '<span>sem foto real</span>' : ''}</div><h3>${esc(product.name)}</h3><p>${esc(product.brand)} · ${formatBRL(product.price)}</p><div class="clean-actions-row"><button class="ghost-button" data-edit-product="${esc(product.id)}">Editar</button><button class="ghost-button" data-toggle-product="${esc(product.id)}">${product.visibleInCatalog ? 'Ocultar' : 'Publicar'}</button></div></div></article>`;
+}
+
+function products(s) {
+  const visible = filterProducts(s.products, uiState.filters);
+  return `<section class="clean-section"><div class="clean-section-title"><span>Produtos</span><h2>Catálogo interno</h2></div><div class="clean-actions-main"><button class="primary-button" data-new-product>Novo produto</button><a class="secondary-button" href="./catalogo-preview/">Abrir catálogo fictício</a><button class="secondary-button" data-reset-products>Restaurar teste</button></div>${filters(s.products)}<div class="clean-count-line">Exibindo ${visible.length} de ${s.products.length} produto(s)</div><div class="clean-product-list">${visible.length ? visible.map(productCard).join('') : '<div class="empty-preview">Nenhum produto encontrado.</div>'}</div></section>`;
+}
+
+function sales(s) {
+  return `<section class="clean-section"><div class="clean-section-title"><span>Vendas</span><h2>Registro de compradores</h2></div><form class="clean-form-card" data-sale-form>${uiState.saleErrors.length ? `<div class="form-errors">${uiState.saleErrors.map((error) => `<div>${esc(error)}</div>`).join('')}</div>` : ''}<input name="clientName" placeholder="Nome da cliente" required><select name="productId" required><option value="">Produto vendido</option>${s.products.map((product) => `<option value="${esc(product.id)}">${esc(product.name)} · ${formatBRL(product.price)}</option>`).join('')}</select><input name="quantity" type="number" value="1" min="1" placeholder="Quantidade"><input name="unitPrice" type="number" step="0.01" placeholder="Preço final opcional"><select name="status"><option value="pendente">Pendente</option><option value="pago">Pago</option></select><textarea name="notes" rows="2" placeholder="Observações"></textarea><button class="primary-button" type="submit">Salvar venda</button></form><div class="clean-sale-list">${s.sales.length ? s.sales.map((sale) => `<article class="clean-card"><div class="clean-row-between"><h3>${esc(sale.clientName)}</h3><span>${sale.status === 'pago' ? 'Pago' : 'Pendente'}</span></div><p>${esc(sale.productName)} · ${sale.quantity} un. · ${formatBRL(sale.total)}</p><div class="clean-actions-row"><button class="ghost-button" data-sale-status="${esc(sale.id)}" data-next-status="pago">Marcar pago</button><button class="ghost-button" data-sale-status="${esc(sale.id)}" data-next-status="pendente">Marcar pendente</button></div></article>`).join('') : '<div class="empty-preview">Nenhuma venda registrada no LAB.</div>'}</div></section>`;
+}
+
+function payments(s) {
+  return `<section class="clean-section"><div class="clean-section-title"><span>Pagamentos</span><h2>Parcelas e recebimentos</h2></div><div class="clean-metric-grid compact">${metric('A receber', formatBRL(s.paymentStats.pendingAmount))}${metric('Recebido', formatBRL(s.paymentStats.paidAmount))}${metric('Pendentes', s.paymentStats.pendingCount)}</div><div class="clean-sale-list">${s.payments.length ? s.payments.map((payment) => `<article class="clean-card"><div class="clean-row-between"><h3>${esc(payment.saleClientName)}</h3><span>${payment.status === 'pago' ? 'Pago' : 'Pendente'}</span></div><p>${esc(payment.saleProductName)} · ${formatBRL(payment.amount)}</p><div class="clean-actions-row"><button class="ghost-button" data-payment-status="${esc(payment.id)}" data-next-status="pago">Recebido</button><button class="ghost-button" data-payment-status="${esc(payment.id)}" data-next-status="pendente">Pendente</button></div></article>`).join('') : '<div class="empty-preview">Nenhuma parcela gerada ainda.</div>'}</div></section>`;
+}
+
+function catalog(s) {
+  return `<section class="clean-section"><div class="clean-section-title"><span>Catálogo</span><h2>Ligação Gestão ↔ Catálogo</h2></div><div class="clean-card"><h3>Contrato preservado</h3><p>O Gestão continua preparando produtos no formato necessário para o catálogo. A escrita real segue bloqueada até a validação final com Firebase.</p><div class="clean-metric-grid compact">${metric('Iriam ao catálogo', s.catalogReport.visibleProducts)}${metric('Categorias', s.catalogReport.categories.length)}${metric('Alertas', s.catalogReport.warningProducts)}</div><div class="clean-actions-row"><a class="secondary-button" href="./catalogo-preview/">Ver prévia fictícia</a></div></div></section>`;
+}
+
+function settings() {
+  return `<section class="clean-section"><div class="clean-section-title"><span>Ajustes</span><h2>Backup e segurança</h2></div><div class="clean-card"><h3>Backup LAB</h3><p>Exporta e importa apenas dados do ambiente LAB/localStorage. Não escreve no Firebase real.</p><div class="clean-actions-row"><button class="primary-button" data-export-backup>Exportar backup LAB</button><label class="secondary-button clean-file-button">Importar backup<input type="file" accept="application/json,.json" data-import-backup hidden></label></div></div><div class="clean-card"><h3>Funções preservadas</h3><ul class="clean-feature-list">${CRITICAL_FEATURES.map((feature) => `<li>${esc(feature)}</li>`).join('')}</ul></div><div class="clean-card clean-muted-card"><h3>Ferramentas LAB ocultas</h3><p>Auditorias, probes, importadores e consolidadores continuam no código para migração, mas não carregam mais na tela principal.</p></div></section>`;
+}
+
+function activeTab(s) {
+  const tabs = { dashboard, produtos: products, vendas: sales, pagamentos: payments, catalogo: catalog, ajustes: settings };
+  return (tabs[uiState.activeTab] || products)(s);
+}
+
+function render(root) {
+  const s = state();
+  root.innerHTML = `<main class="clean-page">${hero(s)}${nav()}${uiState.notice ? `<div class="clean-notice">${esc(uiState.notice)}</div>` : ''}${activeTab(s)}</main>${renderProductFormModal({ draft: uiState.modalDraft, errors: uiState.modalErrors, isEditing: Boolean(uiState.modalDraft?.id) })}`;
+  bind(root);
+}
+
+async function saveProductFromForm(root, form) {
+  const draft = readProductForm(form);
+  const upload = await generateLabImageUrl(draft.imageFile);
+  if (!upload.ok) { uiState.modalDraft = draft; uiState.modalErrors = [upload.error || 'Não foi possível processar a imagem.']; render(root); return; }
+  if (upload.imageUrl) draft.imageUrl = upload.imageUrl;
+  const result = saveProduct(draft);
+  if (!result.ok) { uiState.modalDraft = draft; uiState.modalErrors = result.errors || [result.message || 'Não foi possível salvar.']; render(root); return; }
+  uiState.modalDraft = null; uiState.modalErrors = []; notice('Produto salvo no LAB.'); render(root);
+}
+
+async function importBackup(root, input) {
+  const file = input.files?.[0];
+  if (!file) return;
+  const result = importLabBackupFromText(await file.text());
+  notice(result.ok ? `Backup importado: ${result.importedKeys.length} chave(s).` : result.error || 'Falha ao importar backup.');
+  render(root);
+}
+
+function bind(root) {
+  root.querySelectorAll('[data-clean-tab]').forEach((button) => button.addEventListener('click', () => { uiState.activeTab = button.getAttribute('data-clean-tab'); window.localStorage.setItem('belaGestaoLab.cleanTab', uiState.activeTab); uiState.notice = ''; render(root); }));
+  root.querySelector('[data-new-product]')?.addEventListener('click', () => { uiState.modalDraft = buildEmptyProductDraft(); uiState.modalErrors = []; render(root); });
+  root.querySelectorAll('[data-edit-product]').forEach((button) => button.addEventListener('click', () => { uiState.modalDraft = productToDraft(getProduct(button.getAttribute('data-edit-product'))); uiState.modalErrors = []; render(root); }));
+  root.querySelectorAll('[data-toggle-product]').forEach((button) => button.addEventListener('click', () => { const result = toggleProductVisibility(button.getAttribute('data-toggle-product')); notice(result.message || 'Visibilidade alterada.'); render(root); }));
+  root.querySelector('[data-reset-products]')?.addEventListener('click', () => { const result = resetProducts(); notice(result.message || 'Produtos de teste restaurados.'); render(root); });
+
+  const queryInput = root.querySelector('[data-filter-query]');
+  const applySearch = () => { uiState.filters.query = queryInput?.value || ''; render(root); };
+  queryInput?.addEventListener('keydown', (event) => { if (event.key === 'Enter') { event.preventDefault(); applySearch(); } });
+  root.querySelector('[data-apply-search]')?.addEventListener('click', applySearch);
+  root.querySelector('[data-filter-category]')?.addEventListener('change', (event) => { uiState.filters.category = event.target.value; render(root); });
+  root.querySelector('[data-filter-status]')?.addEventListener('change', (event) => { uiState.filters.status = event.target.value; render(root); });
+  root.querySelector('[data-clear-filters]')?.addEventListener('click', () => { uiState.filters = { query: '', category: 'all', status: PRODUCT_STATUS_FILTERS.ALL }; render(root); });
+
+  root.querySelector('[data-sale-form]')?.addEventListener('submit', (event) => { event.preventDefault(); const result = createLabSale(Object.fromEntries(new FormData(event.currentTarget)), listProducts().products); if (!result.ok) { uiState.saleErrors = result.errors || ['Não foi possível registrar a venda.']; render(root); return; } ensurePaymentForSale(result.sale); uiState.saleErrors = []; notice('Venda salva e pagamento criado.'); render(root); });
+  root.querySelectorAll('[data-sale-status]').forEach((button) => button.addEventListener('click', () => { updateLabSaleStatus(button.getAttribute('data-sale-status'), button.getAttribute('data-next-status')); notice('Status da venda atualizado.'); render(root); }));
+  root.querySelectorAll('[data-payment-status]').forEach((button) => button.addEventListener('click', () => { updateLabPaymentStatus(button.getAttribute('data-payment-status'), button.getAttribute('data-next-status')); notice('Pagamento atualizado.'); render(root); }));
+  root.querySelector('[data-export-backup]')?.addEventListener('click', () => { const result = downloadLabBackup(); notice(result.ok ? 'Backup LAB exportado.' : result.error || 'Falha ao exportar backup.'); render(root); });
+  root.querySelector('[data-import-backup]')?.addEventListener('change', (event) => importBackup(root, event.currentTarget));
+  root.querySelectorAll('[data-close-modal], [data-modal-backdrop]').forEach((element) => element.addEventListener('click', (event) => { if (event.target !== element && !element.hasAttribute('data-close-modal')) return; uiState.modalDraft = null; uiState.modalErrors = []; render(root); }));
+  root.querySelector('[data-product-form]')?.addEventListener('submit', (event) => { event.preventDefault(); saveProductFromForm(root, event.currentTarget); });
+}
+
+export function renderCleanApp(root) { if (root) render(root); }
