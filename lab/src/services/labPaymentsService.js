@@ -1,4 +1,5 @@
 const LAB_PAYMENTS_KEY = 'belaGestaoLab.payments.v1';
+const PAYMENT_SCHEMA_VERSION = 'history-v1';
 
 function safeParse(value) {
   try {
@@ -24,19 +25,69 @@ function normalizeNumber(value) {
   return Number.isFinite(number) ? Math.max(0, number) : 0;
 }
 
+function normalizeText(value) {
+  return String(value || '').trim();
+}
+
 function createPaymentId(saleId, installmentNumber) {
   return `lab-pay-${saleId}-${installmentNumber}`;
+}
+
+function normalizePayment(payment) {
+  if (!payment || typeof payment !== 'object') return payment;
+  const saleSnapshot = payment.saleSnapshot || {
+    id: payment.saleId || '',
+    clientName: payment.saleClientName || payment.clientName || payment.customerName || '',
+    customerId: payment.customerId || '',
+    productName: payment.saleProductName || payment.productName || '',
+    productId: payment.originalProductId || payment.productId || '',
+    total: normalizeNumber(payment.saleTotal || payment.total || payment.amount),
+  };
+
+  return {
+    ...payment,
+    schemaVersion: payment.schemaVersion || PAYMENT_SCHEMA_VERSION,
+    saleId: payment.saleId || saleSnapshot.id || '',
+    customerId: payment.customerId || saleSnapshot.customerId || '',
+    saleClientName: payment.saleClientName || saleSnapshot.clientName || 'Cliente sem nome',
+    saleProductName: payment.saleProductName || saleSnapshot.productName || 'Produto removido',
+    originalProductId: payment.originalProductId || saleSnapshot.productId || payment.productId || '',
+    saleSnapshot,
+    installmentNumber: Math.max(1, Math.round(normalizeNumber(payment.installmentNumber || 1))),
+    installmentsTotal: Math.max(1, Math.round(normalizeNumber(payment.installmentsTotal || 1))),
+    amount: normalizeNumber(payment.amount),
+    status: payment.status === 'pago' ? 'pago' : 'pendente',
+    paidAt: normalizeText(payment.paidAt),
+    dueDate: normalizeText(payment.dueDate),
+    notes: normalizeText(payment.notes),
+    createdAt: payment.createdAt || new Date().toISOString(),
+    updatedAt: payment.updatedAt || new Date().toISOString(),
+  };
+}
+
+function normalizePayments(payments) {
+  let changed = false;
+  const normalized = payments.map((payment) => {
+    const nextPayment = normalizePayment(payment);
+    if (JSON.stringify(nextPayment) !== JSON.stringify(payment)) changed = true;
+    return nextPayment;
+  });
+  return { payments: normalized, changed };
 }
 
 export function getLabPayments() {
   if (!canUseStorage()) return [];
   const stored = safeParse(window.localStorage.getItem(LAB_PAYMENTS_KEY));
-  return Array.isArray(stored) ? stored : [];
+  const rawPayments = Array.isArray(stored) ? stored : [];
+  const normalized = normalizePayments(rawPayments);
+  if (normalized.changed) saveLabPayments(normalized.payments);
+  return normalized.payments;
 }
 
 export function saveLabPayments(payments) {
   if (!canUseStorage()) return false;
-  window.localStorage.setItem(LAB_PAYMENTS_KEY, JSON.stringify(payments));
+  const normalized = normalizePayments(Array.isArray(payments) ? payments : []);
+  window.localStorage.setItem(LAB_PAYMENTS_KEY, JSON.stringify(normalized.payments));
   return true;
 }
 
@@ -44,6 +95,41 @@ export function resetLabPayments() {
   if (!canUseStorage()) return [];
   window.localStorage.setItem(LAB_PAYMENTS_KEY, JSON.stringify([]));
   return [];
+}
+
+function paymentFromSale(sale, installmentNumber = 1, installmentsTotal = 1) {
+  const now = new Date().toISOString();
+  const amount = normalizeNumber(sale.total) / Math.max(1, installmentsTotal);
+  const saleSnapshot = {
+    id: sale.id,
+    clientName: sale.clientName || sale.customerName || sale.customer?.name || '',
+    customerId: sale.customerId || sale.customer?.id || '',
+    productName: sale.productName || sale.productSnapshot?.name || 'Produto removido',
+    productId: sale.originalProductId || sale.productId || sale.productSnapshot?.id || '',
+    total: normalizeNumber(sale.total),
+    quantity: sale.quantity || 1,
+    unitPrice: sale.unitPrice || 0,
+    createdAt: sale.createdAt || now,
+  };
+
+  return normalizePayment({
+    id: createPaymentId(sale.id, installmentNumber),
+    saleId: sale.id,
+    customerId: saleSnapshot.customerId,
+    saleClientName: saleSnapshot.clientName,
+    saleProductName: saleSnapshot.productName,
+    originalProductId: saleSnapshot.productId,
+    saleSnapshot,
+    installmentNumber,
+    installmentsTotal,
+    amount,
+    status: sale.status === 'pago' ? 'pago' : 'pendente',
+    paidAt: sale.status === 'pago' ? now : '',
+    dueDate: sale.dueDate || '',
+    notes: sale.notes || '',
+    createdAt: now,
+    updatedAt: now,
+  });
 }
 
 export function ensurePaymentForSale(sale) {
@@ -66,23 +152,7 @@ export function ensurePaymentForSale(sale) {
     };
   }
 
-  const now = new Date().toISOString();
-  const payment = {
-    id: createPaymentId(sale.id, 1),
-    saleId: sale.id,
-    saleClientName: sale.clientName,
-    saleProductName: sale.productName,
-    installmentNumber: 1,
-    installmentsTotal: 1,
-    amount: normalizeNumber(sale.total),
-    status: sale.status === 'pago' ? 'pago' : 'pendente',
-    paidAt: sale.status === 'pago' ? now : '',
-    dueDate: '',
-    notes: sale.notes || '',
-    createdAt: now,
-    updatedAt: now,
-  };
-
+  const payment = paymentFromSale(sale, 1, Math.max(1, Number(sale.installmentsTotal || 1)));
   const nextPayments = [payment, ...payments];
   saveLabPayments(nextPayments);
 
@@ -100,31 +170,14 @@ export function syncPaymentsFromSales(sales) {
 
   sales.forEach((sale) => {
     if (!payments.some((payment) => payment.saleId === sale.id)) {
-      const now = new Date().toISOString();
-      payments = [
-        {
-          id: createPaymentId(sale.id, 1),
-          saleId: sale.id,
-          saleClientName: sale.clientName,
-          saleProductName: sale.productName,
-          installmentNumber: 1,
-          installmentsTotal: 1,
-          amount: normalizeNumber(sale.total),
-          status: sale.status === 'pago' ? 'pago' : 'pendente',
-          paidAt: sale.status === 'pago' ? now : '',
-          dueDate: '',
-          notes: sale.notes || '',
-          createdAt: now,
-          updatedAt: now,
-        },
-        ...payments,
-      ];
+      payments = [paymentFromSale(sale), ...payments];
       changed = true;
     }
   });
 
-  if (changed) saveLabPayments(payments);
-  return payments;
+  const normalized = normalizePayments(payments);
+  if (changed || normalized.changed) saveLabPayments(normalized.payments);
+  return normalized.payments;
 }
 
 export function updateLabPaymentStatus(paymentId, status) {
@@ -133,12 +186,12 @@ export function updateLabPaymentStatus(paymentId, status) {
 
   const payments = getLabPayments().map((payment) => {
     if (payment.id !== paymentId) return payment;
-    return {
+    return normalizePayment({
       ...payment,
       status: normalizedStatus,
       paidAt: normalizedStatus === 'pago' ? now : '',
       updatedAt: now,
-    };
+    });
   });
 
   saveLabPayments(payments);
@@ -168,6 +221,7 @@ export function getLabPaymentsStorageInfo() {
   return {
     key: LAB_PAYMENTS_KEY,
     mode: 'visitor-localStorage',
+    schemaVersion: PAYMENT_SCHEMA_VERSION,
     affectsRealPayments: false,
     affectsFirebase: false,
   };
