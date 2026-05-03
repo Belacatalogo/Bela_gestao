@@ -7,7 +7,7 @@ Branch protegida de produção: `main`
 Versão atual visível:
 
 ```txt
-0.22.0-lab-google-login-gate
+0.22.1-lab-real-readonly-preview
 ```
 
 ## REGRA MÁXIMA ATUAL
@@ -53,7 +53,9 @@ O BLOCO 21D reconstruiu o modal de Novo Produto com área de IA em modo LAB e co
 
 O BLOCO 21E reconstruiu a aba Backup/Configurações no estilo do sistema antigo.
 
-O BLOCO 22A adicionou o portão de login Google protegido para que dados reais só apareçam após login na conta da esposa.
+O BLOCO 22A adicionou o portão de login Google protegido.
+
+O BLOCO 22B adicionou leitura controlada de dados reais em modo somente leitura após login.
 
 Entrada atual da LAB:
 
@@ -74,60 +76,60 @@ lab/src/styles/products-tab.css
 lab/src/styles/settings-tab.css
 ```
 
-## BLOCO 22A — Login Google protegido em Ajustes
+## BLOCO 22B — Leitura controlada dos dados reais após login
 
 Status: implementado, aguardando teste no iPhone.
 
 Versão esperada na tela:
 
 ```txt
-0.22.0-lab-google-login-gate
+0.22.1-lab-real-readonly-preview
 ```
 
 Arquivos principais:
 
 ```txt
-lab/src/services/googleLoginGateService.js
-lab/src/services/firebaseAuthLabService.js
+lab/src/services/realDataReadOnlyService.js
 lab/src/cleanAppSettings.js
 lab/src/styles/settings-tab.css
 lab/src/config/appConfig.js
+docs/bloco-22b-real-readonly-preview.md
 BELA_GESTAO_HANDOFF.md
 ```
 
 O que o bloco faz:
 
-- adiciona em Ajustes o card `Login Google — dados reais`;
-- mostra que dados reais ficam bloqueados antes do login;
-- permite `Entrar com Google`;
-- salva estado do login em LAB/localStorage;
-- mostra a conta logada;
-- adiciona botão `Verificar dados reais`;
-- mantém leitura real como próximo passo controlado;
-- mantém escrita real bloqueada.
+- mantém dados reais bloqueados antes do login Google;
+- depois do login, permite tocar em `Ler dados reais agora`;
+- tenta ler caminhos candidatos do Firestore em modo leitura;
+- mostra totais encontrados de produtos, vendas, clientes e pagamentos;
+- mostra caminhos encontrados;
+- mostra diagnóstico de caminhos vazios/bloqueados;
+- não importa nada para LAB;
+- não altera nada no Firebase real;
+- não altera catálogo real.
 
 Regras mantidas:
 
-- dados reais não aparecem antes do login;
-- dados LAB não são misturados com dados reais;
-- nenhuma escrita real automática foi liberada;
-- Firebase real ainda não é escrito;
-- catálogo real ainda não é alterado;
+- dados reais só aparecem depois do login Google;
+- dados reais não substituem dados LAB;
+- dados reais não são misturados automaticamente;
+- escrita real continua bloqueada;
 - sistema ativo da esposa não foi alterado.
 
-## Checklist de teste do BLOCO 22A
+## Checklist de teste do BLOCO 22B
 
 1. Abrir preview Netlify.
-2. Confirmar versão `0.22.0-lab-google-login-gate`.
+2. Confirmar versão `0.22.1-lab-real-readonly-preview`.
 3. Ir em Ajustes/Backup.
-4. Ver o card `Login Google — dados reais`.
-5. Confirmar que aparece `Dados reais bloqueados` antes do login.
-6. Tocar em `Entrar com Google`.
-7. Escolher a conta da esposa.
-8. Confirmar que a conta aparece logada no card.
-9. Tocar em `Verificar dados reais`.
-10. Confirmar que aparece aviso de próximo bloco/leitura controlada.
-11. Confirmar que produtos/vendas/pagamentos reais ainda não foram misturados automaticamente.
+4. Fazer login Google com a conta da esposa.
+5. Tocar em `Ler dados reais agora`.
+6. Conferir se aparece `Prévia dos dados reais — somente leitura`.
+7. Conferir produtos/vendas/clientes/pagamentos encontrados.
+8. Abrir `Caminhos encontrados`.
+9. Abrir `Diagnóstico de caminhos verificados`.
+10. Confirmar que Produtos/Vendas/Pagamentos da LAB não foram substituídos.
+11. Confirmar que nada real foi alterado.
 
 ## Funções críticas finais que precisam continuar antes da entrega
 
@@ -151,16 +153,15 @@ Regras mantidas:
 ## Próximo bloco recomendado
 
 ```txt
-BLOCO 22B — Leitura controlada dos dados reais após login
+BLOCO 22C — Identificar caminho real correto e mapear dados reais
 ```
 
 Objetivo:
 
-- ler dados reais somente após login Google;
-- ainda sem escrita real;
-- mostrar prévia dos dados reais separados dos dados LAB;
-- validar estrutura antes da migração definitiva.
+- usar o diagnóstico do 22B para descobrir onde estão os dados reais;
+- mapear estrutura real;
+- preparar importação controlada somente depois de backup completo.
 
 ## Como continuar em outro chat
 
-"Continue a reconstrução do Bela Gestão. Leia `BELA_GESTAO_HANDOFF.md` antes de qualquer alteração. A branch de trabalho é `rewrite-bela-gestao-lab`. Não mexa na `main`, não mexa no sistema antigo ativo da esposa, não escreva no Firebase real, não altere catálogo real. A versão atual é `0.22.0-lab-google-login-gate`. O BLOCO 22A criou `lab/src/services/googleLoginGateService.js` e `lab/src/services/firebaseAuthLabService.js`, adicionando em Ajustes o login Google protegido. Próximo bloco sugerido: `BLOCO 22B — Leitura controlada dos dados reais após login`."
+"Continue a reconstrução do Bela Gestão. Leia `BELA_GESTAO_HANDOFF.md` antes de qualquer alteração. A branch de trabalho é `rewrite-bela-gestao-lab`. Não mexa na `main`, não mexa no sistema antigo ativo da esposa, não escreva no Firebase real, não altere catálogo real. A versão atual é `0.22.1-lab-real-readonly-preview`. O BLOCO 22B criou `lab/src/services/realDataReadOnlyService.js` e conectou em Ajustes o botão `Ler dados reais agora`, mostrando prévia separada e diagnóstico. Próximo bloco sugerido: `BLOCO 22C — Identificar caminho real correto e mapear dados reais`."
