@@ -1,4 +1,4 @@
-import { renderCleanApp } from './cleanAppStable.js';
+import { renderCleanApp } from './cleanAppMigration.js';
 
 const root = document.getElementById('app');
 
