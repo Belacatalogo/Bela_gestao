@@ -7,7 +7,7 @@ Branch protegida de produção: `main`
 Versão atual visível:
 
 ```txt
-0.21.4-lab-settings-tab-rebuild
+0.22.0-lab-google-login-gate
 ```
 
 ## REGRA MÁXIMA ATUAL
@@ -21,7 +21,6 @@ rewrite-bela-gestao-lab
 Não mexer diretamente na `main`.
 Não mexer no sistema antigo ativo da esposa.
 Não escrever no Firebase real neste estágio.
-Não alterar login Google real neste estágio.
 Não alterar catálogo público real neste estágio.
 Não interromper backup automático atual.
 Não remover funções existentes sem mapear antes.
@@ -54,6 +53,8 @@ O BLOCO 21D reconstruiu o modal de Novo Produto com área de IA em modo LAB e co
 
 O BLOCO 21E reconstruiu a aba Backup/Configurações no estilo do sistema antigo.
 
+O BLOCO 22A adicionou o portão de login Google protegido para que dados reais só apareçam após login na conta da esposa.
+
 Entrada atual da LAB:
 
 ```txt
@@ -73,68 +74,60 @@ lab/src/styles/products-tab.css
 lab/src/styles/settings-tab.css
 ```
 
-## BLOCO 21E — Reconstrução fiel da aba Backup/Configurações
+## BLOCO 22A — Login Google protegido em Ajustes
 
 Status: implementado, aguardando teste no iPhone.
 
 Versão esperada na tela:
 
 ```txt
-0.21.4-lab-settings-tab-rebuild
+0.22.0-lab-google-login-gate
 ```
 
 Arquivos principais:
 
 ```txt
-lab/src/services/settingsLabService.js
+lab/src/services/googleLoginGateService.js
+lab/src/services/firebaseAuthLabService.js
 lab/src/cleanAppSettings.js
 lab/src/styles/settings-tab.css
-lab/index.html
-lab/src/main.js
 lab/src/config/appConfig.js
-docs/bloco-21e-settings-tab-rebuild.md
 BELA_GESTAO_HANDOFF.md
 ```
 
 O que o bloco faz:
 
-- reconstrói Backup/Configurações no estilo do sistema antigo;
-- mostra Cloudinary/upload automático;
-- permite salvar/testar/limpar Cloudinary em LAB/localStorage;
-- mostra chave Gemini em modo seguro LAB;
-- permite salvar/testar/limpar chave Gemini local;
-- mostra/oculta preços em modo LAB;
-- simula sincronização de preços com catálogo;
-- permite selecionar produtos para carrossel da coleção;
-- permite limpar seleção do carrossel;
-- permite salvar carrossel em modo LAB.
+- adiciona em Ajustes o card `Login Google — dados reais`;
+- mostra que dados reais ficam bloqueados antes do login;
+- permite `Entrar com Google`;
+- salva estado do login em LAB/localStorage;
+- mostra a conta logada;
+- adiciona botão `Verificar dados reais`;
+- mantém leitura real como próximo passo controlado;
+- mantém escrita real bloqueada.
 
 Regras mantidas:
 
-- não escreve no Firebase real;
-- não altera login Google real;
-- não altera catálogo público real;
-- não ativa Gemini real ainda;
-- não mexe no sistema ativo da esposa;
-- configurações ficam no localStorage da LAB.
+- dados reais não aparecem antes do login;
+- dados LAB não são misturados com dados reais;
+- nenhuma escrita real automática foi liberada;
+- Firebase real ainda não é escrito;
+- catálogo real ainda não é alterado;
+- sistema ativo da esposa não foi alterado.
 
-## Checklist de teste do BLOCO 21E
+## Checklist de teste do BLOCO 22A
 
 1. Abrir preview Netlify.
-2. Confirmar versão `0.21.4-lab-settings-tab-rebuild`.
+2. Confirmar versão `0.22.0-lab-google-login-gate`.
 3. Ir em Ajustes/Backup.
-4. Conferir card Cloudinary.
-5. Salvar Cloud name e Upload preset unsigned.
-6. Testar botão Testar.
-7. Conferir card Gemini.
-8. Salvar chave fake ou real só em LAB.
-9. Testar botão Testar.
-10. Alternar mostrar/ocultar preços.
-11. Simular sincronização de preços.
-12. Conferir carrossel da coleção.
-13. Selecionar produtos com foto.
-14. Salvar carrossel no catálogo LAB.
-15. Confirmar que nada pediu login Google e nada real foi alterado.
+4. Ver o card `Login Google — dados reais`.
+5. Confirmar que aparece `Dados reais bloqueados` antes do login.
+6. Tocar em `Entrar com Google`.
+7. Escolher a conta da esposa.
+8. Confirmar que a conta aparece logada no card.
+9. Tocar em `Verificar dados reais`.
+10. Confirmar que aparece aviso de próximo bloco/leitura controlada.
+11. Confirmar que produtos/vendas/pagamentos reais ainda não foram misturados automaticamente.
 
 ## Funções críticas finais que precisam continuar antes da entrega
 
@@ -158,16 +151,16 @@ Regras mantidas:
 ## Próximo bloco recomendado
 
 ```txt
-BLOCO 22 — Auditoria visual/funções pós-reconstrução 21A–21E
+BLOCO 22B — Leitura controlada dos dados reais após login
 ```
 
 Objetivo:
 
-- revisar Clientes, Pagamentos, Relatório, Produtos e Backup;
-- corrigir bugs visuais/mobile;
-- garantir que funções principais estão navegáveis;
-- só depois preparar Firebase em modo leitura.
+- ler dados reais somente após login Google;
+- ainda sem escrita real;
+- mostrar prévia dos dados reais separados dos dados LAB;
+- validar estrutura antes da migração definitiva.
 
 ## Como continuar em outro chat
 
-"Continue a reconstrução do Bela Gestão. Leia `BELA_GESTAO_HANDOFF.md` antes de qualquer alteração. A branch de trabalho é `rewrite-bela-gestao-lab`. Não mexa na `main`, não mexa no sistema antigo ativo da esposa, não escreva no Firebase real, não altere login Google real e não altere catálogo real. A versão atual é `0.21.4-lab-settings-tab-rebuild`. O BLOCO 21E criou `lab/src/services/settingsLabService.js`, `lab/src/cleanAppSettings.js` e `lab/src/styles/settings-tab.css`, reconstruindo Backup/Configurações no estilo antigo. Próximo bloco sugerido: `BLOCO 22 — Auditoria visual/funções pós-reconstrução 21A–21E`."
+"Continue a reconstrução do Bela Gestão. Leia `BELA_GESTAO_HANDOFF.md` antes de qualquer alteração. A branch de trabalho é `rewrite-bela-gestao-lab`. Não mexa na `main`, não mexa no sistema antigo ativo da esposa, não escreva no Firebase real, não altere catálogo real. A versão atual é `0.22.0-lab-google-login-gate`. O BLOCO 22A criou `lab/src/services/googleLoginGateService.js` e `lab/src/services/firebaseAuthLabService.js`, adicionando em Ajustes o login Google protegido. Próximo bloco sugerido: `BLOCO 22B — Leitura controlada dos dados reais após login`."
