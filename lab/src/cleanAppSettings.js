@@ -3,12 +3,16 @@ import { APP_CONFIG } from './config/appConfig.js';
 import { listProducts } from './services/dataGateway.js';
 import { clearCloudinaryLabConfig, getCloudinaryLabConfig, saveCloudinaryLabConfig } from './services/cloudinaryLabService.js';
 import { resolveGoogleRedirectLab, signInWithGoogleLab, signOutGoogleLab } from './services/firebaseAuthLabService.js';
+import { clearFirebaseLabConfig, getFirebaseLabConfigSummary, saveFirebaseLabConfigText } from './services/firebaseLabConfigService.js';
 import { clearGoogleLoginGateUser, getGoogleLoginGateState } from './services/googleLoginGateService.js';
 import { discoverFirebaseAutoBackupsAfterLogin, readRealDataPreviewAfterLogin } from './services/realDataReadOnlyService.js';
 import { clearCarouselSelection, clearGeminiLabKey, getCarouselSelection, getGeminiLabKeyInfo, getLabSettings, saveGeminiLabKey, saveLabSettings, simulatePriceSync, testGeminiLabKey, toggleCarouselProduct } from './services/settingsLabService.js';
 
 let REAL_PREVIEW_RESULT = null;
 let AUTO_BACKUP_DISCOVERY_RESULT = null;
+let FIREBASE_CONFIG_TEXT = '';
+let FIREBASE_CONFIG_STATUS = '';
+let FIREBASE_CONFIG_STATUS_TYPE = 'warn';
 
 function esc(value) {
   return String(value ?? '')
@@ -17,6 +21,36 @@ function esc(value) {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#039;');
+}
+
+function renderFirebaseConfigPanel() {
+  const summary = getFirebaseLabConfigSummary();
+  return `
+    <section class="legacy-settings-section firebase-config-inline-section">
+      <h3>Config Firebase LAB</h3>
+      <div class="legacy-settings-card google-login-card ${summary.hasConfig && !summary.missingFields.length ? 'signed' : 'locked'}">
+        <h4>🔥 Configuração Firebase do Bela Gestão</h4>
+        <p>Cole aqui a configuração Firebase do projeto correto. Ela fica salva apenas neste aparelho/navegador em modo LAB e é necessária antes do login Google.</p>
+        <form class="legacy-settings-form" data-inline-firebase-config-form>
+          <label>
+            <span>Config Firebase JSON</span>
+            <textarea name="firebaseConfig" rows="8" placeholder='{"apiKey":"...","authDomain":"...","projectId":"...","storageBucket":"...","messagingSenderId":"...","appId":"..."}'>${esc(FIREBASE_CONFIG_TEXT)}</textarea>
+          </label>
+          <div class="legacy-settings-actions google-actions">
+            <button class="primary-button" type="submit">Salvar config Firebase</button>
+            <button class="secondary-button" type="button" data-clear-inline-firebase-config>Limpar config</button>
+          </div>
+        </form>
+        <div class="real-login-status ${summary.hasConfig && !summary.missingFields.length ? 'ok' : 'locked'}">
+          ${summary.hasConfig && !summary.missingFields.length
+            ? `✓ Config Firebase salva neste aparelho · ${esc(summary.maskedConfig.projectId || 'projeto configurado')}`
+            : 'Config Firebase ainda não salva neste aparelho.'}
+        </div>
+        ${FIREBASE_CONFIG_STATUS ? `<div class="legacy-settings-status ${esc(FIREBASE_CONFIG_STATUS_TYPE)}">${esc(FIREBASE_CONFIG_STATUS)}</div>` : ''}
+        ${summary.missingFields.length ? `<div class="real-login-note">Campos faltando: ${esc(summary.missingFields.join(', '))}</div>` : '<div class="real-login-note">Depois de salvar, use o botão Entrar com Google abaixo.</div>'}
+      </div>
+    </section>
+  `;
 }
 
 function renderCandidatePaths(item) {
@@ -140,6 +174,7 @@ function renderRealPreviewPanel() {
 
 function renderGoogleLoginPanel() {
   const state = getGoogleLoginGateState();
+  const firebaseReady = getFirebaseLabConfigSummary().hasConfig && !getFirebaseLabConfigSummary().missingFields.length;
   return `
     <section class="legacy-settings-section real-login-section">
       <h3>Login Google — dados reais</h3>
@@ -149,7 +184,7 @@ function renderGoogleLoginPanel() {
         <div class="real-login-status ${state.isSignedIn ? 'ok' : 'locked'}" data-google-login-status>
           ${state.isSignedIn
             ? `✓ Login ativo: ${esc(state.displayName || state.email)} · modo leitura seguro`
-            : 'Dados reais bloqueados. Faça login Google para liberar leitura segura.'}
+            : (firebaseReady ? 'Config Firebase salva. Faça login Google para liberar leitura segura.' : 'Salve a Config Firebase LAB acima antes de fazer login Google.')}
         </div>
         ${state.isSignedIn ? `
           <div class="real-user-card">
@@ -160,7 +195,7 @@ function renderGoogleLoginPanel() {
         <div class="legacy-settings-actions google-actions">
           ${state.isSignedIn
             ? '<button class="secondary-button" type="button" data-read-real-data>Ler dados reais agora</button><button class="secondary-button" type="button" data-discover-auto-backup>Descobrir backup automático</button><button class="danger-button" type="button" data-google-logout>Sair</button>'
-            : '<button class="primary-button" type="button" data-google-login>Entrar com Google</button>'}
+            : `<button class="primary-button" type="button" data-google-login ${firebaseReady ? '' : 'disabled'}>Entrar com Google</button>`}
         </div>
         <div class="real-login-note" data-real-data-note>
           ${state.isSignedIn
@@ -275,6 +310,7 @@ function renderSettingsTab(root) {
   page.className = 'clean-section legacy-settings-page';
   page.innerHTML = `
     <div class="clean-section-title"><span>Backup</span><h2>Configurações</h2></div>
+    ${renderFirebaseConfigPanel()}
     ${renderGoogleLoginPanel()}
     ${renderCloudinaryPanel()}
     ${renderGeminiPanel()}
@@ -309,6 +345,32 @@ function bindSettings(root) {
     window.localStorage.setItem('belaGestaoLab.cleanTab', 'ajustes');
     renderProductsApp(root);
     enhanceSettings(root);
+  });
+
+  root.querySelector('[data-inline-firebase-config-form]')?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const text = String(data.get('firebaseConfig') || '');
+    FIREBASE_CONFIG_TEXT = text;
+    const result = saveFirebaseLabConfigText(text);
+    if (!result.ok) {
+      FIREBASE_CONFIG_STATUS = result.error || 'Config Firebase inválida.';
+      FIREBASE_CONFIG_STATUS_TYPE = 'warn';
+      rerenderSettings(root);
+      return;
+    }
+    FIREBASE_CONFIG_TEXT = '';
+    FIREBASE_CONFIG_STATUS = 'Config Firebase salva neste aparelho. Agora faça login Google abaixo.';
+    FIREBASE_CONFIG_STATUS_TYPE = 'ok';
+    rerenderSettings(root);
+  });
+
+  root.querySelector('[data-clear-inline-firebase-config]')?.addEventListener('click', () => {
+    clearFirebaseLabConfig();
+    FIREBASE_CONFIG_TEXT = '';
+    FIREBASE_CONFIG_STATUS = 'Config Firebase removida deste aparelho.';
+    FIREBASE_CONFIG_STATUS_TYPE = 'warn';
+    rerenderSettings(root);
   });
 
   root.querySelector('[data-google-login]')?.addEventListener('click', async () => {
