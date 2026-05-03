@@ -8,13 +8,8 @@ const INDEX_SOURCES = [
 ];
 
 const CARD_SELECTORS = [
-  '.product-card',
-  '.todos-card',
-  '.maes-card',
-  '.beleza-card',
-  '.pair-card',
-  '[data-product]',
-  '[data-produto]',
+  '.product-card', '.todos-card', '.maes-card', '.beleza-card', '.pair-card',
+  '[data-product]', '[data-produto]'
 ].join(',');
 
 function normalizeText(value) { return String(value ?? '').replace(/\s+/g, ' ').trim(); }
@@ -94,6 +89,56 @@ function extractProductChunks(text) {
   while ((match = objectRegex.exec(String(text || '')))) chunks.push(match[0]);
   return chunks;
 }
+function extractTemplateCardChunks(text) {
+  const source = String(text || '');
+  const chunks = [];
+  const patterns = [
+    /<article[\s\S]{0,5000}?<\/article>/gi,
+    /<div[^>]+class=["'][^"']*(?:product-card|todos-card|maes-card|beleza-card|pair-card)[^"']*["'][\s\S]{0,5000}?<\/div>/gi,
+    /`[\s\S]{0,6000}?(?:product-card|todos-card|maes-card|beleza-card|pair-card)[\s\S]{0,6000}?`/gi,
+  ];
+  patterns.forEach((pattern) => {
+    let match;
+    while ((match = pattern.exec(source))) chunks.push(match[0]);
+  });
+  return chunks;
+}
+function valueFromTemplate(chunk, labels) {
+  for (const label of labels) {
+    const attr = new RegExp(`${label}=["']([^"']+)["']`, 'i').exec(chunk);
+    if (attr) return normalizeText(attr[1]);
+    const cls = new RegExp(`class=["'][^"']*${label}[^"']*["'][^>]*>([\\s\\S]{0,220}?)<`, 'i').exec(chunk);
+    if (cls) return normalizeText(cls[1].replace(/<[^>]+>/g, ''));
+  }
+  return '';
+}
+function buildProductFromTemplate(chunk, index) {
+  const img = /<img[^>]+(?:src|data-src)=["']([^"']+)["']/i.exec(chunk)?.[1] || '';
+  const alt = /<img[^>]+alt=["']([^"']+)["']/i.exec(chunk)?.[1] || '';
+  const name = valueFromTemplate(chunk, ['product-name', 'todos-card-name', 'maes-name', 'beleza-name', 'prod-name', 'data-product-name']) || alt;
+  const brand = valueFromTemplate(chunk, ['product-brand', 'todos-card-brand', 'maes-brand', 'beleza-brand', 'prod-brand', 'data-product-brand']);
+  const sub = valueFromTemplate(chunk, ['product-sub', 'product-volume', 'prod-modal-sub', 'data-product-sub']);
+  const priceText = valueFromTemplate(chunk, ['product-price', 'pair-price', 'preco', 'price', 'data-product-price']);
+  const badge = valueFromTemplate(chunk, ['product-badge', 'badge', 'data-product-badge']);
+  const dataId = /data-(?:product-)?id=["']([^"']+)["']/i.exec(chunk)?.[1] || '';
+  const category = (/data-(?:category|filter)=["']([^"']+)["']/i.exec(chunk)?.[1] || badge || '').toLowerCase();
+  const product = {
+    id: dataId || `template-card-${index + 1}`,
+    name,
+    brand,
+    description: sub,
+    price: normalizeMoney(priceText),
+    cost: 0,
+    imageUrl: img,
+    category,
+    catalogTabs: Array.from(new Set(['todos', category].filter(Boolean))),
+    badge,
+    source: 'public-catalog-template-card',
+    extraction: { method: 'template-card-parser', score: 0, chunkPreview: chunk.slice(0, 280) },
+  };
+  product.extraction.score = productScore(product);
+  return product;
+}
 function buildProductFromCard(card, index, sourceUrl) {
   const rawName = textFrom(card, '.product-name,.todos-card-name,.maes-name,.beleza-name,.prod-name,[data-product-name]');
   const fallbackAlt = attrFrom(card, 'img', 'alt');
@@ -107,26 +152,7 @@ function buildProductFromCard(card, index, sourceUrl) {
   const dataId = card.getAttribute('data-id') || card.getAttribute('data-product-id') || card.getAttribute('data-produto-id') || '';
   const id = dataId || `html-card-${index + 1}`;
   const category = normalizeText(card.getAttribute('data-category') || card.getAttribute('data-filter') || tab || badge).toLowerCase();
-  const product = {
-    id,
-    name,
-    brand,
-    description: sub,
-    price: normalizeMoney(priceText),
-    cost: 0,
-    imageUrl,
-    category,
-    catalogTabs: Array.from(new Set(['todos', tab, category].filter(Boolean))),
-    badge,
-    source: 'public-catalog-html-card',
-    sourceUrl,
-    extraction: {
-      method: 'dom-card-parser',
-      score: 0,
-      cardClass: normalizeText(card.className || ''),
-      htmlPreview: card.outerHTML.slice(0, 280),
-    },
-  };
+  const product = { id, name, brand, description: sub, price: normalizeMoney(priceText), cost: 0, imageUrl, category, catalogTabs: Array.from(new Set(['todos', tab, category].filter(Boolean))), badge, source: 'public-catalog-html-card', sourceUrl, extraction: { method: 'dom-card-parser', score: 0, cardClass: normalizeText(card.className || ''), htmlPreview: card.outerHTML.slice(0, 280) } };
   product.extraction.score = productScore(product);
   return product;
 }
@@ -134,22 +160,20 @@ function extractHtmlCardProducts(text, sourceUrl) {
   if (typeof DOMParser === 'undefined') return [];
   const doc = new DOMParser().parseFromString(String(text || ''), 'text/html');
   const cards = Array.from(doc.querySelectorAll(CARD_SELECTORS));
-  return cards
-    .map((card, index) => buildProductFromCard(card, index, sourceUrl))
-    .filter((product) => product.name && product.extraction.score >= 6);
+  return cards.map((card, index) => buildProductFromCard(card, index, sourceUrl)).filter((product) => product.name && product.extraction.score >= 6);
+}
+function extractTemplateProducts(text) {
+  return extractTemplateCardChunks(text).map((chunk, index) => buildProductFromTemplate(chunk, index)).filter((product) => product.name && product.extraction.score >= 6);
 }
 function dedupeProducts(products) {
   const byKey = new Map();
   products.forEach((product) => {
-    const key = normalizeText(product.id).startsWith('html-card-') ? `${product.name}|${product.brand}|${product.imageUrl}`.toLowerCase() : normalizeText(product.id);
+    const hasGeneratedId = /^(html-card|template-card|index)-/.test(normalizeText(product.id));
+    const key = hasGeneratedId ? `${product.name}|${product.brand}|${product.imageUrl}`.toLowerCase() : normalizeText(product.id);
     const current = byKey.get(key);
     if (!current || product.extraction.score > current.extraction.score) byKey.set(key, product);
   });
-  return Array.from(byKey.values()).sort((a, b) => {
-    const aNum = Number(String(a.id).replace(/\D/g, '')) || 0;
-    const bNum = Number(String(b.id).replace(/\D/g, '')) || 0;
-    return aNum - bNum || a.name.localeCompare(b.name);
-  });
+  return Array.from(byKey.values()).sort((a, b) => a.name.localeCompare(b.name));
 }
 function buildTabCounts(products) {
   const counts = {};
@@ -174,16 +198,17 @@ async function fetchText(url) {
 async function extractFromSource(source) {
   const text = await fetchText(source.url);
   const htmlProducts = extractHtmlCardProducts(text, source.url);
+  const templateProducts = extractTemplateProducts(text);
   const chunks = extractProductChunks(text);
   const jsProducts = chunks.map((chunk, index) => buildProductFromChunk(chunk, index)).filter((product) => product.extraction.score >= 7 && product.name);
-  const products = dedupeProducts([...htmlProducts, ...jsProducts]);
-  return { ...source, ok: true, bytes: text.length, chunks: chunks.length, htmlCards: htmlProducts.length, products, productCount: products.length, tabCounts: buildTabCounts(products), sample: products.slice(0, 12) };
+  const products = dedupeProducts([...htmlProducts, ...templateProducts, ...jsProducts]);
+  return { ...source, ok: true, bytes: text.length, chunks: chunks.length, htmlCards: htmlProducts.length, templateCards: templateProducts.length, products, productCount: products.length, tabCounts: buildTabCounts(products), sample: products.slice(0, 12) };
 }
 function chooseBestSource(attempts) {
   const successful = attempts.filter((attempt) => attempt.ok);
   const catalogSources = successful.filter((attempt) => /Bela-catalogo|Catálogo público/i.test(attempt.label) && attempt.productCount > 0);
-  if (catalogSources.length) return catalogSources.sort((a, b) => b.priority - a.priority || b.productCount - a.productCount || b.htmlCards - a.htmlCards)[0];
-  return successful.sort((a, b) => b.productCount - a.productCount || b.htmlCards - a.htmlCards || b.chunks - a.chunks)[0] || null;
+  if (catalogSources.length) return catalogSources.sort((a, b) => b.priority - a.priority || b.productCount - a.productCount || b.templateCards - a.templateCards || b.htmlCards - a.htmlCards)[0];
+  return successful.sort((a, b) => b.productCount - a.productCount || b.templateCards - a.templateCards || b.htmlCards - a.htmlCards || b.chunks - a.chunks)[0] || null;
 }
 function downloadJson(filename, payload) {
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
@@ -200,20 +225,20 @@ export async function exportIndexEmbeddedProductsJson() {
   const attempts = [];
   for (const source of INDEX_SOURCES) {
     try { attempts.push(await extractFromSource(source)); }
-    catch (error) { attempts.push({ ...source, ok: false, error: String(error?.message || error), products: [], productCount: 0, htmlCards: 0, tabCounts: {} }); }
+    catch (error) { attempts.push({ ...source, ok: false, error: String(error?.message || error), products: [], productCount: 0, htmlCards: 0, templateCards: 0, tabCounts: {} }); }
   }
   const best = chooseBestSource(attempts);
   if (!best) return { ok: false, downloaded: false, attempts, message: 'Não foi possível ler nenhuma fonte index.html para exportar produtos.' };
   const comparison = compareWithLab(best.products);
   const payload = {
-    meta: { schema: 'bela-catalogo-public-dom-products-export', schemaVersion: 4, exportedAt: new Date().toISOString(), source: best.label, sourceUrl: best.url, method: 'public-catalog-dom-card-parser', writeBlocked: true, firebaseWriteExecuted: false, catalogWriteExecuted: false, note: 'Exportação diagnóstica do catálogo público usando DOMParser dos cards. Não altera catálogo real e não escreve no Firebase.' },
-    counts: { products: best.productCount, htmlCards: best.htmlCards || 0, chunks: best.chunks || 0, bytes: best.bytes || 0, labProducts: comparison.labCount, overlapWithLab: comparison.overlap, indexOnly: comparison.indexOnlyCount, labOnly: comparison.labOnlyCount },
+    meta: { schema: 'bela-catalogo-public-template-products-export', schemaVersion: 5, exportedAt: new Date().toISOString(), source: best.label, sourceUrl: best.url, method: 'public-catalog-dom-and-template-parser', writeBlocked: true, firebaseWriteExecuted: false, catalogWriteExecuted: false, note: 'Exportação diagnóstica do catálogo público usando DOMParser + parser de templates. Não altera catálogo real e não escreve no Firebase.' },
+    counts: { products: best.productCount, htmlCards: best.htmlCards || 0, templateCards: best.templateCards || 0, chunks: best.chunks || 0, bytes: best.bytes || 0, labProducts: comparison.labCount, overlapWithLab: comparison.overlap, indexOnly: comparison.indexOnlyCount, labOnly: comparison.labOnlyCount },
     tabCounts: best.tabCounts,
     comparison,
     products: best.products,
-    attempts: attempts.map((attempt) => ({ label: attempt.label, url: attempt.url, ok: attempt.ok, error: attempt.error || '', bytes: attempt.bytes || 0, chunks: attempt.chunks || 0, htmlCards: attempt.htmlCards || 0, productCount: attempt.productCount || 0, tabCounts: attempt.tabCounts || {} })),
+    attempts: attempts.map((attempt) => ({ label: attempt.label, url: attempt.url, ok: attempt.ok, error: attempt.error || '', bytes: attempt.bytes || 0, chunks: attempt.chunks || 0, htmlCards: attempt.htmlCards || 0, templateCards: attempt.templateCards || 0, productCount: attempt.productCount || 0, tabCounts: attempt.tabCounts || {} })),
   };
-  const filename = `bela-catalogo-public-dom-products-${safeFileDate()}.json`;
+  const filename = `bela-catalogo-public-template-products-${safeFileDate()}.json`;
   downloadJson(filename, payload);
-  return { ok: true, downloaded: true, filename, best, comparison, attempts, message: 'Produtos do catálogo público exportados via DOM dos cards. Nenhuma escrita foi feita.' };
+  return { ok: true, downloaded: true, filename, best, comparison, attempts, message: 'Produtos do catálogo público exportados via DOM + templates. Nenhuma escrita foi feita.' };
 }
