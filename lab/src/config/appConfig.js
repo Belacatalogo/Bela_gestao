@@ -1,7 +1,7 @@
 export const APP_CONFIG = Object.freeze({
   name: 'Bela Gestão LAB',
   branch: 'rewrite-bela-gestao-lab',
-  version: '0.14.0-lab-master-source-contracts',
+  version: '0.14.1-lab-real-data-consolidator',
   environment: 'lab',
   productionBranch: 'main',
 });
