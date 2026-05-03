@@ -1,8 +1,8 @@
-import { renderApp } from './app.js';
+import { renderCleanApp } from './cleanApp.js';
 
 const root = document.getElementById('app');
 
-renderApp(root);
+renderCleanApp(root);
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
