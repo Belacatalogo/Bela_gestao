@@ -1,7 +1,7 @@
 export const APP_CONFIG = Object.freeze({
   name: 'Bela Gestão LAB',
   branch: 'rewrite-bela-gestao-lab',
-  version: '0.22.6-lab-config-in-settings',
+  version: '0.22.7-lab-rtdb-backup-probe-timeout',
   environment: 'lab',
   productionBranch: 'main',
 });
