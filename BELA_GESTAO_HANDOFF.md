@@ -7,7 +7,7 @@ Branch protegida de produção: `main`
 Versão atual visível:
 
 ```txt
-0.18.0-lab-history-safe-data-model
+0.19.0-lab-legacy-visual-import
 ```
 
 ## REGRA MÁXIMA ATUAL
@@ -40,6 +40,8 @@ O BLOCO 17 criou o mapa real de funções antigas.
 
 O BLOCO 18 criou o modelo de dados com histórico seguro, para impedir que venda/parcela/cliente dependam da existência do produto.
 
+O BLOCO 19 importou a identidade visual do sistema antigo por uma camada CSS modular, sem alterar dados ou produção.
+
 Entrada atual da LAB:
 
 ```txt
@@ -47,59 +49,65 @@ lab/src/main.js
   -> lab/src/cleanAppHistory.js
 ```
 
-## BLOCO 18 — Modelo final de dados preservando histórico
+Camada visual atual:
+
+```txt
+lab/src/styles/legacy-visual-import.css
+```
+
+## BLOCO 19 — Importação visual definitiva do sistema antigo
 
 Status: implementado, aguardando teste no iPhone.
 
 Versão esperada na tela:
 
 ```txt
-0.18.0-lab-history-safe-data-model
+0.19.0-lab-legacy-visual-import
 ```
 
 Arquivos principais:
 
 ```txt
-lab/src/services/labSalesService.js
-lab/src/services/labPaymentsService.js
-lab/src/services/historyIntegrityService.js
-lab/src/cleanAppHistory.js
-lab/src/main.js
+lab/src/styles/legacy-visual-import.css
+lab/index.html
 lab/src/config/appConfig.js
-docs/bloco-18-history-safe-data-model.md
+docs/bloco-19-legacy-visual-import.md
 BELA_GESTAO_HANDOFF.md
 ```
 
 O que o bloco faz:
 
-- venda agora guarda snapshot de cliente e produto;
-- pagamento agora guarda snapshot da venda;
-- valor da venda fica salvo na própria venda;
-- valor da parcela fica salvo no próprio pagamento;
-- histórico não depende da lista atual de produtos;
-- dados antigos do LAB são normalizados ao ler;
-- Ajustes mostra o card `Auditoria de histórico`.
+- aproxima a LAB da aparência real do sistema antigo;
+- deixa hero/topo mais compacto;
+- muda abas para estilo antigo com underline dourado;
+- reduz cards e botões para visual mais Gestão;
+- usa fundo preto, dourado, Cormorant e Montserrat como no sistema antigo;
+- mantém a estrutura modular e o histórico seguro do BLOCO 18.
 
-Garantia principal:
+O que NÃO faz:
 
-```txt
-Apagar, ocultar ou alterar produto não deve remover valor/histórico de cliente, venda ou parcela.
-```
+- não altera serviços de dados;
+- não altera venda blindada;
+- não altera pagamento blindado;
+- não altera importação offline;
+- não conecta Firebase real;
+- não pede login Google;
+- não altera catálogo real;
+- não mexe no sistema ativo da esposa.
 
-## Checklist de teste do BLOCO 18
+## Checklist de teste do BLOCO 19
 
 1. Abrir o preview Netlify da branch LAB.
-2. Confirmar versão `0.18.0-lab-history-safe-data-model`.
-3. Criar um produto de teste.
-4. Registrar uma venda com esse produto.
-5. Ir em Vendas e confirmar que aparece `Snapshot: produto preservado`.
-6. Ir em Pagamentos e confirmar que aparece `Snapshot da venda: preservado`.
-7. Ir em Ajustes.
-8. Conferir o card `Auditoria de histórico`.
-9. Confirmar se `Alertas` está em 0.
-10. Ocultar o produto em Produtos.
-11. Conferir se a venda e o pagamento continuam com nome/valor do produto.
-12. Exportar backup LAB e confirmar que a operação continua funcionando.
+2. Confirmar versão `0.19.0-lab-legacy-visual-import`.
+3. Comparar a sensação visual com o sistema antigo.
+4. Ver se o topo ficou menor e mais parecido com gestão real.
+5. Ver se as abas ficaram legíveis e familiares.
+6. Entrar em Produtos e conferir cards/botões.
+7. Entrar em Vendas e Pagamentos.
+8. Entrar em Ajustes e conferir se Migração/Auditoria continuam legíveis.
+9. Criar venda e confirmar que snapshot/histórico continuam funcionando.
+10. Confirmar que nada pediu login Google.
+11. Confirmar que nada real foi alterado.
 
 ## Funções críticas finais que precisam continuar antes da entrega
 
@@ -123,16 +131,16 @@ Apagar, ocultar ou alterar produto não deve remover valor/histórico de cliente
 ## Próximo bloco recomendado
 
 ```txt
-BLOCO 19 — Importação visual definitiva do sistema antigo
+BLOCO 20 — Conferência das funções nos lugares corretos
 ```
 
 Objetivo:
 
-- aproximar a LAB da aparência real do sistema antigo;
-- manter a nova estrutura modular;
-- deixar cada função no visual familiar da esposa;
-- ainda sem Firebase real.
+- organizar onde cada função deve aparecer;
+- confirmar produtos, vendas, pagamentos, catálogo e ajustes;
+- separar função de uso diário de ferramenta de migração/LAB;
+- preparar a UI final antes de Firebase/login real.
 
 ## Como continuar em outro chat
 
-"Continue a reconstrução do Bela Gestão. Leia `BELA_GESTAO_HANDOFF.md` antes de qualquer alteração. A branch de trabalho é `rewrite-bela-gestao-lab`. Não mexa na `main`, não mexa no sistema antigo ativo da esposa, não escreva no Firebase real, não altere login Google real e não altere catálogo real. A versão atual é `0.18.0-lab-history-safe-data-model`. O BLOCO 18 criou histórico seguro em `lab/src/services/labSalesService.js`, `lab/src/services/labPaymentsService.js`, `lab/src/services/historyIntegrityService.js` e `lab/src/cleanAppHistory.js`. Próximo bloco sugerido: `BLOCO 19 — Importação visual definitiva do sistema antigo`."
+"Continue a reconstrução do Bela Gestão. Leia `BELA_GESTAO_HANDOFF.md` antes de qualquer alteração. A branch de trabalho é `rewrite-bela-gestao-lab`. Não mexa na `main`, não mexa no sistema antigo ativo da esposa, não escreva no Firebase real, não altere login Google real e não altere catálogo real. A versão atual é `0.19.0-lab-legacy-visual-import`. O BLOCO 19 adicionou `lab/src/styles/legacy-visual-import.css`, carregado em `lab/index.html`, para aproximar a LAB do visual antigo mantendo o histórico seguro do BLOCO 18. Próximo bloco sugerido: `BLOCO 20 — Conferência das funções nos lugares corretos`."
