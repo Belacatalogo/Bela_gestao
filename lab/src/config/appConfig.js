@@ -1,7 +1,7 @@
 export const APP_CONFIG = Object.freeze({
   name: 'Bela Gestão LAB',
   branch: 'rewrite-bela-gestao-lab',
-  version: '0.21.4-lab-settings-tab-rebuild',
+  version: '0.22.0-lab-google-login-gate',
   environment: 'lab',
   productionBranch: 'main',
 });
