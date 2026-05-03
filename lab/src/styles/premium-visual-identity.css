@@ -1,0 +1,506 @@
+/*
+  BLOCO 14E — Identidade visual definitiva do Gestão
+  Camada visual modular: dark/gold premium, liquid glass, motion leve e mobile-first.
+  Não altera dados, Firebase, catálogo real, backup, vendas ou pagamentos.
+*/
+
+:root {
+  --bg: #070706;
+  --bg-deep: #030303;
+  --graphite: #11100f;
+  --graphite-2: #171310;
+  --panel: rgba(19, 17, 15, 0.78);
+  --panel-strong: rgba(14, 13, 12, 0.92);
+  --panel-soft: rgba(255, 255, 255, 0.045);
+  --gold: #d8b65f;
+  --gold-2: #f0d991;
+  --gold-3: #9c7c2d;
+  --gold-soft: rgba(216, 182, 95, 0.18);
+  --cream: #fff4e3;
+  --muted: rgba(255, 244, 227, 0.68);
+  --muted-weak: rgba(255, 244, 227, 0.42);
+  --rose: #dba6c8;
+  --rose-soft: rgba(219, 166, 200, 0.16);
+  --lilac: #bca8ff;
+  --green: #9ee6ad;
+  --green-soft: rgba(158, 230, 173, 0.14);
+  --danger: #ff9a9a;
+  --danger-soft: rgba(255, 116, 116, 0.13);
+  --danger-border: rgba(255, 116, 116, 0.28);
+  --glass-bg: linear-gradient(145deg, rgba(255, 255, 255, 0.105), rgba(255, 255, 255, 0.035));
+  --glass-border: rgba(255, 226, 170, 0.18);
+  --gold-gradient: linear-gradient(135deg, #8b6a1f 0%, #d8b65f 42%, #ffe8a8 52%, #b88d2c 100%);
+  --warm-gradient: radial-gradient(circle at 12% 0%, rgba(216, 182, 95, 0.2), transparent 28rem), radial-gradient(circle at 88% 12%, rgba(219, 166, 200, 0.13), transparent 22rem), linear-gradient(180deg, #090807 0%, #050505 58%, #070605 100%);
+  --shadow-soft: 0 18px 60px rgba(0, 0, 0, 0.34);
+  --shadow-gold: 0 14px 42px rgba(216, 182, 95, 0.12);
+  --radius-xl: 28px;
+  --radius-lg: 22px;
+  --radius-md: 16px;
+  --ease-premium: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+html {
+  background: var(--bg-deep);
+}
+
+body {
+  background: var(--warm-gradient) fixed;
+  color: var(--cream);
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background-image: linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.012) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: linear-gradient(to bottom, rgba(0,0,0,0.9), rgba(0,0,0,0.08));
+}
+
+::selection {
+  background: rgba(216, 182, 95, 0.34);
+  color: var(--cream);
+}
+
+.app-shell {
+  isolation: isolate;
+}
+
+.lab-page {
+  padding: max(18px, env(safe-area-inset-top)) clamp(12px, 4vw, 22px) calc(36px + env(safe-area-inset-bottom));
+}
+
+.hero-card,
+.panel-card,
+.product-filters,
+.lab-product-card,
+.sale-card,
+.contract-issue-card,
+.contract-ok,
+.diagnostic-details,
+.product-modal,
+.modal-backdrop .product-modal,
+.image-upload-panel,
+.storage-note,
+.feature-list li,
+.status-card,
+.mini-stat {
+  position: relative;
+  overflow: hidden;
+  border-color: var(--glass-border);
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(18px) saturate(1.18);
+  backdrop-filter: blur(18px) saturate(1.18);
+  box-shadow: var(--shadow-soft), inset 0 1px 0 rgba(255, 255, 255, 0.075);
+}
+
+.hero-card::before,
+.panel-card::before,
+.product-modal::before,
+.lab-product-card::before,
+.sale-card::before,
+.product-filters::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(115deg, rgba(255,255,255,0.16), transparent 26%, transparent 70%, rgba(216,182,95,0.08));
+  opacity: 0.54;
+}
+
+.hero-card > *,
+.panel-card > *,
+.product-modal > *,
+.lab-product-card > *,
+.sale-card > *,
+.product-filters > * {
+  position: relative;
+  z-index: 1;
+}
+
+.hero-card {
+  border-radius: 32px;
+  padding: clamp(28px, 8vw, 48px) clamp(18px, 6vw, 34px);
+  margin-bottom: 18px;
+  background:
+    radial-gradient(circle at 50% -10%, rgba(255, 231, 171, 0.22), transparent 18rem),
+    linear-gradient(145deg, rgba(26, 21, 16, 0.92), rgba(7, 7, 7, 0.82));
+  box-shadow: 0 26px 82px rgba(0, 0, 0, 0.42), 0 0 0 1px rgba(216, 182, 95, 0.08), inset 0 1px 0 rgba(255,255,255,0.1);
+}
+
+.eyebrow,
+.safe-pill,
+.mini-badge,
+.pag-status-badge {
+  border-color: rgba(216, 182, 95, 0.32);
+  background: linear-gradient(135deg, rgba(216, 182, 95, 0.16), rgba(219, 166, 200, 0.08));
+  color: var(--gold-2);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+}
+
+.eyebrow {
+  margin-bottom: 22px;
+  padding: 8px 14px;
+  border-radius: 999px;
+}
+
+h1,
+h2,
+h3,
+.dash-val,
+.mini-stat strong,
+.status-card strong {
+  text-wrap: balance;
+}
+
+h1 {
+  color: var(--cream);
+  text-shadow: 0 18px 48px rgba(0,0,0,0.42);
+}
+
+h1 span,
+h2,
+h3,
+.mini-stat strong,
+.status-card strong {
+  color: var(--gold-2);
+}
+
+.hero-text,
+.panel-card p,
+.lab-product-card p,
+.sale-card p,
+.contract-ok,
+.contract-issue-card span,
+.storage-note,
+.feature-list li {
+  color: var(--muted);
+}
+
+.status-grid,
+.mini-grid,
+.lab-actions,
+.sale-form,
+.product-filters,
+.lab-product-list,
+.sales-list,
+.contract-issues,
+.feature-list,
+.diagnostic-actions {
+  gap: 10px;
+}
+
+.panel-card {
+  border-radius: var(--radius-xl);
+  padding: clamp(18px, 5vw, 24px);
+  margin-bottom: 16px;
+}
+
+.panel-title-row {
+  gap: 14px;
+}
+
+.status-card,
+.mini-stat {
+  border-radius: 18px;
+  padding: 14px 10px;
+}
+
+.mini-stat strong {
+  font-size: clamp(1.45rem, 9vw, 2.05rem);
+}
+
+.primary-button,
+.mode-button.active {
+  border: 1px solid rgba(255, 232, 168, 0.5);
+  background: var(--gold-gradient);
+  color: #090807;
+  box-shadow: 0 12px 28px rgba(216, 182, 95, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.34);
+}
+
+.secondary-button,
+.ghost-button,
+.icon-button,
+.mode-button {
+  border-color: rgba(216, 182, 95, 0.24);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.025));
+  color: var(--gold-2);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+}
+
+.mode-button,
+.primary-button,
+.secondary-button,
+.ghost-button,
+.icon-button,
+.parc-btn,
+.pag-parc-dot,
+.carr-item,
+button,
+a {
+  transition: transform 180ms var(--ease-premium), border-color 180ms var(--ease-premium), background 180ms var(--ease-premium), box-shadow 180ms var(--ease-premium), opacity 180ms var(--ease-premium);
+}
+
+button:not(:disabled):active,
+a.secondary-button:active,
+a.ghost-button:active,
+.mode-button:not(:disabled):active,
+.primary-button:not(:disabled):active,
+.secondary-button:not(:disabled):active,
+.ghost-button:not(:disabled):active,
+.icon-button:not(:disabled):active {
+  transform: translateY(1px) scale(0.985);
+}
+
+@media (hover: hover) {
+  .primary-button:hover,
+  .mode-button.active:hover {
+    box-shadow: 0 16px 38px rgba(216, 182, 95, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.38);
+    transform: translateY(-1px);
+  }
+
+  .secondary-button:hover,
+  .ghost-button:hover,
+  .icon-button:hover,
+  .mode-button:hover {
+    border-color: rgba(216, 182, 95, 0.48);
+    background: linear-gradient(135deg, rgba(216, 182, 95, 0.12), rgba(255, 255, 255, 0.035));
+  }
+}
+
+.product-filters {
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  margin-bottom: 16px;
+}
+
+.compact-field input,
+.compact-field select,
+.form-field input,
+.form-field textarea,
+.form-field select {
+  min-height: 46px;
+  border-radius: 16px;
+  border-color: rgba(216, 182, 95, 0.22);
+  background: rgba(0, 0, 0, 0.22);
+  color: var(--cream);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.045);
+}
+
+.compact-field input[type='search'] {
+  padding-left: 42px;
+  background-image: radial-gradient(circle at 20px 50%, rgba(216,182,95,0.72) 0 2px, transparent 3px), linear-gradient(45deg, transparent 46%, rgba(216,182,95,0.72) 47% 53%, transparent 54%);
+  background-size: 100% 100%, 12px 12px;
+  background-position: 0 0, 27px 24px;
+  background-repeat: no-repeat;
+}
+
+.form-field input:focus,
+.form-field textarea:focus,
+.form-field select:focus,
+.compact-field input:focus,
+.compact-field select:focus {
+  border-color: rgba(255, 232, 168, 0.72);
+  box-shadow: 0 0 0 3px rgba(216, 182, 95, 0.12), inset 0 1px 0 rgba(255,255,255,0.06);
+}
+
+.lab-product-card,
+.sale-card {
+  border-radius: var(--radius-lg);
+  padding: 15px;
+  background:
+    linear-gradient(145deg, rgba(24, 22, 20, 0.82), rgba(8, 8, 8, 0.72)),
+    radial-gradient(circle at 100% 0%, rgba(216, 182, 95, 0.12), transparent 16rem);
+}
+
+.lab-product-card h3,
+.sale-card h3 {
+  font-size: 1.32rem;
+  margin-top: 8px;
+}
+
+.product-actions {
+  gap: 9px;
+}
+
+.muted-badge {
+  border-color: rgba(219, 166, 200, 0.24);
+  background: var(--rose-soft);
+  color: #f0c7dd;
+}
+
+.contract-ok,
+.diagnostic-ok,
+.safe-pill {
+  border-color: rgba(158, 230, 173, 0.3);
+  background: linear-gradient(135deg, rgba(158, 230, 173, 0.16), rgba(255,255,255,0.035));
+  color: var(--green);
+}
+
+.warning-card {
+  background:
+    radial-gradient(circle at 0% 0%, rgba(216, 182, 95, 0.2), transparent 15rem),
+    linear-gradient(145deg, rgba(48, 31, 14, 0.86), rgba(13, 9, 6, 0.9));
+}
+
+.diagnostic-warning,
+.danger-row,
+.form-errors {
+  border-color: var(--danger-border);
+  background: linear-gradient(135deg, var(--danger-soft), rgba(255,255,255,0.025));
+  color: rgba(255, 210, 210, 0.94);
+}
+
+.diagnostic-details {
+  border-radius: var(--radius-md);
+}
+
+.diagnostic-details summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  color: var(--gold-2);
+}
+
+.diagnostic-grid div,
+.diagnostic-row,
+.diagnostic-event,
+.diagnostic-warning,
+.diagnostic-ok,
+.diagnostic-user-agent {
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.diagnostic-toast {
+  border-color: rgba(158, 230, 173, 0.34);
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(158, 230, 173, 0.16), rgba(255,255,255,0.04));
+  color: var(--green);
+  box-shadow: var(--shadow-soft);
+}
+
+.modal-backdrop {
+  background: rgba(0, 0, 0, 0.72);
+  -webkit-backdrop-filter: blur(14px) saturate(1.1);
+  backdrop-filter: blur(14px) saturate(1.1);
+}
+
+.product-modal {
+  border-radius: 30px 30px 0 0;
+  background:
+    radial-gradient(circle at 50% -10%, rgba(216, 182, 95, 0.16), transparent 18rem),
+    linear-gradient(145deg, rgba(20, 18, 16, 0.96), rgba(8, 8, 8, 0.94));
+}
+
+.modal-handle {
+  background: linear-gradient(90deg, transparent, rgba(255, 232, 168, 0.48), transparent);
+}
+
+.image-upload-panel {
+  border-radius: 20px;
+}
+
+.image-preview-box img {
+  border-radius: 18px;
+  border-color: rgba(216, 182, 95, 0.24);
+  box-shadow: 0 14px 36px rgba(0,0,0,0.24);
+}
+
+.storage-note,
+.feature-list li {
+  border-radius: 18px;
+}
+
+.toggle-field {
+  border-radius: 18px;
+  background: rgba(255,255,255,0.035);
+}
+
+.hero-card,
+.panel-card,
+.diagnostic-toast,
+.lab-product-card,
+.sale-card {
+  animation: belaFadeSlide 520ms var(--ease-premium) both;
+}
+
+.panel-card:nth-of-type(2) { animation-delay: 35ms; }
+.panel-card:nth-of-type(3) { animation-delay: 70ms; }
+.panel-card:nth-of-type(4) { animation-delay: 105ms; }
+.panel-card:nth-of-type(5) { animation-delay: 140ms; }
+
+@keyframes belaFadeSlide {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 430px) {
+  .lab-page {
+    padding-inline: 11px;
+  }
+
+  .hero-card {
+    border-radius: 28px;
+  }
+
+  .panel-title-row {
+    flex-direction: column;
+  }
+
+  .safe-pill {
+    align-self: flex-start;
+  }
+
+  .mode-button,
+  .primary-button,
+  .secondary-button,
+  .ghost-button,
+  .icon-button {
+    min-height: 46px;
+  }
+
+  .product-actions {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 620px) {
+  .lab-page {
+    padding-top: max(28px, env(safe-area-inset-top));
+  }
+
+  .hero-card {
+    text-align: left;
+  }
+
+  .status-grid {
+    margin-top: 28px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .hero-card,
+  .panel-card,
+  .product-filters,
+  .lab-product-card,
+  .sale-card,
+  .product-modal,
+  .status-card,
+  .mini-stat {
+    background: rgba(18, 16, 14, 0.96);
+  }
+}
