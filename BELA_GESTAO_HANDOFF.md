@@ -7,7 +7,7 @@ Branch protegida de produção: `main`
 Versão atual visível:
 
 ```txt
-0.21.3-lab-products-ai-modal-rebuild
+0.21.4-lab-settings-tab-rebuild
 ```
 
 ## REGRA MÁXIMA ATUAL
@@ -50,13 +50,15 @@ O BLOCO 21B reconstruiu a aba Pagamentos.
 
 O BLOCO 21C reconstruiu a aba Relatório.
 
-O BLOCO 21D reconstruiu o modal de Novo Produto com área de IA em modo LAB.
+O BLOCO 21D reconstruiu o modal de Novo Produto com área de IA em modo LAB e corrigiu o fluxo Cloudinary automático.
+
+O BLOCO 21E reconstruiu a aba Backup/Configurações no estilo do sistema antigo.
 
 Entrada atual da LAB:
 
 ```txt
 lab/src/main.js
-  -> lab/src/cleanAppProducts.js
+  -> lab/src/cleanAppSettings.js
 ```
 
 Camadas visuais atuais:
@@ -68,72 +70,71 @@ lab/src/styles/clients-tab.css
 lab/src/styles/payments-tab.css
 lab/src/styles/report-tab.css
 lab/src/styles/products-tab.css
+lab/src/styles/settings-tab.css
 ```
 
-## BLOCO 21D — Reconstrução fiel da aba Produtos + Novo Produto com IA
+## BLOCO 21E — Reconstrução fiel da aba Backup/Configurações
 
 Status: implementado, aguardando teste no iPhone.
 
 Versão esperada na tela:
 
 ```txt
-0.21.3-lab-products-ai-modal-rebuild
+0.21.4-lab-settings-tab-rebuild
 ```
 
 Arquivos principais:
 
 ```txt
-lab/src/components/ProductFormModal.js
-lab/src/cleanAppProducts.js
-lab/src/styles/products-tab.css
+lab/src/services/settingsLabService.js
+lab/src/cleanAppSettings.js
+lab/src/styles/settings-tab.css
 lab/index.html
 lab/src/main.js
 lab/src/config/appConfig.js
-docs/bloco-21d-products-ai-modal-rebuild.md
+docs/bloco-21e-settings-tab-rebuild.md
 BELA_GESTAO_HANDOFF.md
 ```
 
 O que o bloco faz:
 
-- reconstrói o modal de Novo Produto para ficar mais próximo do sistema antigo;
-- adiciona área de fotos;
-- mantém foto por URL;
-- mantém foto do celular no fluxo LAB;
-- adiciona seção `IA do produto`;
-- adiciona botão `Preencher com IA LAB`;
-- adiciona botão `Analisar foto` em modo LAB;
-- adiciona chips de categoria;
-- adiciona chips de abas do catálogo;
-- mantém salvar/publicar em LAB/localStorage;
-- mantém Firebase, login Google, catálogo real e IA real bloqueados.
+- reconstrói Backup/Configurações no estilo do sistema antigo;
+- mostra Cloudinary/upload automático;
+- permite salvar/testar/limpar Cloudinary em LAB/localStorage;
+- mostra chave Gemini em modo seguro LAB;
+- permite salvar/testar/limpar chave Gemini local;
+- mostra/oculta preços em modo LAB;
+- simula sincronização de preços com catálogo;
+- permite selecionar produtos para carrossel da coleção;
+- permite limpar seleção do carrossel;
+- permite salvar carrossel em modo LAB.
 
-Limites conscientes ainda pendentes:
+Regras mantidas:
 
-- IA real Gemini na criação do produto;
-- análise real da foto;
-- upload real Cloudinary/serviço final;
-- múltiplas fotos reais;
-- carrossel real;
-- sincronização real com catálogo/Firebase.
+- não escreve no Firebase real;
+- não altera login Google real;
+- não altera catálogo público real;
+- não ativa Gemini real ainda;
+- não mexe no sistema ativo da esposa;
+- configurações ficam no localStorage da LAB.
 
-## Checklist de teste do BLOCO 21D
+## Checklist de teste do BLOCO 21E
 
-1. Abrir o preview Netlify da branch LAB.
-2. Confirmar versão `0.21.3-lab-products-ai-modal-rebuild`.
-3. Entrar em Produtos.
-4. Tocar em `Novo produto`.
-5. Confirmar que abre tela/modal grande.
-6. Ver área de fotos.
-7. Ver botão `Do celular`.
-8. Ver seção `IA do produto`.
-9. Tocar em `Preencher com IA LAB`.
-10. Confirmar que campos são preenchidos.
-11. Testar chips de categoria.
-12. Testar chips de abas do catálogo.
-13. Salvar produto.
-14. Confirmar que aparece na lista de produtos.
-15. Confirmar que nada pediu login Google.
-16. Confirmar que nada real foi alterado.
+1. Abrir preview Netlify.
+2. Confirmar versão `0.21.4-lab-settings-tab-rebuild`.
+3. Ir em Ajustes/Backup.
+4. Conferir card Cloudinary.
+5. Salvar Cloud name e Upload preset unsigned.
+6. Testar botão Testar.
+7. Conferir card Gemini.
+8. Salvar chave fake ou real só em LAB.
+9. Testar botão Testar.
+10. Alternar mostrar/ocultar preços.
+11. Simular sincronização de preços.
+12. Conferir carrossel da coleção.
+13. Selecionar produtos com foto.
+14. Salvar carrossel no catálogo LAB.
+15. Confirmar que nada pediu login Google e nada real foi alterado.
 
 ## Funções críticas finais que precisam continuar antes da entrega
 
@@ -157,18 +158,16 @@ Limites conscientes ainda pendentes:
 ## Próximo bloco recomendado
 
 ```txt
-BLOCO 21E — Reconstrução fiel da aba Backup/Configurações
+BLOCO 22 — Auditoria visual/funções pós-reconstrução 21A–21E
 ```
 
 Objetivo:
 
-- upload automático/Cloudinary em modo seguro;
-- chave Gemini em modo seguro;
-- mostrar/ocultar preços;
-- sincronizar preços com catálogo;
-- carrossel da coleção;
-- ainda sem escrita real até etapa controlada.
+- revisar Clientes, Pagamentos, Relatório, Produtos e Backup;
+- corrigir bugs visuais/mobile;
+- garantir que funções principais estão navegáveis;
+- só depois preparar Firebase em modo leitura.
 
 ## Como continuar em outro chat
 
-"Continue a reconstrução do Bela Gestão. Leia `BELA_GESTAO_HANDOFF.md` antes de qualquer alteração. A branch de trabalho é `rewrite-bela-gestao-lab`. Não mexa na `main`, não mexa no sistema antigo ativo da esposa, não escreva no Firebase real, não altere login Google real e não altere catálogo real. A versão atual é `0.21.3-lab-products-ai-modal-rebuild`. O BLOCO 21D alterou `lab/src/components/ProductFormModal.js`, criou `lab/src/cleanAppProducts.js` e `lab/src/styles/products-tab.css`, reconstruindo Novo Produto com seção de IA LAB. Próximo bloco sugerido: `BLOCO 21E — Reconstrução fiel da aba Backup/Configurações`."
+"Continue a reconstrução do Bela Gestão. Leia `BELA_GESTAO_HANDOFF.md` antes de qualquer alteração. A branch de trabalho é `rewrite-bela-gestao-lab`. Não mexa na `main`, não mexa no sistema antigo ativo da esposa, não escreva no Firebase real, não altere login Google real e não altere catálogo real. A versão atual é `0.21.4-lab-settings-tab-rebuild`. O BLOCO 21E criou `lab/src/services/settingsLabService.js`, `lab/src/cleanAppSettings.js` e `lab/src/styles/settings-tab.css`, reconstruindo Backup/Configurações no estilo antigo. Próximo bloco sugerido: `BLOCO 22 — Auditoria visual/funções pós-reconstrução 21A–21E`."
